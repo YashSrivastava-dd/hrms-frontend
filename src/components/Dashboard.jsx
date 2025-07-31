@@ -421,33 +421,17 @@ const Dashboard = ({ reloadHandel }) => {
   const latestData = attendanceData?.data?.map((item) => item.PunchRecords) || [];
   const punchDate = attendanceData?.data?.[0]?.AttendanceDate?.split("T")[0] || "No Date Available";
 
-  // State to manage fetching flags
-  const [attendanceLogsFetched, setAttendanceLogsFetched] = useState(false);
-  const [onLeaveStatusFetched, setOnLeaveStatusFetched] = useState(false);
-  
   // State to track selected day for attendance display
   const [selectedDayData, setSelectedDayData] = useState(null);
   const [selectedDayDate, setSelectedDayDate] = useState(null);
 
   useEffect(() => {
-    // Check if we need to fetch attendance logs for HR-Admin
-    if (!attendanceLogsFetched) {
-      dispatch(getAttendanceLogsDayWise());
-      setAttendanceLogsFetched(true); // Prevent re-fetching
-    }
-
-    // Fetch leave status only once
-    if (!onLeaveStatusFetched) {
-      dispatch(getOnLeaveStatusAction());
-      setOnLeaveStatusFetched(true); // Prevent re-fetching
-    }
-
-    // Fetch attendance logs of the employee if not fetched already
-    if (!attendanceLogsFetched) {
+    dispatch(getAttendanceLogsDayWise());
+    dispatch(getOnLeaveStatusAction());
+    if (employeeId) {
       dispatch(getAttendenceLogsOfEmploye(employeeId));
-      setAttendanceLogsFetched(true); // Prevent re-fetching
     }
-  }, [reloadHandel]);
+  }, [dispatch, employeeId]);
   const onClick = () => {
     toast.dismiss()
   }
@@ -466,7 +450,7 @@ const Dashboard = ({ reloadHandel }) => {
   return (
     <div className="w-full flex flex-col min-h-full overflow-x-hidden">
       <main className="space-y-6 flex-1">
-        {loading || attendanceLoading ? (
+        {loading ? (
           <div className="flex justify-center items-center h-screen">
             <div className="text-center">
               <div className="animate-spin rounded-full h-16 w-16 sm:h-24 sm:w-24 md:h-32 md:w-32 border-b-4 border-blue-500 mx-auto"></div>
@@ -570,7 +554,7 @@ const Dashboard = ({ reloadHandel }) => {
                         </div>
                       ))}
                     </div> */}
-                    {attendanceLoading ? <SkeletonCard height="h-40" /> : <Calendar onDaySelect={handleDaySelection} />}
+                    {attendanceLoading ? <SkeletonCard height="h-40" /> : <Calendar employeeId={employeeId} userRole={userDataList?.role} onDaySelect={handleDaySelection} />}
                   </div>
                   <div className="lg:col-span-1">
                     <div className="h-full">

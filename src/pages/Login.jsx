@@ -56,7 +56,7 @@ const Login = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
-    if (token) {
+    if (token && data?.data) {
       toast.success(data?.message, {
         position: "top-center",
         autoClose: 5000,
@@ -72,13 +72,8 @@ const Login = () => {
       setTimeout(() => {
         navigate("/dashboard"); // Redirect to dashboard if token exists
       }, 1000);
-      return;
     }
-    else {
-      navigate("/")
-    }
-
-  }, [navigate, msg, data]);
+  }, [navigate, data]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

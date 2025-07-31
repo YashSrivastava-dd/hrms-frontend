@@ -40,7 +40,7 @@ function Navbar({ onToggleSidebar }) {
 
   useEffect(() => {
     dispatch(getPunchInDataAction());
-  }, [timer, locationInfo.state]);
+  }, []); // Only run once on mount
 
   const startTimer = () => {
     const id = setInterval(() => setTimer((prev) => prev + 1), 1000);

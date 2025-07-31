@@ -93,7 +93,9 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
   // Effects
   useEffect(() => {
-    dispatch(getCalenderLogsApiAction(monthYear, employeeId));
+    if (employeeId) {
+      dispatch(getCalenderLogsApiAction(monthYear, employeeId));
+    }
   }, [monthYear, employeeId, dispatch]);
 
   useEffect(() => {

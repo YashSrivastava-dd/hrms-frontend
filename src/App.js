@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // Pages and Components
@@ -17,36 +17,27 @@ import NotFound from "./pages/NotFound";
 import EmployeePayroleTable from "./components/EmployeePayroleTabel";
 import ManagerApproval from "./components/ManagerComponent/ManagerApproval";
 
+const DESKTOP_BREAKPOINT = 768;
+
 function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Disable right-click and specific key combinations
-  useEffect(() => {
-    const handleContextMenu = (e) => e.preventDefault();
-    const handleKeyDown = (e) => {
-      if (
-        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
-        e.key === "F12"
-      ) {
-        e.preventDefault();
-      }
-    };
+  const handleOnline = useCallback(() => setIsOnline(true), []);
+  const handleOffline = useCallback(() => setIsOnline(false), []);
 
-    document.addEventListener("contextmenu", handleContextMenu);
-    document.addEventListener("keydown", handleKeyDown);
+  const handleResize = useCallback(() => {
+    if (window.innerWidth >= DESKTOP_BREAKPOINT) {
+      setIsSidebarOpen(false);
+    }
+  }, []);
 
-    return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
   }, []);
 
   // Online/offline status listener
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
@@ -54,23 +45,76 @@ function App() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, []);
+  }, [handleOnline, handleOffline]);
 
-  // Close sidebar when screen size changes to desktop
+  // Responsive sidebar behavior
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsSidebarOpen(false);
-      }
-    };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [handleResize]);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen((prev) => !prev);
-  };
+  // Memoized route configuration for better performance
+  const protectedRoutes = useMemo(() => [
+    {
+      path: "/dashboard",
+      element: (
+        <ProtectedRoute>
+          <div className="flex flex-col min-h-screen">
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+          </div>
+        </ProtectedRoute>
+      )
+    },
+    {
+      path: "/statusManagment",
+      element: (
+        <ProtectedRoute>
+          <StatusManagment />
+        </ProtectedRoute>
+      )
+    },
+    {
+      path: "/profile",
+      element: (
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      )
+    },
+    {
+      path: "/payslipAndPayRole",
+      element: (
+        <ProtectedRoute>
+          <EmployeePayroleTable />
+        </ProtectedRoute>
+      )
+    },
+    {
+      path: "/managerApproved",
+      element: (
+        <ProtectedRoute>
+          <ManagerApproval />
+        </ProtectedRoute>
+      )
+    },
+    {
+      path: "/singleTematesProfile",
+      element: (
+        <ProtectedRoute>
+          <SingleTeamatesProfile />
+        </ProtectedRoute>
+      )
+    },
+    {
+      path: "/singleTeamateProfile/:employeeId",
+      element: (
+        <ProtectedRoute>
+          <SingleTeamatesProfile />
+        </ProtectedRoute>
+      )
+    }
+  ], [toggleSidebar, isSidebarOpen]);
 
   // Show error page when offline
   if (!isOnline) {
@@ -88,65 +132,9 @@ function App() {
           <Route path="/confirm_password" element={<ConfirmPassword />} />
 
           {/* Protected Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <div className="flex flex-col min-h-screen">
-                  <Navbar onToggleSidebar={toggleSidebar} />
-                  <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
-                </div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/statusManagment"
-            element={
-              <ProtectedRoute>
-                <StatusManagment />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/payslipAndPayRole"
-            element={
-              <ProtectedRoute>
-                <EmployeePayroleTable />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/managerApproved"
-            element={
-              <ProtectedRoute>
-                <ManagerApproval />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/singleTematesProfile"
-            element={
-              <ProtectedRoute>
-                <SingleTeamatesProfile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/singleTeamateProfile/:employeeId"
-            element={
-              <ProtectedRoute>
-                <SingleTeamatesProfile />
-              </ProtectedRoute>
-            }
-          />
+          {protectedRoutes.map(({ path, element }) => (
+            <Route key={path} path={path} element={element} />
+          ))}
 
           {/* Fallback route */}
           <Route path="*" element={<NotFound />} />
