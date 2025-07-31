@@ -234,8 +234,13 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
                                                         </td>
                                                         <td className="p-3 text-center hidden sm:table-cell">
                                                             <button
-                                                                className="bg-blue-600 text-white p-2 rounded"
+                                                                className={`p-2 rounded ${
+                                                                    employee.Duration === 0 
+                                                                        ? "bg-gray-400 text-gray-600 cursor-not-allowed" 
+                                                                        : "bg-blue-600 text-white hover:bg-blue-700"
+                                                                }`}
                                                                 onClick={() => handleOpenModal(employee)}
+                                                                disabled={employee.Duration === 0}
                                                             >
                                                                 Punch Records
                                                             </button>

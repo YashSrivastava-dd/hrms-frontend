@@ -75,11 +75,11 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm border-b border-gray-300 pb-2">
                         {[
                             { label: "Bank Name", value: payslipModelData?.employee_basic_details?.bank_name },
-                            { label: "Bank IFSC", value: payslipModelData?.employee_basic_details?.bank_ifsc },
-                            { label: "Bank Account", value: payslipModelData?.employee_basic_details?.bank_account },
+                            { label: "Bank IFSC Code", value: payslipModelData?.employee_basic_details?.bank_ifsc },
+                            { label: "Bank Account Number", value: payslipModelData?.employee_basic_details?.bank_account },
                             { label: "Payment Mode", value: payslipModelData?.employee_basic_details?.payment_mode },
-                            { label: "Pan Card", value: payslipModelData?.employee_basic_details?.employee_pan },
-                            { label: "Adhar Number", value: payslipModelData?.employee_basic_details?.employee_aadhar },
+                            { label: "PAN Card Number", value: payslipModelData?.employee_basic_details?.employee_pan },
+                            { label: "Aadhaar Number", value: payslipModelData?.employee_basic_details?.employee_aadhar },
                             { label: "UAN Number", value: payslipModelData?.employee_basic_details?.employee_uan },
 
                         ].map((item, index) => (
@@ -100,7 +100,7 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
                     </div>
 
                     {[
-                        { label: "Basic", amount: payslipModelData?.salary_details?.basic_salary },
+                        { label: "Basic Salary", amount: payslipModelData?.salary_details?.basic_salary },
                         { label: "House Rent Allowance", amount: payslipModelData?.salary_details?.hra },
                         { label: "Travel Allowance", amount: payslipModelData?.salary_details?.travel_allowances },
                         { label: "Special Allowance", amount: payslipModelData?.salary_details?.special_allowances },
@@ -124,9 +124,9 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
 
                     {[
                         { label: "Transport and others", amount: payslipModelData?.salary_details?.transport_or_others },
-                        { label: "Employee EPF", amount: payslipModelData?.salary_details?.employee_pf },
-                        { label: "Employee TDS", amount: payslipModelData?.salary_details?.tds },
-                        { label: "Employee ESI", amount: payslipModelData?.salary_details?.employee_esi },
+                        { label: "Employee Provident Fund", amount: payslipModelData?.salary_details?.employee_pf },
+                        { label: "Tax Deducted at Source", amount: payslipModelData?.salary_details?.tds },
+                        { label: "Employee State Insurance", amount: payslipModelData?.salary_details?.employee_esi },
                         // { label: "Advance / Loan", amount: payslipModelData?.salary_details?.employee_esi },
 
                     ].map((item, index) => (

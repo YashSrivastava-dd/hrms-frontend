@@ -113,68 +113,109 @@ function Navbar({ onToggleSidebar }) {
   const isPunchedOut = punchInData?.OutTime === "NA" || punchInState;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white shadow-md w-full">
-      {/* Logo + Sidebar */}
-      <div className="flex items-center justify-between w-full sm:w-auto">
-        <button onClick={onToggleSidebar} className="block md:hidden p-2 text-gray-700">
-          <FaBars size={20} />
-        </button>
-        <img src={ddHealthcare} alt="Logo" className="w-20 h-10 ml-2" />
-      </div>
+    <div className="bg-white shadow-md w-full">
+      {/* Main Navbar */}
+      <div className="flex items-center justify-between p-4">
+        {/* Left Section - Menu & Logo */}
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={onToggleSidebar} 
+            className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 md:hidden"
+            aria-label="Toggle menu"
+          >
+            <FaBars size={20} />
+          </button>
+          <img src={ddHealthcare} alt="DD Healthcare Logo" className="w-20 h-10 md:w-24 md:h-12" />
+        </div>
 
-      {/* Punch and Info */}
-      <div className="flex flex-col sm:flex-row sm:gap-4 gap-2 items-start sm:items-center mt-4 sm:mt-0 w-full sm:w-auto">
-        {userType !== "HR-Admin" && userType !== "Super-Admin" && (
-          <>
-            {isPunchedOut ? (
-              <button
-                className="px-4 py-2 bg-red-500 text-white rounded-full text-sm flex items-center justify-center w-full sm:w-40"
-                onClick={handlePunchOut}
-              >
-                <span className="hidden sm:inline">Punch Out</span>
-                <FaRegClock className="sm:hidden text-white" />
-              </button>
-            ) : !isPunchedIn ? (
-              <button
-                className="px-4 py-2 bg-yellow-500 text-white rounded-full text-sm flex items-center justify-center"
-                onClick={() => setIsCameraOpen(true)}
-              >
-                <span className="hidden sm:inline">Punch In</span>
-                <FaRegClock size={20} className="sm:hidden text-white" />
-              </button>
-            ) : null}
+        {/* Center Section - Punch Controls (Mobile) */}
+        <div className="flex items-center space-x-2 md:hidden">
+          {userType !== "HR-Admin" && userType !== "Super-Admin" && (
+            <>
+              {isPunchedOut ? (
+                <button
+                  className="px-3 py-2 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors duration-200"
+                  onClick={handlePunchOut}
+                >
+                  <FaRegClock className="text-white" />
+                </button>
+              ) : !isPunchedIn ? (
+                <button
+                  className="px-3 py-2 bg-yellow-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-yellow-600 transition-colors duration-200"
+                  onClick={() => setIsCameraOpen(true)}
+                >
+                  <FaRegClock size={16} className="text-white" />
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
 
-            {locationInfo.city && (
-              <span className="text-xs sm:text-sm text-gray-700 max-w-[90vw] sm:max-w-none truncate">
-                Location: {locationInfo.suburb}, {locationInfo.city}, {locationInfo.state}
-              </span>
-            )}
-            {isPunchedIn && (
-              <span className="text-xs sm:text-sm text-gray-700">
-                Punch In Time: {punchInData?.InTime?.split(" ")[1]}
-              </span>
-            )}
-          </>
-        )}
-
-        {/* Notifications & Profile */}
-        <div className="flex items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
-          <IoMdNotifications
-            size={24}
-            className="cursor-pointer"
-            onClick={() => setIsModalOpen(true)}
-          />
-          <h3 className="font-bold text-xs text-red-300">
-            {userDataRaw?.length?.toString(2)}
-          </h3>
-          <span className="text-xs sm:text-sm text-gray-700 font-medium truncate max-w-[80px]">
-            {userData.employeeName}
-          </span>
+        {/* Right Section - Notifications & Profile */}
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative"
+              aria-label="Notifications"
+            >
+              <IoMdNotifications size={24} />
+              {userDataRaw?.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {userDataRaw.length}
+                </span>
+              )}
+            </button>
+          </div>
+          
+          <div className="hidden sm:flex items-center space-x-2">
+            <span className="text-sm text-gray-700 font-medium truncate max-w-[120px]">
+              {userData.employeeName}
+            </span>
+          </div>
+          
           <div className="bg-blue-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold">
             {userData.employeeName?.charAt(0)}
           </div>
         </div>
       </div>
+
+      {/* Punch Controls Section (Desktop) */}
+      {userType !== "HR-Admin" && userType !== "Super-Admin" && (
+        <div className="hidden md:flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
+          <div className="flex items-center space-x-4">
+            {isPunchedOut ? (
+              <button
+                className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm flex items-center space-x-2 hover:bg-red-600 transition-colors duration-200"
+                onClick={handlePunchOut}
+              >
+                <FaRegClock />
+                <span>Punch Out</span>
+              </button>
+            ) : !isPunchedIn ? (
+              <button
+                className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm flex items-center space-x-2 hover:bg-yellow-600 transition-colors duration-200"
+                onClick={() => setIsCameraOpen(true)}
+              >
+                <FaRegClock />
+                <span>Punch In</span>
+              </button>
+            ) : null}
+
+            {locationInfo.city && (
+              <span className="text-sm text-gray-700">
+                📍 {locationInfo.suburb}, {locationInfo.city}, {locationInfo.state}
+              </span>
+            )}
+          </div>
+
+          {isPunchedIn && (
+            <span className="text-sm text-gray-700">
+              ⏰ Punch In Time: {punchInData?.InTime?.split(" ")[1]}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Notification Modal */}
       {isModalOpen && (
@@ -202,7 +243,7 @@ function Navbar({ onToggleSidebar }) {
                 />
                 <button
                   onClick={handleCapture}
-                  className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700"
+                  className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition-colors duration-200"
                 >
                   Capture Image
                 </button>
@@ -217,13 +258,13 @@ function Navbar({ onToggleSidebar }) {
                         setCapturedImage(null);
                         setShowImageOptions(false);
                       }}
-                      className="bg-yellow-500 text-white w-full py-2 rounded hover:bg-yellow-600"
+                      className="bg-yellow-500 text-white w-full py-2 rounded hover:bg-yellow-600 transition-colors duration-200"
                     >
                       Retry Image
                     </button>
                     <button
                       onClick={handleUploadImage}
-                      className="bg-green-600 text-white w-full py-2 rounded hover:bg-green-700"
+                      className="bg-green-600 text-white w-full py-2 rounded hover:bg-green-700 transition-colors duration-200"
                     >
                       Upload Image
                     </button>

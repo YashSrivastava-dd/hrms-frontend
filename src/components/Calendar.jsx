@@ -1,283 +1,137 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { MdChevronLeft, MdChevronRight } from "react-icons/md";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { MdChevronLeft, MdChevronRight, MdToday, MdEvent } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
 import { getCalenderLogsApiAction, postApplyCompOffLeaveAction, postApplyRegularizationAction, postVendorMeetingAction } from "../store/action/userDataAction";
 import { Bounce, ToastContainer, toast } from "react-toastify";
 
-function Calendar({ employeeId, userRole }) {
+// Constants
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const LEAVE_TYPE_MAP = {
+  'shortLeave': 'SL',
+  'medicalLeave': 'ML',
+  'casualLeave': 'CL',
+  'earnedLeave': 'EL',
+  'compOffLeave': 'C-Off',
+  'optionalLeave': 'OL',
+  'vendor-meeting': 'Vendor-M',
+  'regularized': 'RL',
+  'uninformedLeave': 'UL',
+  'bereavementLeave': 'BL'
+};
+
+const TOAST_CONFIG = {
+  position: "top-center",
+  autoClose: 1500,
+  hideProgressBar: false,
+  closeOnClick: false,
+  pauseOnHover: true,
+  draggable: true,
+  progress: undefined,
+  theme: "colored",
+  transition: Bounce,
+};
+
+function Calendar({ employeeId, userRole, onDaySelect }) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [selectDuration, setSelectDuration] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false); // Modal visibility state
-  const [selectedDay, setSelectedDay] = useState(null); // Selected day state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
   const [reason, setReason] = useState("");
   const [selectType, setSelectType] = useState("");
+  const [actionType, setActionType] = useState(""); // 'leave' or 'compOff'
+  const [hide, setunhide] = useState(0);
+  const [clickedDay, setClickedDay] = useState(null);
+  const [showAbbreviations, setShowAbbreviations] = useState(false);
+
   const dispatch = useDispatch();
+  
+  // Redux selectors
   const { data: dataaa } = useSelector((state) => state.calenderLogsData);
+  const { data, error } = useSelector((state) => state.compoffReducer);
+  const { data: dataa } = useSelector((state) => state.userData);
+  const { data: data1, error: error1 } = useSelector((state) => state.regularizeReducer);
+
   const dayLogs = dataaa?.data;
-  console.log("dataaa?.data2", dataaa?.data2)
-  const { data: leaveData, error: newError } = useSelector((state) => state.compoffReducer);
-
-  const { data, error } = useSelector((state) => state.compoffReducer)
-
-  const { loading, data: dataa } = useSelector((state) => state.userData);
   const userDataList = dataa?.data || [];
 
-  const { data: data1, error: error1 } = useSelector((state) => state.regularizeReducer)
+  // Memoized values
+  const monthYear = useMemo(() => 
+    `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`, 
+    [currentYear, currentMonth]
+  );
+
+  const calendarDays = useMemo(() => {
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+    const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    const days = [];
+    // Add empty slots for days before the first day of the month
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      days.push(null);
+    }
+    // Add the actual days of the month
+    for (let i = 1; i <= totalDays; i++) {
+      days.push(i);
+    }
+    return days;
+  }, [currentYear, currentMonth]);
+
+  const isToday = useMemo(() => {
+    const today = new Date();
+    return (day) => 
+      day === today.getDate() &&
+      currentMonth === today.getMonth() &&
+      currentYear === today.getFullYear();
+  }, [currentMonth, currentYear]);
+
+  // Effects
   useEffect(() => {
-    const monthYear = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
     dispatch(getCalenderLogsApiAction(monthYear, employeeId));
-  }, [currentMonth, currentYear, dispatch]);
+  }, [monthYear, employeeId, dispatch]);
 
   useEffect(() => {
     if (data?.message) {
-      toast.success(data?.message, {
-        position: "top-center",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      })
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      toast.success(data.message, TOAST_CONFIG);
+      setTimeout(() => window.location.reload(), 1500);
       return;
-    };
+    }
     if (data1?.message) {
-      toast.success(data1?.message, {
-        position: "top-center",
-        autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        transition: Bounce,
-      });
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      toast.success(data1.message, TOAST_CONFIG);
+      setTimeout(() => window.location.reload(), 1500);
       return;
     }
-  }, [data1?.message])
+  }, [data?.message, data1?.message]);
+
   useEffect(() => {
-    toast.error(error1, {
-      position: "top-center",
-      autoClose: 1500,
-      hideProgressBar: false,
-      closeOnClick: false,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "colored",
-      transition: Bounce,
-    });
-  }, [error1])
-
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const daysOfWeek = ["SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT"];
-
-  const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
+    if (error1) {
+      toast.error(error1, TOAST_CONFIG);
     }
-  };
+  }, [error1]);
 
-  const handlePrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
-  };
-
-  const [hide, setunhide] = useState(0)
-  const handleDayClick = (day) => {
-    if (!day) return;
-
-    let today = new Date();
-    const selectedDate = new Date(currentYear, currentMonth, day);
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(today.getDate() - 7);
-
-    const inTimeData = getDayType(day);
-    const newTime = getNewTimeForComparison(day);
-
-    // if (inTimeData && newTime && inTimeData?.inTimeData > newTime) 
-    // {
-    //   setunhide(1)
-    //   return;
-    // }
-    // if (inTimeData && newTime && inTimeData?.inTimeData > newTime) {
-    //   setunhide(0)
-    //   // toast.error("Regularization can only be applied before 9:30 AM", {
-    //   //   position: "top-center",
-    //   //   autoClose: 1500,
-    //   //   hideProgressBar: false,
-    //   //   closeOnClick: false,
-    //   //   pauseOnHover: true,
-    //   //   draggable: true,
-    //   //   progress: undefined,
-    //   //   theme: "colored",
-    //   //   transition: Bounce,
-    //   // });
-    //   return;
-    // }
-
-    // Condition: Current month, not a future date
-    if (
-      selectedDate.getMonth() === today.getMonth() &&
-      selectedDate.getFullYear() === today.getFullYear() &&
-      selectedDate <= today
-    ) {
-      setSelectedDay(day);
-      setModalOpen(true);
-    }
-    // Condition: Last week of previous month
-    else if (
-      selectedDate.getFullYear() === today.getFullYear() &&
-      selectedDate.getMonth() === today.getMonth() - 1 &&
-      new Date(currentYear, currentMonth, 1) - selectedDate <= 7 * 24 * 60 * 60 * 1000
-    ) {
-      setSelectedDay(day);
-      setModalOpen(true);
-    } else {
-      toast.error(
-        "You can only select short leave for today or regularization for dates within the current month up to today.",
-        {
-          position: "top-center",
-          autoClose: 1500,
-          hideProgressBar: false,
-          closeOnClick: false,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "colored",
-          transition: Bounce,
-        }
-      );
-      return;
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!selectType) {
-      alert("Select leave type");
-      return;
-    }
-    if (!reason) {
-      alert("Provide a reason for leave");
-      return;
-    }
-    let leaveType = selectType;
-
-    if (leaveType === 'compOff') {
-      // Create a Date object and format it
-      let compOffDate = `${selectedDay} ${months[currentMonth]} ${currentYear}`;
-      dispatch(postApplyCompOffLeaveAction(compOffDate, reason));
-      setModalOpen(false);
-      return;
-    } else if (leaveType === "vendor-meeting") {
-      const newleaveStartDate = `${selectedDay} ${months[currentMonth]} ${currentYear}`;
-      const leaveStartDate = new Date(newleaveStartDate).toISOString().slice(0, 10);
-      dispatch(postVendorMeetingAction({ leaveType, leaveStartDate, reason, duration: selectDuration }))
-      return;
-    } else {
-      const compOffDate = `${selectedDay} ${months[currentMonth]} ${currentYear}`;
-      // For other leave types, similar formatting
-      const date = new Date(compOffDate + " 00:00:00"); // Force local time
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-      const day = String(date.getDate()).padStart(2, '0');
-      const formattedDate = `${year}-${month}-${day}`;
-
-      dispatch(postApplyRegularizationAction(leaveType, formattedDate, reason));
-      setModalOpen(false);
-      return;
-    }
-
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setSelectedDay(null); // Reset the selected day
-  };
-
-  const getNewTimeForComparison = (day) => {
-    const formattedDate = `${day} ${months[currentMonth]} ${currentYear}`;
-    let newTime = null;
-
-    dayLogs?.find((off) => {
-      if (off.AttendanceDate === formattedDate) {
-        let timeParts = [];
-
-        try {
-          timeParts = off.shiftTime.startAt.split(':'); // Splitting the time into hours and minutes
-        } catch (error) {
-          alert("Error: Invalid time format in 'startAt'.");
-        }
-        const startTime = new Date();
-        // Set the hours and minutes for the start time
-        startTime.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0);
-
-        // Adding 30 minutes
-        startTime.setMinutes(startTime.getMinutes() + 30);
-
-        // Formatting the new time as 'HH:mm'
-        newTime = startTime.getHours().toString().padStart(2, '0') + ':' + startTime.getMinutes().toString().padStart(2, '0');
-      }
-    });
-
-    return newTime;
-  };
-
-  const getDayType = (day) => {
-    // Format the date properly
-    const formattedDate = `${day} ${months[currentMonth]} ${currentYear}`;
-    let inTimeData = null;
-
-    // Find the corresponding day off log from dayLogs
+  // Memoized functions
+  const getDayType = useCallback((day) => {
+    const formattedDate = `${day} ${MONTHS[currentMonth]} ${currentYear}`;
     const dayOff = dayLogs?.find((off) => off.AttendanceDate === formattedDate);
-
-    // Debugging: Log to check if we found the dayOff data
-    // console.log('Formatted Date:', formattedDate);
-    // console.log('Found DayOff:', dayOff);
-
-    // If dayOff is found, extract inTimeData
-    if (dayOff) {
-      inTimeData = dayOff?.InTime?.split(' ')[1]?.slice(0, 5); // Extract time from InTime field
+    
+    if (!dayOff) {
+      return {
+        AttendanceStatus: null,
+        inTimeData: null,
+        isLeaveTaken: null,
+        Status: null,
+        leaveType: null
+      };
     }
 
-    // Debugging: Log the extracted inTimeData
-    // console.log('inTimeData:', inTimeData);
-
-    // Return both AttendanceStatus and inTimeData as an object
+    const inTimeData = dayOff?.InTime?.split(' ')[1]?.slice(0, 5);
+    
     return {
       AttendanceStatus: dayOff?.AttendanceStatus || null,
       inTimeData: inTimeData || null,
@@ -285,261 +139,546 @@ function Calendar({ employeeId, userRole }) {
       Status: dayOff?.Status || null,
       leaveType: dayOff?.leaveType || null
     };
-  };
-  const [type, setType] = useState('');
+  }, [dayLogs, currentMonth, currentYear]);
 
-  const getDayClass = (day) => {
+  const getDayClass = useCallback((day) => {
     if (!day) return "bg-transparent";
-    const today = new Date();
-    const isToday =
-      day === today.getDate() &&
-      currentMonth === today.getMonth() &&
-      currentYear === today.getFullYear();
+    
+    // Check if this is the clicked day
+    const isClickedDay = clickedDay === day;
+    
+    if (isToday(day)) {
+      return isClickedDay 
+        ? "bg-blue-600 text-white shadow-lg ring-2 ring-blue-400 ring-4" 
+        : "bg-blue-500 text-white shadow-lg ring-2 ring-blue-300";
+    }
 
-    // Get day type from getDayType
     const { AttendanceStatus, inTimeData, isLeaveTaken, Status } = getDayType(day);
 
-    if (isToday) {
-      return "bg-blue-400 text-white";
+    // Base classes for different attendance statuses
+    let baseClass = "";
+    
+    // Leave taken cases
+    if (AttendanceStatus === "Present" || isLeaveTaken === true || 
+        (AttendanceStatus === "Absent" && isLeaveTaken === true)) {
+      baseClass = "bg-white text-gray-900 border-2 border-gray-900 shadow-sm hover:shadow-md";
+    }
+    // Absent cases
+    else if (AttendanceStatus === "Absent" && (Status === 'Present' || Status === 'Absent')) {
+      baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
+    }
+    else if (AttendanceStatus === "Absent" || Status === 'WeeklyOff') {
+      baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
+    }
+    // Present cases
+    else if (AttendanceStatus === "Full Day") {
+      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
+    }
+    else if (AttendanceStatus === "Half Day") {
+      baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+    }
+    else if (AttendanceStatus === "Holiday") {
+      baseClass = "bg-blue-100 text-blue-800 border-2 border-blue-300 hover:bg-blue-200";
+    }
+    else if (inTimeData) {
+      baseClass = "bg-blue-100 text-blue-800 border-2 border-blue-300 hover:bg-blue-200";
+    }
+    else {
+      baseClass = "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50";
     }
 
-    // Debugging: Ensure condition is being hit
-    if (AttendanceStatus === "Absent" && Status === 'Present') {
-      return "text-red-800 border-2 border-red-300";  // Absent without leave
-    }
-    if (AttendanceStatus === "Present" || isLeaveTaken === true) {
-      return "bg-white text-black border-2 border-black";  // Leave taken
-    }
-    if (AttendanceStatus === "Absent" && isLeaveTaken === true) {
-
-      return "bg-white text-black border-2 border-black";  // Leave taken
+    // Add selection indicator for clicked day
+    if (isClickedDay) {
+      baseClass += " ring-2 ring-purple-500 ring-offset-2 shadow-lg";
     }
 
-    if (AttendanceStatus === "Absent" && Status === 'Present') {
-      return "text-red-800 border-2 border-red-300";  // Absent without leave
+    return baseClass;
+  }, [getDayType, isToday, clickedDay]);
+
+  const getLeaveTypeDisplay = useCallback((leaveType) => {
+    return LEAVE_TYPE_MAP[leaveType] || leaveType;
+  }, []);
+
+  // Event handlers
+  const handleNextMonth = useCallback(() => {
+    setCurrentMonth(prev => {
+      if (prev === 11) {
+        setCurrentYear(currentYear + 1);
+        return 0;
+      }
+      return prev + 1;
+    });
+  }, [currentYear]);
+
+  const handlePrevMonth = useCallback(() => {
+    setCurrentMonth(prev => {
+      if (prev === 0) {
+        setCurrentYear(currentYear - 1);
+        return 11;
+      }
+      return prev - 1;
+    });
+  }, [currentYear]);
+
+  const handleDayClick = useCallback((day) => {
+    if (!day) return;
+
+    const today = new Date();
+    const selectedDate = new Date(currentYear, currentMonth, day);
+
+    // Check if date is valid for selection
+    const isValidCurrentMonth = 
+      selectedDate.getMonth() === today.getMonth() &&
+      selectedDate.getFullYear() === today.getFullYear() &&
+      selectedDate <= today;
+
+    const isValidPreviousMonth = 
+      selectedDate.getFullYear() === today.getFullYear() &&
+      selectedDate.getMonth() === today.getMonth() - 1 &&
+      new Date(currentYear, currentMonth, 1) - selectedDate <= 7 * 24 * 60 * 60 * 1000;
+
+    // Get the selected day's data from calendar logs
+    const formattedDate = `${day} ${MONTHS[currentMonth]} ${currentYear}`;
+    const selectedDayData = dayLogs?.find((log) => log.AttendanceDate === formattedDate);
+    
+    // Call the callback to update the attendance display
+    if (onDaySelect && selectedDayData) {
+      onDaySelect(selectedDayData, formattedDate);
     }
-    if (AttendanceStatus === "Absent" && Status === 'Absent') {
-      return "text-red-800 border-2 border-red-300";  // Absent without leave
+    
+    // Set the clicked day for visual feedback
+    setClickedDay(day);
+
+    if (isValidCurrentMonth || isValidPreviousMonth) {
+      setSelectedDay(day);
+      setModalOpen(true);
+    } else {
+      toast.error(
+        "You can only select short leave for today or regularization for dates within the current month up to today.",
+        TOAST_CONFIG
+      );
     }
-    if (AttendanceStatus === "Absent" || Status === 'WeeklyOff') {
-      return "bg-gray-100 text-gray-800 hover:bg-gray-300 hover:text-white";  // Absent without leave
+  }, [currentYear, currentMonth, dayLogs, onDaySelect]);
+
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault();
+    
+    if (!actionType) {
+      toast.error("Please select an action (Apply Leave or Raise Comp-Off)", TOAST_CONFIG);
+      return;
     }
-    if (AttendanceStatus === "Full Day") {
-      return "text-green-800 border-2 border-lime-300 hover:bg-green-500";  // Present full day
+    
+    if (!selectType) {
+      toast.error("Please select a leave type", TOAST_CONFIG);
+      return;
+    }
+    
+    if (!reason) {
+      toast.error("Please provide a reason for leave", TOAST_CONFIG);
+      return;
     }
 
-    if (AttendanceStatus === "Half Day") {
-      return "text-yellow-800 border-2 border-amber-200";  // Half-day
+    const selectedDate = `${selectedDay} ${MONTHS[currentMonth]} ${currentYear}`;
+
+    if (actionType === 'compOff') {
+      // Handle Comp-Off submissions (Half Day or Full Day)
+      if (selectType === 'halfDay') {
+        dispatch(postApplyCompOffLeaveAction(selectedDate, reason, 0.5));
+      } else if (selectType === 'fullDay') {
+        dispatch(postApplyCompOffLeaveAction(selectedDate, reason, 1));
+      }
+    } else if (actionType === 'leave') {
+      // Handle Leave submissions (Short Leave, Vendor Meeting, Regularization)
+      const date = new Date(selectedDate + " 00:00:00");
+      const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      
+      if (selectType === 'vendor-meeting') {
+        dispatch(postVendorMeetingAction({ 
+          leaveType: selectType, 
+          leaveStartDate: formattedDate, 
+          reason, 
+          duration: "1" 
+        }));
+      } else {
+        dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
+      }
     }
+    
+    setModalOpen(false);
+  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch]);
 
-    if (AttendanceStatus === "Holiday") {
-      return "text-blue-800 border-2 border-blue-300";  // Holiday
-    }
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    setSelectedDay(null);
+    setReason("");
+    setSelectType("");
+    setActionType("");
+    setSelectDuration(null);
+    setClickedDay(null);
+  }, []);
 
-    if (inTimeData) {
-      return "text-blue-800 border-2 border-blue-300";  // Example: Late, based on inTimeData
-    }
-
-    return "bg-gray-100 text-gray-800 hover:bg-gray-300"; // Default case
-  };
-
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay(); // First day of the month (0-6)
-  const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate(); // Total days in the month
-  const calendarDays = [];
-  // Add empty slots for the days before the first day of the month
-  for (let i = 0; i < firstDayOfMonth; i++) {
-    calendarDays.push(null); // Use null for empty slots
-  }
-
-  // Add the actual days of the month
-  for (let i = 1; i <= totalDays; i++) {
-    calendarDays.push(i); // Push actual days
-  }
-
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     setSelectType(e.target.value);
-  };
-  const handelChangeDuration = (e) => {
+  }, []);
+
+  const handleChangeDuration = useCallback((e) => {
     setSelectDuration(e.target.value);
-  }
+  }, []);
+
   return (
-    <>
-      <div className="flex gap-2 mb-2 text-xs sm:text-sm md:text-base">
-        <h3>Leave Define: </h3>
-        <span>EL: (Earned Leave) / CL: (Casual Leave) / OL: (Optional Leave) / ML: (Medical Leave) / </span>
-      </div>
-      <div className="flex gap-2 mb-2 text-xs sm:text-sm md:text-base">
-        <h3>Total Working Days: </h3>
-        <span>{dataaa?.data2?.totalWorkingDays}</span>
-      </div>
-      <div className="flex justify-center items-center bg-gray-100">
-        <ToastContainer />
-        <div className="w-full bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="flex items-center justify-between bg-gray-200 p-4">
-            <button
-              className="text-base sm:text-lg md:text-xl text-gray-600 hover:text-gray-900"
-              onClick={handlePrevMonth}
-            >
-              <MdChevronLeft />
-            </button>
-            <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-800">
-              {months[currentMonth]} {currentYear}
-            </h2>
-            <button
-              className="text-base sm:text-lg md:text-xl text-gray-600 hover:text-gray-900"
-              onClick={handleNextMonth}
-            >
-              <MdChevronRight />
-            </button>
+    <div className="space-y-6">
+      <ToastContainer />
+      
+      {/* Calendar Header with Stats */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+              <MdEvent className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-xl font-semibold text-gray-900">Attendance Calendar</h2>
+              <p className="text-xs sm:text-sm text-gray-600">Track your daily attendance and leave status</p>
+            </div>
           </div>
-          <div className="grid grid-cols-7 gap-2 p-4">
-            {daysOfWeek?.map((day, days) => (
+          <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <MdToday className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+              <span className="text-gray-700">Working Days:</span>
+              <span className="font-semibold text-gray-900">{dataaa?.data2?.totalWorkingDays || 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Calendar Navigation */}
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <button
+            onClick={handlePrevMonth}
+            className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            aria-label="Previous month"
+          >
+            <MdChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+          <h3 className="text-base sm:text-xl font-bold text-gray-900">
+            {MONTHS[currentMonth]} {currentYear}
+          </h3>
+          <button
+            onClick={handleNextMonth}
+            className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            aria-label="Next month"
+          >
+            <MdChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+            {DAYS_OF_WEEK.map((day, index) => (
               <div
-                key={days}
-                className="text-center font-semibold text-gray-600 text-xs sm:text-sm md:text-base"
+                key={index}
+                className="px-1 sm:px-2 py-2 sm:py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide"
               >
                 {day}
               </div>
             ))}
+          </div>
+
+          {/* Calendar Days */}
+          <div className="grid grid-cols-7 gap-px bg-gray-200">
             {calendarDays.map((day, index) => {
-              if (day) {
-                const { leaveType } = getDayType(day);
+              if (!day) {
                 return (
-                  <>
-                    {userRole === "Super-Admin" ? (
-                      <div
-                        key={`day-${index}`}
-                        className={`h-12 flex items-center justify-center rounded-lg font-medium cursor-pointer text-xs sm:text-sm md:text-base ${getDayClass(
-                          day
-                        )}`}
-                      >
-                        {day}
-                      </div>
-                    ) : (
-                      <div
-                        key={`day-${index}`}
-                        onClick={() => handleDayClick(day)}
-                        className={`h-12 flex items-center justify-center rounded-lg font-medium cursor-pointer text-xs sm:text-sm md:text-base ${getDayClass(
-                          day
-                        )}`}
-                      >
-                        {day} {leaveType ? `${leaveType === 'shortLeave' ? "SL" : leaveType === 'medicalLeave' ? "ML" : leaveType === "casualLeave" ? "CL" : leaveType === "earnedLeave" ? "EL" : leaveType === "compOffLeave" ? "Comp-L" : leaveType === "optionalLeave" ? "OL" : leaveType === "vendor-meeting" ? "Vendor-M" : leaveType}` : ""}
-                      </div>
-                    )}
-                  </>
+                  <div 
+                    key={`empty-${index}`} 
+                    className="bg-white min-h-[50px] sm:min-h-[80px] cursor-pointer" 
+                    onClick={() => setClickedDay(null)}
+                  />
                 );
               }
-              return <div key={`empty-${index}`} className="h-12"></div>;
+
+              const { leaveType } = getDayType(day);
+              const dayClass = getDayClass(day);
+              const leaveTypeDisplay = leaveType ? getLeaveTypeDisplay(leaveType) : "";
+
+              return userRole === "Super-Admin" ? (
+                <div
+                  key={`day-${index}`}
+                  className={`min-h-[50px] sm:min-h-[80px] p-1 flex flex-col items-center justify-center text-xs sm:text-base font-medium transition-all duration-200 ${dayClass}`}
+                >
+                  <span className="text-center font-semibold">{day}</span>
+                </div>
+              ) : (
+                <button
+                  key={`day-${index}`}
+                  onClick={() => handleDayClick(day)}
+                  className={`min-h-[50px] sm:min-h-[80px] p-1 flex flex-col items-center justify-center text-xs sm:text-base font-medium transition-all duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${dayClass}`}
+                  aria-label={`Select ${day} ${MONTHS[currentMonth]} ${currentYear}`}
+                >
+                  <span className="text-center font-semibold">{day}</span>
+                  {leaveTypeDisplay && (
+                    <span className="text-xs font-bold mt-0.5 sm:mt-1 px-1 py-0.5 bg-blue-100 text-blue-800 rounded">
+                      {leaveTypeDisplay}
+                    </span>
+                  )}
+                </button>
+              );
             })}
           </div>
         </div>
 
-        {modalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-            <div className="bg-white rounded-lg p-6 w-11/12 sm:w-2/3 md:w-1/2 lg:w-1/3">
-              <h2 className="text-sm sm:text-base md:text-lg font-semibold mb-4">
-                Selected Date: {selectedDay} {months[currentMonth]} {currentYear}
-              </h2>
-              <div className="mb-4">
+        {/* Leave Abbreviations Section */}
+        <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></div>
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-800">Leave Abbreviations</h4>
+            </div>
+            <div className="relative">
+              <button 
+                onClick={() => setShowAbbreviations(!showAbbreviations)}
+                className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg text-xs sm:text-sm text-blue-700 hover:text-blue-800 font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <svg className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${showAbbreviations ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                View
+              </button>
+              {showAbbreviations && (
+                <div className="absolute bottom-full right-0 mb-2 w-56 sm:w-64 bg-white border border-blue-200 rounded-xl shadow-xl z-10 overflow-hidden">
+                  <div className="p-2 sm:p-3 space-y-2 sm:space-y-3">
+                    {/* Calendar Day Indicators */}
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 pb-1 border-b border-gray-100">
+                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full"></div>
+                        <h5 className="text-xs font-semibold text-gray-800 uppercase tracking-wide">Calendar Days</h5>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-100 border-2 border-green-300 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Full Day</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-yellow-100 border-2 border-yellow-300 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Half Day</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-100 border-2 border-red-300 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Absent</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-100 border-2 border-blue-300 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Holiday</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white border border-gray-300 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Regular</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded shadow-lg flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Today</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white border-2 border-purple-500 ring-2 ring-purple-500 ring-offset-1 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Selected</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Leave Abbreviations */}
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 pb-1 border-b border-gray-100">
+                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-green-500 rounded-full"></div>
+                        <h5 className="text-xs font-semibold text-gray-800 uppercase tracking-wide">Leave Abbreviations</h5>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded">SL</span>
+                          <span className="text-xs text-gray-700">Short</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-red-600 font-semibold bg-red-50 px-1 py-0.5 rounded">ML</span>
+                          <span className="text-xs text-gray-700">Medical</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-yellow-600 font-semibold bg-yellow-50 px-1 py-0.5 rounded">CL</span>
+                          <span className="text-xs text-gray-700">Casual</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-green-600 font-semibold bg-green-50 px-1 py-0.5 rounded">EL</span>
+                          <span className="text-xs text-gray-700">Earned</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-purple-600 font-semibold bg-purple-50 px-1 py-0.5 rounded">C-Off</span>
+                          <span className="text-xs text-gray-700">Comp-Off</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 px-1 py-0.5 rounded">OL</span>
+                          <span className="text-xs text-gray-700">Optional</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-orange-600 font-semibold bg-orange-50 px-1 py-0.5 rounded">VM</span>
+                          <span className="text-xs text-gray-700">Vendor</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-teal-600 font-semibold bg-teal-50 px-1 py-0.5 rounded">RL</span>
+                          <span className="text-xs text-gray-700">Regularized</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-pink-600 font-semibold bg-pink-50 px-1 py-0.5 rounded">UL</span>
+                          <span className="text-xs text-gray-700">Uninformed</span>
+                        </div>
+                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <span className="text-xs text-gray-600 font-semibold bg-gray-50 px-1 py-0.5 rounded">BL</span>
+                          <span className="text-xs text-gray-700">Bereavement</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                  Date: {selectedDay} {MONTHS[currentMonth]} {currentYear}
+                </h2>
+                <button
+                  onClick={closeModal}
+                  className="p-1 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                  aria-label="Close modal"
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2 sm:gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setActionType('leave')}
+                  className={`flex-1 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 ${
+                    actionType === 'leave' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  Apply Leave
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActionType('compOff')}
+                  className={`flex-1 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 ${
+                    actionType === 'compOff' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  Raise Comp-Off
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Leave Type Selection */}
+              <div>
                 <label
                   htmlFor="leaveType"
-                  className="block text-xs sm:text-sm md:text-base font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Leave Type<span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="leaveType"
-                  name="leaveType"
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm md:text-base"
-                >
-                  <option>Select Leave Type</option>
-                  {selectedDay === new Date().getDate() ? (
-                    <>
-                      {userDataList?.maxShortLeave === "0" ? (
-                        <option disabled>
-                          Short leave / {userDataList?.maxShortLeave}
-                        </option>
-                      ) : (
-                        <option value="shortLeave">Short leave</option>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {userDataList?.maxRegularization === "0" || hide === 1 ? (
-                        <option disabled>
-                          Regularization / {userDataList?.maxRegularization}
-                        </option>
-                      ) : (
-                        <>
-                          <option value="regularized">Regularization</option>
-                          <option value="vendor-meeting">Vendor Meeting</option>
-                          <option value="compOff">Comp-Off</option>
-                          <option value="outside">Outside</option>
-                        </>
-                      )}
-                    </>
-                  )}
-                </select>
-                {selectType === 'vendor-meeting' ?
-                  <div className="mb-4 mt-4">
-                    <label
-                      htmlFor="leaveType"
-                      className="block text-xs sm:text-sm md:text-base font-medium text-gray-700"
-                    >
-                      Select Duration<span className="text-red-500">*</span>
-                    </label>
-
-                    <select
-                      id="leaveType"
-                      name="leaveType"
-                      onChange={handelChangeDuration}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm md:text-base"
-                    >
-                      <option value="">Duration</option>
-                      <option value=".5">First Half</option>
-                      <option value=".5">Second Half</option>
-                    </select>
+                <div className="relative">
+                  <select
+                    id="leaveType"
+                    name="leaveType"
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 text-sm sm:text-base appearance-none bg-white"
+                  >
+                    <option value="">✓ Select Leave Type</option>
+                    {actionType === 'leave' ? (
+                      // Apply Leave options - exactly 3 options
+                      <>
+                        <option value="shortLeave">Short Leave</option>
+                        <option value="vendor-meeting">Vendor Meeting</option>
+                        <option value="regularized">Regularization</option>
+                      </>
+                    ) : actionType === 'compOff' ? (
+                      // Comp-Off options - exactly 2 options
+                      <>
+                        <option value="halfDay">Half Day</option>
+                        <option value="fullDay">Full Day</option>
+                      </>
+                    ) : (
+                      // Default options when no action is selected
+                      <>
+                        <option value="shortLeave">Short Leave</option>
+                        <option value="vendor-meeting">Vendor Meeting</option>
+                        <option value="regularized">Regularization</option>
+                      </>
+                    )}
+                  </select>
+                  {/* Custom dropdown arrow */}
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
-                  : null}
+                </div>
               </div>
+
+              {/* Reason Field */}
               <div>
                 <label
                   htmlFor="reason"
-                  className="block text-xs sm:text-sm md:text-base font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Reason :
+                  Enter your reason<span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="reason"
                   name="reason"
-                  rows="4"
+                  rows="3"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="Provide your reason"
-                  className="w-full mt-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm md:text-base"
-                ></textarea>
+                  placeholder="Provide your reason for leave/comp-off..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 resize-none text-sm sm:text-base"
+                />
               </div>
-              <div className="flex justify-between mt-4">
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 sm:gap-3 pt-4">
                 <button
+                  type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-black text-xs sm:text-sm md:text-base"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium text-sm sm:text-base"
                 >
                   Close
                 </button>
                 <button
-                  onClick={handleSubmit}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs sm:text-sm md:text-base"
+                  type="submit"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-sm sm:text-base"
                 >
                   Submit
                 </button>
               </div>
-            </div>
+            </form>
           </div>
-        )}
-      </div>
-    </>
-
+        </div>
+      )}
+    </div>
   );
 }
+
 export default Calendar;

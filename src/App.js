@@ -19,6 +19,7 @@ import ManagerApproval from "./components/ManagerComponent/ManagerApproval";
 
 function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Disable right-click and specific key combinations
   useEffect(() => {
@@ -55,89 +56,102 @@ function App() {
     };
   }, []);
 
-  // Show error page when offline
-  if (!isOnline) {
-    return <ErrorPage />;
-  }
+  // Close sidebar when screen size changes to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(false);
+      }
+    };
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarOpen((prev) => !prev);
   };
 
-  
+  // Show error page when offline
+  if (!isOnline) {
+    return <ErrorPage />;
+  }
+
   return (
     <Router>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Login />} />
-        <Route path="/forget_password" element={<ForgetPassword />} />
-        <Route path="/otp_verification" element={<OtpVerification />} />
-        <Route path="/confirm_password" element={<ConfirmPassword />} />
+      <div className="min-h-screen bg-gray-50">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Login />} />
+          <Route path="/forget_password" element={<ForgetPassword />} />
+          <Route path="/otp_verification" element={<OtpVerification />} />
+          <Route path="/confirm_password" element={<ConfirmPassword />} />
 
-        {/* Protected Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Navbar onToggleSidebar={toggleSidebar}/>
-              <Sidebar isSidebarOpen={isSidebarOpen}/>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/statusManagment"
-          element={
-            <ProtectedRoute>
-              <StatusManagment />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/payslipAndPayRole"
-          element={
-            <ProtectedRoute>
-              <EmployeePayroleTable />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/managerApproved"
-          element={
-            <ProtectedRoute>
-              <ManagerApproval />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/singleTematesProfile"
-          element={
-            <ProtectedRoute>
-              <SingleTeamatesProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/singleTeamateProfile/:employeeId"
-          element={
-            <ProtectedRoute>
-              <SingleTeamatesProfile />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <div className="flex flex-col min-h-screen">
+                  <Navbar onToggleSidebar={toggleSidebar} />
+                  <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/statusManagment"
+            element={
+              <ProtectedRoute>
+                <StatusManagment />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payslipAndPayRole"
+            element={
+              <ProtectedRoute>
+                <EmployeePayroleTable />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/managerApproved"
+            element={
+              <ProtectedRoute>
+                <ManagerApproval />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/singleTematesProfile"
+            element={
+              <ProtectedRoute>
+                <SingleTeamatesProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/singleTeamateProfile/:employeeId"
+            element={
+              <ProtectedRoute>
+                <SingleTeamatesProfile />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Fallback route */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          {/* Fallback route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
     </Router>
   );
 }

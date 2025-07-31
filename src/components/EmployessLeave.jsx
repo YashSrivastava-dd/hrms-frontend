@@ -12,7 +12,7 @@ const EmployessLeave = () => {
     const { data } = useSelector((state) => state.employeeLeaveStatus);
     const { data: dataa1 } = useSelector((state) => state.compoffData);
     const { data: vendorData } = useSelector((state) => state.singleVendorLogsData);
-console.log('vendorData',vendorData)
+    console.log('vendorData', vendorData);
     const { data: dataa } = useSelector((state) => state.deleteLeaveByEmoployee);
     const [selectDays, setLeaveDays] = useState('');
     const leaveData = data?.data;
@@ -41,10 +41,6 @@ console.log('vendorData',vendorData)
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
-    // const currentVendorData = filterVendorData?.slice(
-    //     (currentPage - 1) * itemsPerPage,
-    //     currentPage * itemsPerPage
-    // );
 
     const totalPages = Math.ceil(filteredLeaveData?.length / itemsPerPage); // Total pages
     const [openUndoModel, setOpenUndoModel] = useState(false);
@@ -80,92 +76,110 @@ console.log('vendorData',vendorData)
     const getLeaveTypeStyle = (type) => {
         switch (type) {
             case "Annual":
-                return "bg-green-100 text-green-700";
+                return "bg-emerald-100 text-emerald-700 border-emerald-200";
             case "Unpaid":
-                return "bg-red-100 text-red-700";
+                return "bg-red-100 text-red-700 border-red-200";
             case "Medical":
-                return "bg-blue-100 text-blue-700";
+                return "bg-blue-100 text-blue-700 border-blue-200";
             case "Emergency":
-                return "bg-yellow-100 text-yellow-700";
+                return "bg-amber-100 text-amber-700 border-amber-200";
             default:
-                return "bg-gray-100 text-gray-700";
+                return "bg-gray-100 text-gray-700 border-gray-200";
+        }
+    };
+
+    const getStatusStyle = (status) => {
+        switch (status) {
+            case "Pending":
+                return "bg-yellow-100 text-yellow-700 border-yellow-200";
+            case "Approved":
+                return "bg-green-100 text-green-700 border-green-200";
+            case "Rejected":
+                return "bg-red-100 text-red-700 border-red-200";
+            default:
+                return "bg-gray-100 text-gray-700 border-gray-200";
         }
     };
 
     // Function to render Leave Status table
     const renderLeaveTable = (leaveData) => {
         return leaveData?.map((leave, index) => (
-            <tr key={index} className={`border-b ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                <td className="px-4 py-4 text-black text-start flex items-center gap-2">{leave?.employeeInfo?.employeeName}</td>
-                <td className="px-4 py-4 text-black text-start">{leave?.employeeInfo?.designation}</td>
-                <td className="px-4 py-4 text-black text-start">{leave.leaveStartDate}</td>
-                <td className="px-4 py-4 text-black text-start">{leave.leaveEndDate}</td>
-                <td className="px-4 py-4 text-black text-start">{leave.totalDays}</td>
-                <td className="px-4 py-4 text-black text-start">
-                    <span className={`px-3 py-1 rounded-full text-black text-sm font-medium ${getLeaveTypeStyle(leave.leaveType)}`}>
-                        {leave?.leaveType?.toUpperCase().split('LEAVE')[0]} LEAVE
+            <tr key={index} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm">
+                    <div className="font-medium text-gray-900 text-xs sm:text-sm">{leave?.employeeInfo?.employeeName}</div>
+                    <div className="text-xs text-gray-500 hidden sm:block">{leave?.employeeInfo?.designation}</div>
+                </td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{leave.leaveStartDate}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{leave.leaveEndDate}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{leave.totalDays}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(leave.leaveType)}`}>
+                        <span className="hidden sm:inline">{leave?.leaveType?.toUpperCase().split('LEAVE')[0]} LEAVE</span>
+                        <span className="sm:hidden">{leave?.leaveType?.toUpperCase().split('LEAVE')[0]}</span>
                     </span>
                 </td>
-                <td className="px-4 py-4 text-black text-start">
-                    {leave.leaveType === "medicalLeave" ?
-                        <Link to={leave?.location} className="px-2 py-2 bg-blue-600 text-black text-white rounded">
-                            View File
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    {leave.leaveType === "medicalLeave" ? (
+                        <Link to={leave?.location} className="inline-flex items-center px-2 sm:px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors">
+                            <span className="hidden sm:inline">View File</span>
+                            <span className="sm:hidden">File</span>
                         </Link>
-                        : '--'
-                    }
+                    ) : (
+                        <span className="text-gray-400 text-xs">--</span>
+                    )}
                 </td>
-                <td className="px-4 py-4 text-black text-start">{leave?.reason}</td>
-                <td className="px-4 py-4 text-black text-start">{leave?.remarks || "---"}</td>
-                <td className="px-4 py-4 text-black text-start">
-                    <span style={leave.status === 'Pending' ? { backgroundColor: '#FFFDD0', color: '#FFBF00', padding: '8px', borderRadius: '8px' } : leave.status === 'Approved' ? { padding: '8px', borderRadius: '8px', backgroundColor: '#DBFDD2', color: '#325328' } : { backgroundColor: '#FFD6D7', color: '#C6373C', padding: '8px', borderRadius: '8px' }}>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[200px] truncate" title={leave?.reason}>
+                    {leave?.reason}
+                </td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{leave?.remarks || "---"}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(leave.status)}`}>
                         {leave.status}
                     </span>
                 </td>
-                <td className="px-4 py-4 text-black text-start">
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
                     {leave.status === 'Pending' ? (
                         <button
-                            className="px-2 py-2 bg-red-600 text-black text-white rounded"
+                            className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-50 text-red-700 text-xs font-medium rounded-md hover:bg-red-100 transition-colors"
                             onClick={() => dispatch(deleteLeaveRequestAction({ id: leave?._id }))}
                         >
                             Delete
                         </button>
                     ) : leave.status === 'Approved' ? (
-                        leave?.leaveType === 'uninformedLeave' ||
+                        leave?.leaveType === 'UL' ||
                             leave?.leaveType === 'optionalLeave' ||
                             leave?.leaveType === 'shortLeave' ? (
-                            "- -"
+                            <span className="text-gray-400 text-xs">--</span>
                         ) : leave?.revertLeave?.requestedDateTime === "" ? (
                             <button
-                                className="px-2 w-20 py-2 bg-blue-600 text-black text-white rounded"
+                                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
                                 onClick={() => {
                                     setOpenUndoModel(true);
                                     setUserId(leave?._id);
                                 }}
-                                style={{ backgroundColor: '#305cde' }}
                             >
                                 UNDO
                             </button>
                         ) : (
                             <button
-                                className="px-2 w-20 py-2 bg-blue-600 text-black text-white rounded"
+                                className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    leave.revertLeave.status === 'Pending'
+                                        ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                                        : leave.revertLeave.status === 'Rejected'
+                                            ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                            : 'bg-green-50 text-green-700 hover:bg-green-100'
+                                }`}
                                 onClick={() => {
                                     setOpenUndoModel(true);
                                     setUserId(leave?._id);
                                 }}
-                                style={
-                                    leave.revertLeave.status === 'Pending'
-                                        ? { backgroundColor: '#ffbf00', cursor: 'not-allowed' }
-                                        : leave.revertLeave.status === 'Rejected'
-                                            ? { backgroundColor: '#d0312d', cursor: 'not-allowed' }
-                                            : { backgroundColor: 'green', cursor: 'not-allowed' }
-                                }
+                                disabled={leave.revertLeave.status !== 'Pending'}
                             >
                                 {leave.revertLeave.status === 'Pending' ? 'Pending' : leave.revertLeave.status === 'Rejected' ? 'Rejected' : 'Approved'}
                             </button>
                         )
                     ) : null}
                 </td>
-
             </tr>
         ));
     };
@@ -173,94 +187,139 @@ console.log('vendorData',vendorData)
     // Function to render Compoff Status table
     const renderCompoffTable = (compoffData) => {
         return compoffData?.map((item, index1) => (
-            <tr key={index1} className={`border-b ${index1 % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                <td className="px-6 py-6 text-black text-start flex items-center gap-2">
-                    {item?.employeeInfo?.employeeName}
+            <tr key={index1} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index1 % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm">
+                    <div className="font-medium text-gray-900 text-xs sm:text-sm">{item?.employeeInfo?.employeeName}</div>
+                    <div className="text-xs text-gray-500 hidden sm:block">{item?.employeeInfo?.designation || '---'}</div>
                 </td>
-                <td className="px-6 py-6 text-black text-start">{item?.employeeInfo?.designation || '---'}</td>
-                <td className="px-6 py-6 text-black text-start">{item.compOffDate || '---'}</td>
-                <td className="px-6 py-6 text-black text-start">{item.compOffDate || '---'}</td>
-                <td className="px-6 py-6 text-black text-start">{item.totalDays}</td>
-                <td className="px-6 py-6 text-black text-start">
-                    <span className={`px-3 py-1 rounded-full text-black text-sm font-medium ${getLeaveTypeStyle(item.leaveType)}`}>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.compOffDate || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.compOffDate || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{item.totalDays}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
                         COMP-OFF
                     </span>
                 </td>
-                <td className="px-6 py-6 text-black text-start">{item?.reason}</td>
-                <td className="px-6 py-6 text-black text-start">{item?.status}</td>
-                <td className="px-6 py-6 text-black text-start">{item?.comments}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[200px] truncate" title={item?.reason}>
+                    {item?.reason}
+                </td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{item?.comments || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(item.status)}`}>
+                        {item?.status}
+                    </span>
+                </td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className="text-gray-400 text-xs">--</span>
+                </td>
             </tr>
         ));
     };
 
     const renderVendorTable = (filterVendorData) => {
         return filterVendorData?.map((item, index1) => (
-            <tr key={index1} className={`border-b ${index1 % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                <td className="px-6 py-6 text-black text-start flex items-center gap-2">
-                    {item?.employeeInfo?.employeeName}
+            <tr key={index1} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index1 % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm">
+                    <div className="font-medium text-gray-900 text-xs sm:text-sm">{item?.employeeInfo?.employeeName}</div>
+                    <div className="text-xs text-gray-500 hidden sm:block">{item?.employeeInfo?.contactNo || '---'}</div>
                 </td>
-                <td className="px-6 py-6 text-black text-start">{item?.employeeInfo?.contactNo || '---'}</td>
-                <td className="px-6 py-6 text-black text-start">{item.dateTime?.split(' ')[0] || '---'}</td>
-                <td className="px-6 py-6 text-black text-start">{item.dateTime?.split(' ')[0] || '---'}</td>
-                <td className="px-6 py-6 text-black text-start">{item.totalDays}</td>
-                <td className="px-6 py-6 text-black text-start">
-                    <span className={`px-3 py-1 rounded-full text-black text-sm font-medium ${getLeaveTypeStyle(item.leaveType)}`}>
-                        {item?.leaveType.toUpperCase()}
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.dateTime?.split(' ')[0] || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.dateTime?.split(' ')[0] || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{item.totalDays}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(item.leaveType)}`}>
+                        <span className="hidden sm:inline">{item?.leaveType.toUpperCase()}</span>
+                        <span className="sm:hidden">{item?.leaveType.toUpperCase().substring(0, 3)}</span>
                     </span>
                 </td>
-                <td className="px-6 py-6 text-black text-start">---</td>
-                <td className="px-6 py-6 text-black text-start">{item?.reason}</td>
-                <td className="px-6 py-6 text-black text-start">{item?.remarks || '---'}</td>
-                <td className="px-6 py-6 text-black text-start">{item?.status}</td>
-                <td className="px-6 py-6 text-black text-start">---</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className="text-gray-400 text-xs">---</span>
+                </td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[200px] truncate" title={item?.reason}>
+                    {item?.reason}
+                </td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{item?.remarks || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(item.status)}`}>
+                        {item?.status}
+                    </span>
+                </td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                    <span className="text-gray-400 text-xs">---</span>
+                </td>
             </tr>
         ));
     };
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="p-3 sm:p-6 bg-gray-50 min-h-screen">
             <ToastContainer />
+            
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
                 <AddEmployee tittleBtn="+ Create Leave Request" />
             </div>
 
-            {/* Buttons for Leave Status and Compoff Status */}
-            <div className="flex gap-6 mb-4">
+            {/* Status Tabs - Mobile Responsive */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
                 <button
                     onClick={() => setSelectedTab('leave')}
-                    className="py-4 text-center text-gray-800 rounded"
+                    className={`p-3 sm:p-4 rounded-lg shadow-sm transition-all duration-200 ${
+                        selectedTab === 'leave' 
+                            ? 'bg-white shadow-md border-2 border-blue-500' 
+                            : 'bg-white hover:shadow-md'
+                    }`}
                 >
-                    <div className="p-6 bg-white rounded-lg shadow-lg flex items-center justify-between w-80 h-32 transition-transform transform hover:scale-105 cursor-pointer">
-                        <h2 className="text-2xl font-bold">Leave Status</h2>
+                    <div className="flex items-center justify-center w-full sm:w-64 h-16 sm:h-20">
+                        <h2 className={`text-lg sm:text-xl font-semibold ${
+                            selectedTab === 'leave' ? 'text-blue-600' : 'text-gray-700'
+                        }`}>
+                            Leave Status
+                        </h2>
                     </div>
                 </button>
                 <button
                     onClick={() => setSelectedTab('compoff')}
-                    className="p-4 text-center text-white rounded"
+                    className={`p-3 sm:p-4 rounded-lg shadow-sm transition-all duration-200 ${
+                        selectedTab === 'compoff' 
+                            ? 'bg-white shadow-md border-2 border-gray-900' 
+                            : 'bg-white hover:shadow-md'
+                    }`}
                 >
-                    <div className="p-6 bg-black rounded-lg shadow-lg flex items-center justify-between w-80 h-32 transition-transform transform hover:scale-105 cursor-pointer">
-                        <h2 className="text-2xl font-bold"> Compoff Status</h2>
+                    <div className="flex items-center justify-center w-full sm:w-64 h-16 sm:h-20">
+                        <h2 className={`text-lg sm:text-xl font-semibold ${
+                            selectedTab === 'compoff' ? 'text-gray-900' : 'text-gray-700'
+                        }`}>
+                            Compoff Status
+                        </h2>
                     </div>
                 </button>
                 <button
                     onClick={() => setSelectedTab('vendor')}
-                    className="p-4 text-center text-white rounded"
+                    className={`p-3 sm:p-4 rounded-lg shadow-sm transition-all duration-200 ${
+                        selectedTab === 'vendor' 
+                            ? 'bg-white shadow-md border-2 border-blue-500' 
+                            : 'bg-white hover:shadow-md'
+                    }`}
                 >
-                    <div className="p-6 bg-blue-500 rounded-lg shadow-lg flex items-center justify-between w-80 h-32 transition-transform transform hover:scale-105 cursor-pointer">
-                        <h2 className="text-2xl font-bold">Vendor Status</h2>
+                    <div className="flex items-center justify-center w-full sm:w-64 h-16 sm:h-20">
+                        <h2 className={`text-lg sm:text-xl font-semibold ${
+                            selectedTab === 'vendor' ? 'text-blue-600' : 'text-gray-700'
+                        }`}>
+                            Vendor Status
+                        </h2>
                     </div>
                 </button>
             </div>
 
             {/* Filter Dropdown */}
-            <div className="flex items-center mb-6">
-                <label htmlFor="leaveStatusFilter" className="mr-2 text-gray-700">Filter by Status:</label>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center mb-4 sm:mb-6 gap-2 sm:gap-0">
+                <label htmlFor="leaveStatusFilter" className="text-sm font-medium text-gray-700">Filter by Status:</label>
                 <select
                     id="leaveStatusFilter"
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full sm:w-auto"
                 >
                     <option value="All">All</option>
                     <option value="Approved">Approved</option>
@@ -270,42 +329,63 @@ console.log('vendorData',vendorData)
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto bg-white shadow-md rounded-lg">
-                <table className="w-full text-left text-sm text-gray-500">
-                    <thead className="bg-gray-100 text-gray-700 uppercase text-sm">
-                        <tr>
-                            <th className="px-6 py-6 text-start">Name</th>
-                            <th className="px-6 py-6 text-start">Position</th>
-                            <th className="px-6 py-6 text-start">Start Date</th>
-                            <th className="px-6 py-6 text-start">End Date</th>
-                            <th className="px-6 py-6 text-start">Total Days</th>
-                            <th className="px-6 py-6 text-start">Leave Type</th>
-                            {selectedTab === "compoff" ? "" :
-                                <>
-                                    <th className="px-6 py-6 text-start">Attachment</th>
-                                    <th className="px-6 py-6 text-start">Reason For rejection</th>
-                                </>
-                            }
-                            <th className="px-6 py-6 text-start">Remarks</th>
-                            <th className="px-6 py-6 text-start">Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {selectedTab === 'leave' ? renderLeaveTable(currentLeaveData) :selectedTab ==="compoff"? renderCompoffTable(currentCompoffData):renderVendorTable(filterVendorData)}
-                    </tbody>
-
-                </table>
+            <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Name & Position</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+                                {selectedTab !== "compoff" && (
+                                    <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Attachment</th>
+                                )}
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Remarks</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {selectedTab === 'leave' ? renderLeaveTable(currentLeaveData) : 
+                             selectedTab === "compoff" ? renderCompoffTable(currentCompoffData) : 
+                             renderVendorTable(filterVendorData)}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {openUndoModel &&
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-lg relative z-10 p-6">
-                        <button onClick={closeModal} className="absolute top-10 right-4 text-gray-400 hover:text-gray-600">
+            {/* Pagination */}
+            <div className="flex justify-end mt-4 sm:mt-6">
+                {currentPage > 1 && (
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors mr-2"
+                    >
+                        Previous
+                    </button>
+                )}
+                {currentPage < totalPages && (
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        Next
+                    </button>
+                )}
+            </div>
+
+            {/* Undo Modal */}
+            {openUndoModel && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-lg relative z-10 p-4 sm:p-6">
+                        <button onClick={closeModal} className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 hover:text-gray-600">
                             <RxCross2 size={20} />
                         </button>
-                        <h2 className="text-xl font-semibold text-gray-800">Revert leave</h2>
-                        <div className="flex flex-col gap-4 mt-4">
+                        <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Revert Leave</h2>
+                        <div className="flex flex-col gap-4">
                             <input
                                 type="number"
                                 id="days"
@@ -313,42 +393,23 @@ console.log('vendorData',vendorData)
                                 placeholder="How many days?"
                                 value={selectDays}
                                 onChange={(e) => setLeaveDays(e.target.value)}
-                                className="w-full mt-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             />
                             <button
                                 onClick={() => {
                                     const id = userId;
                                     const revertedDays = selectDays;
                                     dispatch(postrevertLeaveRequest(revertedDays, id));
+                                    closeModal();
                                 }}
-                                className="text-white bg-red-700 hover:bg-red-800 font-medium rounded-lg text-sm px-5 py-2.5"
+                                className="w-full text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm px-5 py-3 transition-colors"
                             >
                                 Revert Leave
                             </button>
                         </div>
                     </div>
                 </div>
-            }
-
-            <div className="flex justify-end mt-4">
-                {currentPage === 1 ? "" :
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        className="px-8 py-2 text-white bg-blue-600 rounded-lg ml-2"
-                    >
-                        Previous
-                    </button>
-                }
-                {currentPage === totalPages ? "" :
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        className="px-8 py-2 text-white bg-blue-600 rounded-lg ml-2"
-                    >
-                        Next
-                    </button>
-                }
-            </div>
-
+            )}
         </div>
     );
 };
