@@ -570,7 +570,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 <button
                   type="button"
                   onClick={() => setActionType('leave')}
-                  className={`flex-1 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 ${
+                  className={`flex-1 px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-200 ${
                     actionType === 'leave' 
                       ? 'bg-blue-600 text-white shadow-md' 
                       : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
@@ -581,7 +581,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 <button
                   type="button"
                   onClick={() => setActionType('compOff')}
-                  className={`flex-1 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 ${
+                  className={`flex-1 px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-200 ${
                     actionType === 'compOff' 
                       ? 'bg-blue-600 text-white shadow-md' 
                       : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
@@ -606,7 +606,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                     id="leaveType"
                     name="leaveType"
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 text-sm sm:text-base appearance-none bg-white"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base appearance-none bg-white hover:border-gray-300"
                   >
                     <option value="">✓ Select Leave Type</option>
                     {actionType === 'leave' ? (
@@ -632,8 +632,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                     )}
                   </select>
                   {/* Custom dropdown arrow */}
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -655,7 +655,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Provide your reason for leave/comp-off..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 resize-none text-sm sm:text-base"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300"
                 />
               </div>
 
@@ -664,13 +664,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium text-sm sm:text-base"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all duration-200 font-medium text-sm sm:text-base"
                 >
                   Close
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-sm sm:text-base"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-200 font-medium text-sm sm:text-base"
                 >
                   Submit
                 </button>

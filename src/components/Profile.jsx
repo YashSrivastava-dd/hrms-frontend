@@ -34,7 +34,7 @@ const EmployeeProfile = () => {
   const renderDetail = (label, value) => (
     <div>
       <p className="text-xs sm:text-sm text-gray-400">{label}</p>
-      <p className="text-sm sm:text-base">{value || "---"}</p>
+      <p className="text-sm sm:text-base">{value && value !== "false" && value !== false ? value : "---"}</p>
     </div>
   );
 

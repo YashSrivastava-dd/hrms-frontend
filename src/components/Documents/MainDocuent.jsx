@@ -71,7 +71,7 @@ const MainDocument = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-gray-50 min-h-screen">
       <ToastContainer />
       {selectedComponent === "private" && (
         <PrivateIssueDocuments onBack={() => setSelectedComponent(null)} />
@@ -82,112 +82,168 @@ const MainDocument = () => {
 
       {!selectedComponent && (
         <>
-          <h1 className="text-3xl font-bold mb-6">Featured Documents</h1>
-          <div className="flex gap-8">
-            {userType === "HR-Admin" ? (
-              <div className="p-6 bg-blue-500 rounded-lg shadow-lg flex items-center justify-between w-1/4 h-32 transition-transform transform hover:scale-105 cursor-pointer">
-                <h2 className="text-2xl font-bold text-white">Add Doc.</h2>
-                <button
-                  className="p-3 bg-white rounded-full"
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mb-8 text-center">
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">Document Center</h1>
+              <p className="text-gray-600 text-lg">Access and manage your important documents</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
+              {userType === "HR-Admin" && (
+                <div 
+                  className="group relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden w-full max-w-sm"
                   onClick={handleOpenModal}
                 >
-                  <IoAdd color="blue" size={30} />
-                </button>
-              </div>
-            ) : (
-              ""
-            )}
-            <div className="p-6 bg-white rounded-lg shadow-lg flex items-center justify-between w-1/4 h-32 transition-transform transform hover:scale-105 cursor-pointer">
-              <h2 className="text-2xl font-bold">Private Doc.</h2>
-              <button
-                className="p-3 bg-black text-white rounded-full"
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="relative p-8 h-48 flex flex-col justify-between">
+                    <div>
+                      <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                        <IoAdd className="text-white text-2xl" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-white mb-2">Add Document</h2>
+                      <p className="text-blue-100 text-sm">Upload new documents to the system</p>
+                    </div>
+                    <div className="flex items-center text-blue-100">
+                      <span className="text-sm font-medium">Click to upload</span>
+                      <FiArrowRight className="ml-2" size={16} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div 
+                className="group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden w-full max-w-sm"
                 onClick={() => setSelectedComponent("private")}
               >
-                <FiArrowRight size={20} />
-              </button>
-            </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-8 h-48 flex flex-col justify-between">
+                  <div>
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Private Documents</h2>
+                    <p className="text-gray-300 text-sm">Access your confidential documents</p>
+                  </div>
+                  <div className="flex items-center text-gray-300">
+                    <span className="text-sm font-medium">View documents</span>
+                    <FiArrowRight className="ml-2" size={16} />
+                  </div>
+                </div>
+              </div>
 
-            <div className="p-6 bg-black text-white rounded-lg shadow-lg flex items-center justify-between w-1/4 h-32 transition-transform transform hover:scale-105 cursor-pointer">
-              <h2 className="text-2xl font-bold">Public Doc.</h2>
-              <button
-                className="p-3 bg-white text-black rounded-full"
+              <div 
+                className="group relative bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden w-full max-w-sm"
                 onClick={() => setSelectedComponent("public")}
               >
-                <FiArrowRight size={20} />
-              </button>
+                <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-8 h-48 flex flex-col justify-between">
+                  <div>
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Public Documents</h2>
+                    <p className="text-green-100 text-sm">Browse shared company documents</p>
+                  </div>
+                  <div className="flex items-center text-green-100">
+                    <span className="text-sm font-medium">View documents</span>
+                    <FiArrowRight className="ml-2" size={16} />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </>
       )}
 
       {modalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-8 rounded-lg shadow-xl w-96 max-w-lg">
-            <h2 className="text-2xl font-bold mb-4 text-center">Add Document</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Add Document</h2>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-600 text-sm mt-2">Upload a new document to the system</p>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Document Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
                 <select
                   name="docType"
                   value={formData.docType}
                   onChange={handleChange}
-                  className="w-full p-2 border rounded-md mt-2"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                 >
-                  <option value="Public">Public</option>
-                  <option value="Private">Private</option>
+                  <option value="Public">Public Document</option>
+                  <option value="Private">Private Document</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Document Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Document Name</label>
                 <input
                   type="text"
                   name="documentName"
                   value={formData.documentName}
                   onChange={handleChange}
-                  placeholder="Document Name"
-                  className="w-full p-3 border rounded-md mt-2"
+                  placeholder="Enter document name"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Employee ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Employee ID</label>
                 <input
                   type="text"
                   name="employeeId"
                   value={formData.employeeId}
                   onChange={handleChange}
-                  placeholder="Employee ID"
-                  className="w-full p-3 border rounded-md mt-2"
+                  placeholder="Enter employee ID"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Document</label>
-                <input
-                  type="file"
-                  name="location"
-                  onChange={handleChange} // Handle file selection
-                  className="w-full p-3 border rounded-md mt-2"
-                  required
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Document File</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    name="location"
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Supported formats: PDF, DOC, DOCX, XLS, XLSX</p>
               </div>
 
-              <div className="flex justify-between items-center">
+              <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-6 py-2 bg-gray-300 rounded-md"
+                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-500 text-white rounded-md"
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
                 >
-                  Save
+                  Upload Document
                 </button>
               </div>
             </form>

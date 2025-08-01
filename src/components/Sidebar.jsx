@@ -38,11 +38,11 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
     }
     localStorage.setItem("selectedTag", tag);
     if (tag === 'viewByEmployee') {
-      window.location.reload();  // ✅ Forces full page reload
+      // Don't reload, just navigate to avoid page refresh
       return;
     }
     else if(tag === 'managerApproval'){
-      window.location.reload();  // ✅ Forces full page reload
+      // Don't reload, just navigate to avoid undefined popup
       return;
     }
     else if (tag === 'allEmployees') {
@@ -52,12 +52,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("employeId");
-    localStorage.removeItem("selectedTag");
-    navigate("/");
-  };
+
 
   return (
     <div className="min-h-screen flex bg-gray-100">
@@ -188,6 +183,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
             label="Task Records"
             icon="📝"
             isSelected={selectedTag === "taskRecords"}
+            disabled={true}
             onClick={() => handleNavigation("taskRecords")}
           />
           
@@ -203,6 +199,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
             label="Code Of Conduct"
             icon="🗂️"
             isSelected={selectedTag === "coc"}
+            disabled={true}
             onClick={() => handleNavigation("coc")}
           />
           
@@ -213,16 +210,6 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
             onClick={() => handleNavigation("issuedDoc")}
           />
         </nav>
-        
-        <div className="mt-auto p-4 border-t">
-          <button
-            onClick={handleLogout}
-            type="button"
-            className="w-full text-white bg-blue-500 hover:bg-blue-600 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors duration-200"
-          >
-            Logout
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}

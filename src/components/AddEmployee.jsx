@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { postApplyLeaveByEmployee, postMedicalFileAction } from "../store/action/userDataAction";
 import { Bounce, ToastContainer, toast } from 'react-toastify';
 import { RxCross2 } from "react-icons/rx";
 import { useNavigate } from "react-router-dom";
+import Modal from "@mui/material/Modal";
+import Box from "@mui/material/Box";
+import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import { FiChevronDown, FiChevronUp } from "react-icons/fi";
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 const CreateProjectModal = ({ tittleBtn, onClick }) => {
     const [isOpen, setIsOpen] = useState(false);
     const { data } = useSelector((state) => state.userData);
@@ -79,6 +88,18 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         setIsOpen(false);
     }, [medicalReport]);
 
+    // Handle dropdown click outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (leaveTypeDropdownRef.current && !leaveTypeDropdownRef.current.contains(event.target)) {
+                setIsLeaveTypeDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const managerId = data?.data?.managerId;
     const employeeType = data?.data?.employmentType;
     const employeeId = localStorage.getItem('employeId');
@@ -102,6 +123,16 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         reason: "",
         totalDays: 0, // New field for total days
     });
+
+    // Date range picker state
+    const [calendarOpen, setCalendarOpen] = useState(false);
+    const [currentMonth, setCurrentMonth] = useState(dayjs());
+    const [selectedStartDate, setSelectedStartDate] = useState(null);
+    const [selectedEndDate, setSelectedEndDate] = useState(null);
+
+    // Custom dropdown state
+    const [isLeaveTypeDropdownOpen, setIsLeaveTypeDropdownOpen] = useState(false);
+    const leaveTypeDropdownRef = useRef(null);
 
     const openModal = () => setIsOpen(true);
     const closeModal = () => setIsOpen(false);
@@ -492,6 +523,77 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         return formattedDate;
     };
 
+    // Calendar functions
+    const openCalendar = () => {
+        setCalendarOpen(true);
+        setSelectedStartDate(leaveData.startDate ? dayjs(leaveData.startDate) : null);
+        setSelectedEndDate(leaveData.endDate ? dayjs(leaveData.endDate) : null);
+    };
+
+    const closeCalendar = () => {
+        setCalendarOpen(false);
+    };
+
+    const applyDateRange = () => {
+        setLeaveData({
+            ...leaveData,
+            startDate: selectedStartDate ? selectedStartDate.format('YYYY-MM-DD') : '',
+            endDate: selectedEndDate ? selectedEndDate.format('YYYY-MM-DD') : ''
+        });
+        setCalendarOpen(false);
+    };
+
+    const selectDate = (selectedDate) => {
+        if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+            // Start new selection
+            setSelectedStartDate(selectedDate);
+            setSelectedEndDate(null);
+        } else {
+            // Complete the range
+            if (selectedDate.isBefore(selectedStartDate)) {
+                setSelectedEndDate(selectedStartDate);
+                setSelectedStartDate(selectedDate);
+            } else {
+                setSelectedEndDate(selectedDate);
+            }
+        }
+    };
+
+    const goToPreviousMonth = () => {
+        setCurrentMonth(currentMonth.subtract(1, 'month'));
+    };
+
+    const goToNextMonth = () => {
+        setCurrentMonth(currentMonth.add(1, 'month'));
+    };
+
+    const isDateInRange = (date) => {
+        if (!selectedStartDate) return false;
+        if (!selectedEndDate) return date.isSame(selectedStartDate, 'day');
+        return date.isSameOrAfter(selectedStartDate, 'day') && date.isSameOrBefore(selectedEndDate, 'day');
+    };
+
+    const isDateSelected = (date) => {
+        return date.isSame(selectedStartDate, 'day') || date.isSame(selectedEndDate, 'day');
+    };
+
+    const getDaysInMonth = () => {
+        const startOfMonth = currentMonth.startOf('month');
+        const endOfMonth = currentMonth.endOf('month');
+        const startOfWeek = startOfMonth.startOf('week');
+        const endOfWeek = endOfMonth.endOf('week');
+        
+        const days = [];
+        let day = startOfWeek;
+        
+        while (day.isBefore(endOfWeek) || day.isSame(endOfWeek, 'day')) {
+            days.push(day);
+            day = day.add(1, 'day');
+        }
+        
+        return days;
+    };
+
     // Example usage
     const inputDate = "Fri Jan 10 2025 12:14:10 GMT+0530 (India Standard Time)";
     const formattedDate = convertToDateFormat(inputDate);
@@ -501,7 +603,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             {/* Button to Open Modal */}
             <button
                 onClick={openModal}
-                className="px-2 py-2 mb-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 M"
+                className="px-4 py-2 mb-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 font-medium"
             >
                 {tittleBtn}
             </button>
@@ -539,105 +641,258 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                             <div>
                                 <label
                                     htmlFor="leaveType"
-                                    className="block text-sm font-medium text-gray-700"
+                                    className="block text-sm font-medium text-gray-700 mb-2"
                                 >
                                     Leave Type<span className="text-red-500">*</span>
                                 </label>
-                                <select
-                                    id="leaveType"
-                                    name="leaveType"
-                                    value={leaveData.leaveType}
-                                    onChange={handleInputChange}
-                                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">Select Leave Type</option>
+                                <div className="relative" ref={leaveTypeDropdownRef}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsLeaveTypeDropdownOpen(!isLeaveTypeDropdownOpen)}
+                                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm bg-gradient-to-r from-gray-50 to-white hover:border-gray-300 shadow-sm flex items-center justify-between"
+                                    >
+                                        <span className={leaveData.leaveType ? "text-gray-900" : "text-gray-500"}>
+                                            {leaveData.leaveType ? 
+                                                (leaveData.leaveType === "earnedLeave" ? "Earned Leave" :
+                                                 leaveData.leaveType === "casualLeave" ? "Casual Leave" :
+                                                 leaveData.leaveType === "medicalLeave" ? "Medical Leave" :
+                                                 leaveData.leaveType === "paternityLeave" ? "Paternity Leave" :
+                                                 leaveData.leaveType === "maternityLeave" ? "Maternity Leave" :
+                                                 leaveData.leaveType === "compOffLeave" ? "Comp Off" :
+                                                 leaveData.leaveType === "optionalLeave" ? "Optional Leave" :
+                                                 leaveData.leaveType) : 
+                                                "Choose your leave type"
+                                            }
+                                        </span>
+                                        <div className="flex items-center">
+                                            {isLeaveTypeDropdownOpen ? 
+                                                <FiChevronUp className="w-5 h-5 text-gray-400 transition-transform duration-200" /> : 
+                                                <FiChevronDown className="w-5 h-5 text-gray-400 transition-transform duration-200" />
+                                            }
+                                        </div>
+                                    </button>
 
-                                    {/* Show Earned Leave only if in notice period */}
-                                    {(data?.data?.isNotice === true) && (
-                                        leaveBalance?.earnedLeave === '0' ?
-                                            <option disabled>Earned Leave / {leaveBalance?.earnedLeave}</option> :
-                                            <option value="earnedLeave">Earned Leave / {leaveBalance?.earnedLeave}</option>
-                                    )}
+                                    {/* Custom Dropdown Menu */}
+                                    <div className={`absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden transition-all duration-300 ease-in-out ${
+                                        isLeaveTypeDropdownOpen 
+                                            ? 'opacity-100 scale-100 translate-y-0' 
+                                            : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                                    }`}>
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {/* Show Earned Leave only if in notice period */}
+                                            {(data?.data?.isNotice === true) && (
+                                                leaveBalance?.earnedLeave === '0' ? (
+                                                    <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                        Earned Leave - No balance
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLeaveData({ ...leaveData, leaveType: "earnedLeave" });
+                                                            setIsLeaveTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-900">Earned Leave</div>
+                                                        <div className="text-xs text-gray-500">{leaveBalance?.earnedLeave} days remaining</div>
+                                                    </button>
+                                                )
+                                            )}
 
-                                    {/* Show Casual Leave only if in probation period */}
-                                    {(data?.data?.isProbation === true) && (
-                                        leaveBalance?.casualLeave === '0' ?
-                                            <option disabled>Casual Leave / {leaveBalance?.casualLeave}</option> :
-                                            <option value="casualLeave">Casual Leave / {leaveBalance?.casualLeave}</option>
-                                    )}
-                                    {(data?.data?.isProbation === true) && (
-                                        leaveBalance?.compOffLeave === '0' ?
-                                            <option disabled>Casual Leave / {leaveBalance?.compOffLeave}</option> :
-                                            <option value="compOffLeave">Casual Leave / {leaveBalance?.compOffLeave}</option>
-                                    )}
-                                    {/* Show all leave types if employee is permanent */}
-                                    {(data?.data?.isWorking === true) && (
-                                        <>
-                                            {leaveBalance?.earnedLeave === '0' ?
-                                                <option disabled>Earned Leave / {leaveBalance?.earnedLeave}</option> :
-                                                <option value="earnedLeave">Earned Leave / {leaveBalance?.earnedLeave}</option>}
-                                            {leaveBalance?.compOffLeave === '0' ?
-                                                <option disabled>Comp Off / {leaveBalance?.compOffLeave}</option> :
-                                                <option value="compOffLeave">Comp Off / {leaveBalance?.compOffLeave}</option>}
-                                            {leaveBalance?.medicalLeave === '0' ?
-                                                <option disabled>Medical Leave / {leaveBalance?.medicalLeave}</option> :
-                                                <option value="medicalLeave">Medical Leave / {leaveBalance?.medicalLeave}</option>}
-                                            {leaveBalance?.paternityLeave === '0' ?
-                                                <option disabled>Paternity Leave / {leaveBalance?.paternityLeave}</option> :
-                                                <option value="paternityLeave">Paternity Leave / {leaveBalance?.paternityLeave}</option>}
-                                            {leaveBalance?.maternityLeave === '0' ?
-                                                <option disabled>Maternity Leave / {leaveBalance?.maternityLeave}</option> :
-                                                <option value="maternityLeave">Maternity Leave / {leaveBalance?.maternityLeave}</option>}
-                                            {leaveBalance?.casualLeave === '0' ?
-                                                <option disabled>Casual Leave / {leaveBalance?.casualLeave}</option> :
-                                                <option value="casualLeave">Casual Leave / {leaveBalance?.casualLeave}</option>}
-                                            <option value='optionalLeave'>Optional Leave</option>
-                                        </>
-                                    )}
-                                </select>
+                                            {/* Show Casual Leave only if in probation period */}
+                                            {(data?.data?.isProbation === true) && (
+                                                leaveBalance?.casualLeave === '0' ? (
+                                                    <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                        Casual Leave - No balance
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLeaveData({ ...leaveData, leaveType: "casualLeave" });
+                                                            setIsLeaveTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-900">Casual Leave</div>
+                                                        <div className="text-xs text-gray-500">{leaveBalance?.casualLeave} days remaining</div>
+                                                    </button>
+                                                )
+                                            )}
+                                            
+                                            {(data?.data?.isProbation === true) && (
+                                                leaveBalance?.compOffLeave === '0' ? (
+                                                    <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                        Comp Off - No balance
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLeaveData({ ...leaveData, leaveType: "compOffLeave" });
+                                                            setIsLeaveTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-900">Comp Off</div>
+                                                        <div className="text-xs text-gray-500">{leaveBalance?.compOffLeave} days remaining</div>
+                                                    </button>
+                                                )
+                                            )}
+
+                                            {/* Show all leave types if employee is permanent */}
+                                            {(data?.data?.isWorking === true) && (
+                                                <>
+                                                    {leaveBalance?.earnedLeave === '0' ? (
+                                                        <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                            Earned Leave - No balance
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setLeaveData({ ...leaveData, leaveType: "earnedLeave" });
+                                                                setIsLeaveTypeDropdownOpen(false);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                        >
+                                                            <div className="font-medium text-gray-900">Earned Leave</div>
+                                                            <div className="text-xs text-gray-500">{leaveBalance?.earnedLeave} days remaining</div>
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {leaveBalance?.compOffLeave === '0' ? (
+                                                        <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                            Comp Off - No balance
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setLeaveData({ ...leaveData, leaveType: "compOffLeave" });
+                                                                setIsLeaveTypeDropdownOpen(false);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                        >
+                                                            <div className="font-medium text-gray-900">Comp Off</div>
+                                                            <div className="text-xs text-gray-500">{leaveBalance?.compOffLeave} days remaining</div>
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {leaveBalance?.medicalLeave === '0' ? (
+                                                        <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                            Medical Leave - No balance
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setLeaveData({ ...leaveData, leaveType: "medicalLeave" });
+                                                                setIsLeaveTypeDropdownOpen(false);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                        >
+                                                            <div className="font-medium text-gray-900">Medical Leave</div>
+                                                            <div className="text-xs text-gray-500">{leaveBalance?.medicalLeave} days remaining</div>
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {leaveBalance?.paternityLeave === '0' ? (
+                                                        <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                            Paternity Leave - No balance
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setLeaveData({ ...leaveData, leaveType: "paternityLeave" });
+                                                                setIsLeaveTypeDropdownOpen(false);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                        >
+                                                            <div className="font-medium text-gray-900">Paternity Leave</div>
+                                                            <div className="text-xs text-gray-500">{leaveBalance?.paternityLeave} days remaining</div>
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {leaveBalance?.maternityLeave === '0' ? (
+                                                        <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                            Maternity Leave - No balance
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setLeaveData({ ...leaveData, leaveType: "maternityLeave" });
+                                                                setIsLeaveTypeDropdownOpen(false);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                        >
+                                                            <div className="font-medium text-gray-900">Maternity Leave</div>
+                                                            <div className="text-xs text-gray-500">{leaveBalance?.maternityLeave} days remaining</div>
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {leaveBalance?.casualLeave === '0' ? (
+                                                        <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
+                                                            Casual Leave - No balance
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setLeaveData({ ...leaveData, leaveType: "casualLeave" });
+                                                                setIsLeaveTypeDropdownOpen(false);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                        >
+                                                            <div className="font-medium text-gray-900">Casual Leave</div>
+                                                            <div className="text-xs text-gray-500">{leaveBalance?.casualLeave} days remaining</div>
+                                                        </button>
+                                                    )}
+                                                    
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLeaveData({ ...leaveData, leaveType: "optionalLeave" });
+                                                            setIsLeaveTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-900">Optional Leave</div>
+                                                        <div className="text-xs text-gray-500">No balance limit</div>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                                 <p className="text-red-600 mt-2">{leaveTypeError ? leaveTypeError : ''}</p>
                             </div>
 
                             {/* Date Range */}
-                            <div className="flex items-center gap-4">
-                                <div className="flex-1">
-                                    <label
-                                        htmlFor="startDate"
-                                        className="block text-sm font-medium text-gray-700"
-                                    >
-                                        Start Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        id="startDate"
-                                        name="startDate"
-                                        value={leaveData?.startDate}
-                                        onChange={handleInputChange}
-                                        className="w-full mt-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        min={getMinDateForLeaveType()} // Dynamically set the minimum date
-                                        max={getMaxDateForLeaveType()} // Dynamically set the maximum date
-                                    />
-                                </div>
-                                {leaveData?.leaveType === "casualLeave" ? null : (
-                                    <div className="flex-1">
-                                        <label
-                                            htmlFor="endDate"
-                                            className="block text-sm font-medium text-gray-700"
-                                        >
-                                            End Date
-                                        </label>
-                                        <input
-                                            type="date"
-                                            id="endDate"
-                                            name="endDate"
-                                            value={leaveData.endDate}
-                                            onChange={handleInputChange}
-                                            className="w-full mt-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            min={leaveData.startDate || getMinDateForLeaveType()} // Start date or minimum valid date
-                                            max={getMaxDateForLeaveType()} // Dynamically set the maximum date
-                                        />
-                                    </div>
-                                )}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Date Range
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={openCalendar}
+                                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300 bg-gradient-to-r from-gray-50 to-white shadow-sm flex items-center justify-between"
+                                >
+                                    <span className={leaveData.startDate && leaveData.endDate ? "text-gray-900" : "text-gray-500"}>
+                                        {leaveData.startDate && leaveData.endDate 
+                                            ? `${dayjs(leaveData.startDate).format('MMM DD')} - ${dayjs(leaveData.endDate).format('MMM DD, YYYY')}`
+                                            : leaveData.startDate 
+                                            ? `${dayjs(leaveData.startDate).format('MMM DD, YYYY')} - Select end date`
+                                            : 'Select Date Range'
+                                        }
+                                    </span>
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </button>
                             </div>
                             {leaveData.totalDays < 2 ? leaveData.leaveType === 'casualLeave' || leaveData.leaveType === 'earnedLeave' ?
                                 <div>
@@ -647,18 +902,26 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     >
                                         Select Duration
                                     </label>
-                                    <select
-                                        id="selectTime"
-                                        name="selectTime"
-                                        value={leaveData.selectTime}
-                                        onChange={handleInputChange}
-                                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    >
+                                    <div className="relative">
+                                        <select
+                                            id="selectTime"
+                                            name="selectTime"
+                                            value={leaveData.selectTime}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
+                                        >
                                         <option>Select </option>
                                         <option value="firstHalf">First Half</option>
                                         <option value="secondHalf">Second Half</option>
                                         <option value="fullDay">Full Day</option>
                                     </select>
+                                    {/* Custom dropdown arrow */}
+                                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </div>
                                 </div> : ''
                                 : ''}
                             <p class="text-red-600 mt-2">{totalDayError ? totalDayError : ''}</p>
@@ -699,7 +962,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     value={leaveData.reason}
                                     onChange={handleInputChange}
                                     placeholder="Provide your reason for leave..."
-                                    className="w-full mt-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none hover:border-gray-300"
                                 ></textarea>
                             </div>
                             <p className='text-red-600 mt-2'>{reasonError ? reasonError : ''}</p>
@@ -707,7 +970,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                             <div className="flex justify-center items-center mt-4">
                                 <button
                                     type="submit"
-                                    className="py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    className="py-2 px-4 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors duration-200 font-medium"
                                 >
                                     Apply For Leave
                                 </button>
@@ -716,6 +979,123 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                     </div>
                 </div>
             )}
+
+            {/* Calendar Modal */}
+            <Modal open={calendarOpen} onClose={closeCalendar}>
+                <Box className="bg-white rounded-lg p-6 mx-auto my-10 max-w-md">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold text-gray-900">Select Date Range</h2>
+                        <button
+                            onClick={closeCalendar}
+                            className="text-gray-400 hover:text-gray-600"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Month Navigation */}
+                    <div className="flex justify-between items-center mb-4">
+                        <button
+                            onClick={goToPreviousMonth}
+                            className="p-2 hover:bg-gray-100 rounded-lg"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <h3 className="text-lg font-medium text-gray-900">
+                            {currentMonth.format('MMMM YYYY')}
+                        </h3>
+                        <button
+                            onClick={goToNextMonth}
+                            className="p-2 hover:bg-gray-100 rounded-lg"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Calendar Grid */}
+                    <div className="mb-4">
+                        {/* Day Headers */}
+                        <div className="grid grid-cols-7 gap-1 mb-2">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                                <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+                                    {day}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Calendar Days */}
+                        <div className="grid grid-cols-7 gap-1">
+                            {getDaysInMonth().map((day, index) => {
+                                const isCurrentMonth = day.month() === currentMonth.month();
+                                const isToday = day.isSame(dayjs(), 'day');
+                                const isInRange = isDateInRange(day);
+                                const isSelected = isDateSelected(day);
+                                
+                                return (
+                                    <button
+                                        key={index}
+                                        onClick={() => selectDate(day)}
+                                        disabled={!isCurrentMonth}
+                                        className={`
+                                            p-2 text-sm rounded-lg transition-colors duration-200
+                                            ${!isCurrentMonth ? 'text-gray-300 cursor-default' : 'hover:bg-blue-50 cursor-pointer'}
+                                            ${isToday ? 'bg-blue-100 text-blue-600 font-semibold' : ''}
+                                            ${isInRange ? 'bg-blue-200' : ''}
+                                            ${isSelected ? 'bg-blue-600 text-white font-semibold' : ''}
+                                            ${isCurrentMonth ? 'text-gray-900' : ''}
+                                        `}
+                                    >
+                                        {day.date()}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Selected Date Range Display */}
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-600 mb-1">Selected Range:</div>
+                        <div className="text-sm font-medium">
+                            {selectedStartDate ? (
+                                selectedEndDate ? (
+                                    `${selectedStartDate.format('MMM DD, YYYY')} - ${selectedEndDate.format('MMM DD, YYYY')}`
+                                ) : (
+                                    `${selectedStartDate.format('MMM DD, YYYY')} - Select end date`
+                                )
+                            ) : (
+                                'No date selected'
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={closeCalendar}
+                            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={applyDateRange}
+                            disabled={!selectedStartDate || !selectedEndDate}
+                            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+                                selectedStartDate && selectedEndDate
+                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                        >
+                            Apply
+                        </button>
+                    </div>
+                </Box>
+            </Modal>
         </div>
     );
 };

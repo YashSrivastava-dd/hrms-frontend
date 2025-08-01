@@ -3,24 +3,31 @@ import ddHealthcare from "../assets/Icon/ddHealthcare.png";
 import { IoMdNotifications } from "react-icons/io";
 import { FaBars } from "react-icons/fa";
 import { FaRegClock } from "react-icons/fa";
+import { IoLogOut } from "react-icons/io5";
+import { CgProfile } from "react-icons/cg";
 import Webcam from "react-webcam";
 import { useDispatch, useSelector } from "react-redux";
-import Notifications from "../notification/Notification";
+import { useNavigate } from "react-router-dom";
+
 import {
   getPunchInDataAction,
   postPunchInDataAction,
   postPunchOutDataAction,
 } from "../store/action/userAdminAction";
+import { putApprovedLeaveByManagerAction, getLeaveApproveRequestAction } from "../store/action/userDataAction";
 
 function Navbar({ onToggleSidebar }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const webcamRef = useRef(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [punchInState, setPunchInState] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
   const [timer, setTimer] = useState(0);
   const [intervalId, setIntervalId] = useState(null);
@@ -38,9 +45,31 @@ function Navbar({ onToggleSidebar }) {
   const userData = userDataRaw?.data || {};
   const userType = userData?.role;
 
+  const { data: leaveRequestData } = useSelector((state) => state?.managerLeaveApprove);
+  const leaveReqData = leaveRequestData?.data || [];
+  const pendingNotifications = leaveReqData?.filter((item) => item.status === "Pending") || [];
+
   useEffect(() => {
     dispatch(getPunchInDataAction());
+    dispatch(getLeaveApproveRequestAction());
   }, []); // Only run once on mount
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showProfileDropdown && !event.target.closest('.profile-dropdown')) {
+        setShowProfileDropdown(false);
+      }
+      if (showNotificationDropdown && !event.target.closest('.notification-dropdown')) {
+        setShowNotificationDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileDropdown, showNotificationDropdown]);
 
   const startTimer = () => {
     const id = setInterval(() => setTimer((prev) => prev + 1), 1000);
@@ -109,6 +138,23 @@ function Navbar({ onToggleSidebar }) {
     stopTimer();
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("employeId");
+    localStorage.removeItem("selectedTag");
+    navigate("/");
+  };
+
+  const handleViewProfile = () => {
+    localStorage.setItem("selectedTag", "profile");
+    window.location.reload();
+    setShowProfileDropdown(false);
+  };
+
+  const handleNotificationAction = (status, id) => {
+    dispatch(putApprovedLeaveByManagerAction({ status, id }));
+  };
+
   const isPunchedIn = punchInData?.InTime?.length > 0;
   const isPunchedOut = punchInData?.OutTime === "NA" || punchInState;
 
@@ -153,55 +199,136 @@ function Navbar({ onToggleSidebar }) {
 
         {/* Right Section - Notifications & Profile */}
         <div className="flex items-center space-x-3">
+          {/* Punch In Button - Desktop */}
+          {userType !== "HR-Admin" && userType !== "Super-Admin" && (
+            <div className="hidden md:block">
+              {isPunchedOut ? (
+                <button
+                  className="px-4 py-2 bg-red-500 text-white rounded-full text-sm flex items-center space-x-2 hover:bg-red-600 transition-colors duration-200"
+                  onClick={handlePunchOut}
+                >
+                  <FaRegClock />
+                  <span>Punch Out</span>
+                </button>
+              ) : !isPunchedIn ? (
+                <button
+                  className="px-4 py-2 bg-yellow-500 text-white rounded-full text-sm flex items-center space-x-2 hover:bg-yellow-600 transition-colors duration-200"
+                  onClick={() => setIsCameraOpen(true)}
+                >
+                  <FaRegClock />
+                  <span>Punch In</span>
+                </button>
+              ) : null}
+            </div>
+          )}
+          
           <div className="relative">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
               className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative"
               aria-label="Notifications"
             >
               <IoMdNotifications size={24} />
-              {userDataRaw?.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {userDataRaw.length}
+              {pendingNotifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                  {pendingNotifications.length}
                 </span>
               )}
             </button>
+            
+            {/* Notification Dropdown */}
+            {showNotificationDropdown && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 notification-dropdown">
+                <div className="py-3">
+                  <div className="px-4 py-3 text-sm text-gray-800 border-b border-gray-100 font-bold bg-gray-50 rounded-t-xl">
+                    Notifications ({pendingNotifications.length})
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {pendingNotifications.length > 0 ? (
+                      pendingNotifications.map((item, index) => (
+                        <div key={index} className="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                <strong>{item?.employeeInfo?.employeeName}</strong> applying {item?.leaveType}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {item?.totalDays} days • {item?.leaveStartDate}
+                              </p>
+                            </div>
+                            <div className="flex space-x-2 ml-3">
+                              <button
+                                onClick={() => handleNotificationAction("Approved", item?._id)}
+                                className="px-3 py-1 bg-green-100 text-green-600 rounded-lg hover:bg-green-500 hover:text-white text-xs font-medium transition-colors duration-200"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => handleNotificationAction("Rejected", item?._id)}
+                                className="px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-500 hover:text-white text-xs font-medium transition-colors duration-200"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-4 py-8 text-center">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <IoMdNotifications className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-500">No pending notifications</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
-          <div className="hidden sm:flex items-center space-x-2">
-            <span className="text-sm text-gray-700 font-medium truncate max-w-[120px]">
-              {userData.employeeName}
-            </span>
-          </div>
-          
-          <div className="bg-blue-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold">
-            {userData.employeeName?.charAt(0)}
+          <div className="relative">
+            <button
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              className="bg-blue-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold hover:bg-blue-600 transition-colors duration-200"
+            >
+              {userData.employeeName?.charAt(0)}
+            </button>
+            
+            {/* Profile Dropdown */}
+            {showProfileDropdown && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 profile-dropdown">
+                <div className="py-3">
+                  <div className="px-4 py-3 text-sm text-gray-800 border-b border-gray-100 font-bold bg-gray-50 rounded-t-xl">
+                    {userData.employeeName}
+                  </div>
+                  <div className="p-3 space-y-3">
+                    <button
+                      onClick={handleViewProfile}
+                      className="w-full px-4 py-3 text-sm text-gray-700 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 flex items-center justify-center space-x-3 transition-all duration-200 rounded-lg border border-blue-100 shadow-sm"
+                    >
+                      <CgProfile size={18} />
+                      <span className="font-medium">View Profile</span>
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-3 text-sm text-white bg-red-500 hover:bg-red-600 flex items-center justify-center space-x-2 rounded-lg transition-colors duration-200 font-medium shadow-sm"
+                    >
+                      <IoLogOut size={18} />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Punch Controls Section (Desktop) */}
+      {/* Location and Punch Time Info */}
       {userType !== "HR-Admin" && userType !== "Super-Admin" && (
         <div className="hidden md:flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
           <div className="flex items-center space-x-4">
-            {isPunchedOut ? (
-              <button
-                className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm flex items-center space-x-2 hover:bg-red-600 transition-colors duration-200"
-                onClick={handlePunchOut}
-              >
-                <FaRegClock />
-                <span>Punch Out</span>
-              </button>
-            ) : !isPunchedIn ? (
-              <button
-                className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm flex items-center space-x-2 hover:bg-yellow-600 transition-colors duration-200"
-                onClick={() => setIsCameraOpen(true)}
-              >
-                <FaRegClock />
-                <span>Punch In</span>
-              </button>
-            ) : null}
-
             {locationInfo.city && (
               <span className="text-sm text-gray-700">
                 📍 {locationInfo.suburb}, {locationInfo.city}, {locationInfo.state}
@@ -217,17 +344,7 @@ function Navbar({ onToggleSidebar }) {
         </div>
       )}
 
-      {/* Notification Modal */}
-      {isModalOpen && (
-        <Notifications
-          closeModal={(e) => {
-            if (e.target.id === "modal-overlay") setIsModalOpen(false);
-          }}
-          sendDataToParent={(data) => {
-            console.log("Notification data:", data?.length?.toString(2));
-          }}
-        />
-      )}
+
 
       {/* Camera Modal */}
       {isCameraOpen && (

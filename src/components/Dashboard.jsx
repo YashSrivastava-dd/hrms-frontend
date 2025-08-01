@@ -331,24 +331,24 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
           <div className="border-t border-gray-100 pt-3">
             <button
               onClick={toggleExpanded}
-              className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg p-2 transition-colors duration-200"
+              className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-xl p-3 transition-all duration-200"
             >
               <span className="flex items-center gap-2">
-                <FaClockIcon className="w-4 h-4 text-gray-500" />
+                <FaClockIcon className="w-4 h-4 text-blue-500" />
                 Punch Records ({punchRecords.length})
               </span>
               {isExpanded ? (
-                <FaCompressAlt className="w-4 h-4 text-gray-500" />
+                <FaCompressAlt className="w-4 h-4 text-blue-500" />
               ) : (
-                <FaExpandAlt className="w-4 h-4 text-gray-500" />
+                <FaExpandAlt className="w-4 h-4 text-blue-500" />
               )}
             </button>
 
-                         {/* Dropdown Content */}
-             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-               isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-             }`}>
-               <div className="mt-3 max-h-64 overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            {/* Dropdown Content */}
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+              <div className="mt-3 max-h-64 overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                  {punchRecords.map((punch, index) => {
                    const punchType = getPunchType(punch);
                    const time = formatTime(punch);
@@ -357,30 +357,30 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
                    return (
                      <div
                        key={index}
-                       className={`flex items-center justify-between p-3 rounded-lg border ${
+                       className={`flex items-center justify-between p-4 rounded-xl border-2 shadow-sm ${
                          isIn 
-                           ? 'bg-green-50 border-green-200' 
-                           : 'bg-red-50 border-red-200'
-                       }`}
+                           ? 'bg-green-50 border-green-200 hover:bg-green-100' 
+                           : 'bg-red-50 border-red-200 hover:bg-red-100'
+                       } transition-colors duration-200`}
                      >
                        <div className="flex items-center gap-3">
-                         <div className={`w-2 h-2 rounded-full ${
+                         <div className={`w-3 h-3 rounded-full ${
                            isIn ? 'bg-green-500' : 'bg-red-500'
                          }`}></div>
                          <div>
-                           <p className={`text-sm font-medium ${
+                           <p className={`text-sm font-semibold ${
                              isIn ? 'text-green-700' : 'text-red-700'
                            }`}>
                              {isIn ? 'Check In' : 'Check Out'}
                            </p>
-                           <p className="text-xs text-gray-500">
+                           <p className="text-xs text-gray-500 font-medium">
                              Record #{index + 1}
                            </p>
                          </div>
                        </div>
                        <div className="text-right">
-                         <p className="text-sm font-semibold text-gray-900">{time}</p>
-                         <p className={`text-xs font-medium ${
+                         <p className="text-lg font-bold text-gray-900">{time}</p>
+                         <p className={`text-xs font-semibold ${
                            isIn ? 'text-green-600' : 'text-red-600'
                          }`}>
                            {punchType}

@@ -65,7 +65,7 @@ const EmployeeHolidays = () => {
                     key={index}
                     className={`border-b ${index % 2 === 0 ? "bg-white" : "bg-gray-100"}`}
                   >
-                    <td className="px-6 py-6 text-gray-700 text-sm">{holiday.holidayDate}</td>
+                    <td className="px-6 py-6 text-gray-700 text-sm font-bold">{holiday.holidayDate}</td>
                     <td className="px-6 py-6 text-gray-700 text-sm">{dayName}</td>
                     <td className="px-6 py-6 text-gray-700 font-semibold text-lg">{holiday.holidayName}</td>
                   </tr>

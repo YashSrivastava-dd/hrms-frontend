@@ -14,6 +14,27 @@ const statusColors = {
   Rejected: "bg-orange-100 text-orange-600",
   New: "bg-green-100 text-green-600",
 };
+
+// Function to get leave type abbreviation
+const getLeaveTypeAbbreviation = (leaveType) => {
+  const abbreviations = {
+    casualLeave: "CL",
+    earnedLeave: "EL", 
+    optionalLeave: "OL",
+    shortLeave: "SL",
+    uninformedLeave: "UL",
+    vendorMeeting: "VM",
+    compOff: "CO",
+    sickLeave: "SL",
+    maternityLeave: "ML",
+    paternityLeave: "PL",
+    bereavementLeave: "BL",
+    studyLeave: "STL",
+    sabbaticalLeave: "SAB"
+  };
+  
+  return abbreviations[leaveType] || leaveType;
+};
 // api/common/get-emp-leaves-count
 const EmployeeLeaveStatus = () => {
   const { data } = useSelector((state) => state.managerLeaveApprove);
@@ -118,17 +139,9 @@ console.log('employeeCount',employeeCount)
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {item.leaveType === "casualLeave"
-                      ? "Casual Leave"
-                      : item.leaveType === "earnedLeave"
-                      ? "Earned Leave"
-                      : item.leaveType === "optionalLeave"
-                      ? "Optional Leave"
-                      : item.leaveType === "shortLeave"
-                      ? "Short Leave"
-                      : item.leaveType === "uninformedLeave"
-                      ? "Uninformed Leave"
-                      : item.leaveType}
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {getLeaveTypeAbbreviation(item.leaveType)}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-gray-700">
                     {item.employeeInfo.designation}

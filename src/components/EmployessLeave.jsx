@@ -19,7 +19,7 @@ const EmployessLeave = () => {
     const [filterStatus, setFilterStatus] = useState('All'); // Default is 'All'
     const [selectedTab, setSelectedTab] = useState('leave'); // Track the selected tab
     const [currentPage, setCurrentPage] = useState(1); // Start on page 1
-    const [itemsPerPage, setItemsPerPage] = useState(15); // You can set this to whatever number of items you want to show per page
+    const [itemsPerPage, setItemsPerPage] = useState(10); // Show 10 items per page
 
     const filteredLeaveData = leaveData?.filter(leave => {
         if (filterStatus === 'All') return true;
@@ -41,8 +41,24 @@ const EmployessLeave = () => {
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+    const currentVendorData = filterVendorData?.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
-    const totalPages = Math.ceil(filteredLeaveData?.length / itemsPerPage); // Total pages
+    // Calculate total pages based on selected tab
+    const getTotalPages = () => {
+        if (selectedTab === 'leave') {
+            return Math.ceil(filteredLeaveData?.length / itemsPerPage);
+        } else if (selectedTab === 'compoff') {
+            return Math.ceil(filteredCompoffData?.length / itemsPerPage);
+        } else if (selectedTab === 'vendor') {
+            return Math.ceil(filterVendorData?.length / itemsPerPage);
+        }
+        return 1;
+    };
+
+    const totalPages = getTotalPages();
     const [openUndoModel, setOpenUndoModel] = useState(false);
     const [userId, setUserId] = useState('');
 
@@ -101,6 +117,52 @@ const EmployessLeave = () => {
         }
     };
 
+    // Function to get leave type abbreviation
+    const getLeaveTypeAbbreviation = (leaveType) => {
+        if (!leaveType) return "---";
+        
+        // Normalize the leave type to handle different formats
+        const normalizedType = leaveType.toLowerCase().replace(/[-\s_]/g, '');
+        
+        const abbreviations = {
+            casualleave: "CL",
+            earnedleave: "EL", 
+            optionalleave: "OL",
+            shortleave: "SL",
+            uninformedleave: "UL",
+            vendormeeting: "VM",
+            "vendor-meeting": "VM",
+            "vendor_meeting": "VM",
+            compoff: "CO",
+            "comp-off": "CO",
+            "comp_off": "CO",
+            sickleave: "SL",
+            maternityleave: "ML",
+            paternityleave: "PL",
+            bereavementleave: "BL",
+            studyleave: "STL",
+            sabbaticalleave: "SAB",
+            medicalleave: "ML",
+            regularizedleave: "RL",
+            regularized: "RL",
+            "regularized-leave": "RL",
+            "regularized_leave": "RL"
+        };
+        
+        // First try exact match
+        if (abbreviations[leaveType]) {
+            return abbreviations[leaveType];
+        }
+        
+        // Then try normalized match
+        if (abbreviations[normalizedType]) {
+            return abbreviations[normalizedType];
+        }
+        
+        // If no match found, return the original with some basic formatting
+        return leaveType.toUpperCase().substring(0, 3);
+    };
+
     // Function to render Leave Status table
     const renderLeaveTable = (leaveData) => {
         return leaveData?.map((leave, index) => (
@@ -113,9 +175,8 @@ const EmployessLeave = () => {
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{leave.leaveEndDate}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{leave.totalDays}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
-                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(leave.leaveType)}`}>
-                        <span className="hidden sm:inline">{leave?.leaveType?.toUpperCase().split('LEAVE')[0]} LEAVE</span>
-                        <span className="sm:hidden">{leave?.leaveType?.toUpperCase().split('LEAVE')[0]}</span>
+                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(leave.leaveType)}`} title={leave?.leaveType}>
+                        {getLeaveTypeAbbreviation(leave.leaveType)}
                     </span>
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
@@ -196,8 +257,8 @@ const EmployessLeave = () => {
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.compOffDate || '---'}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{item.totalDays}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
-                    <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
-                        COMP-OFF
+                    <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200" title="Comp-Off">
+                        CO
                     </span>
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[200px] truncate" title={item?.reason}>
@@ -227,9 +288,8 @@ const EmployessLeave = () => {
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.dateTime?.split(' ')[0] || '---'}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{item.totalDays}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
-                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(item.leaveType)}`}>
-                        <span className="hidden sm:inline">{item?.leaveType.toUpperCase()}</span>
-                        <span className="sm:hidden">{item?.leaveType.toUpperCase().substring(0, 3)}</span>
+                    <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(item.leaveType)}`} title={item?.leaveType}>
+                        {getLeaveTypeAbbreviation(item.leaveType)}
                     </span>
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
@@ -263,7 +323,10 @@ const EmployessLeave = () => {
             {/* Status Tabs - Mobile Responsive */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
                 <button
-                    onClick={() => setSelectedTab('leave')}
+                    onClick={() => {
+                        setSelectedTab('leave');
+                        setCurrentPage(1);
+                    }}
                     className={`p-3 sm:p-4 rounded-lg shadow-sm transition-all duration-200 ${
                         selectedTab === 'leave' 
                             ? 'bg-white shadow-md border-2 border-blue-500' 
@@ -279,7 +342,10 @@ const EmployessLeave = () => {
                     </div>
                 </button>
                 <button
-                    onClick={() => setSelectedTab('compoff')}
+                    onClick={() => {
+                        setSelectedTab('compoff');
+                        setCurrentPage(1);
+                    }}
                     className={`p-3 sm:p-4 rounded-lg shadow-sm transition-all duration-200 ${
                         selectedTab === 'compoff' 
                             ? 'bg-white shadow-md border-2 border-gray-900' 
@@ -295,7 +361,10 @@ const EmployessLeave = () => {
                     </div>
                 </button>
                 <button
-                    onClick={() => setSelectedTab('vendor')}
+                    onClick={() => {
+                        setSelectedTab('vendor');
+                        setCurrentPage(1);
+                    }}
                     className={`p-3 sm:p-4 rounded-lg shadow-sm transition-all duration-200 ${
                         selectedTab === 'vendor' 
                             ? 'bg-white shadow-md border-2 border-blue-500' 
@@ -351,30 +420,35 @@ const EmployessLeave = () => {
                         <tbody className="divide-y divide-gray-100">
                             {selectedTab === 'leave' ? renderLeaveTable(currentLeaveData) : 
                              selectedTab === "compoff" ? renderCompoffTable(currentCompoffData) : 
-                             renderVendorTable(filterVendorData)}
+                             renderVendorTable(currentVendorData)}
                         </tbody>
                     </table>
                 </div>
             </div>
 
             {/* Pagination */}
-            <div className="flex justify-end mt-4 sm:mt-6">
-                {currentPage > 1 && (
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors mr-2"
-                    >
-                        Previous
-                    </button>
-                )}
-                {currentPage < totalPages && (
-                    <button
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        Next
-                    </button>
-                )}
+            <div className="flex items-center justify-between mt-4 sm:mt-6">
+                <div className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex gap-2">
+                    {currentPage > 1 && (
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Previous
+                        </button>
+                    )}
+                    {currentPage < totalPages && (
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Next
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Undo Modal */}

@@ -24,11 +24,19 @@ const EmployeesAttendanceData = () => {
   const [selectedStartDate, setSelectedStartDate] = useState(null);
   const [selectedEndDate, setSelectedEndDate] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' for 1-30, 'desc' for 30-1
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const { data: dataa } = useSelector((state) => state.userData);
   const userDataList = dataa?.data
   const { loading, data } = useSelector((state) => state.attendanceLogs);
   const { data: allAttendancedata } = useSelector((state) => state.allEmployeeAttencance);
-  const employees = data?.data? data?.data:allAttendancedata?.data || [];
+  const allEmployees = data?.data? data?.data:allAttendancedata?.data || [];
+  
+  // Client-side pagination to show only 10 items
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const employees = allEmployees.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(allEmployees.length / itemsPerPage);
   console.log('allAttendancedata', allAttendancedata)
 
   const employeeId = localStorage.getItem("employeId");
@@ -63,13 +71,15 @@ const EmployeesAttendanceData = () => {
   };
 
   const handlePrevious = () => {
-    if (count > 1) {
-      setCount((prevCount) => prevCount - 1);
+    if (currentPage > 1) {
+      setCurrentPage((prevPage) => prevPage - 1);
     }
   };
 
   const handleNext = () => {
-    setCount((prevCount) => prevCount + 1);
+    if (currentPage < totalPages) {
+      setCurrentPage((prevPage) => prevPage + 1);
+    }
   };
 
   // Sort function to toggle between ascending and descending order
@@ -93,6 +103,7 @@ const EmployeesAttendanceData = () => {
       startDate: selectedStartDate,
       endDate: selectedEndDate
     });
+    setCurrentPage(1); // Reset to first page when date range changes
     setCalendarOpen(false);
   };
 
@@ -470,20 +481,24 @@ const EmployeesAttendanceData = () => {
 
       {/* Pagination */}
       <div className="flex items-center justify-center sm:justify-end mt-4 gap-4">
-        {count === 1?"":
+        <div className="text-sm text-gray-600">
+          Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)} of {allEmployees.length} items
+        </div>
+        {currentPage === 1 ? "" :
         <button
           onClick={handlePrevious}
-          className={`px-6 py-2 rounded-lg ${count === 1
-            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-            : "bg-blue-600 text-white hover:bg-blue-700"
-            }`}
-          disabled={count === 1}
+          className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
         >
           Previous
         </button>}
         <button
           onClick={handleNext}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className={`px-6 py-2 rounded-lg ${
+            currentPage >= totalPages
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-blue-600 text-white hover:bg-blue-700"
+          }`}
+          disabled={currentPage >= totalPages}
         >
           Next
         </button>

@@ -470,7 +470,6 @@ export const postHolidaysDataAction =
 
 export const getLeaveApproveRequestAction =
   () => async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId=localStorage.getItem('employeId')
     // If token does not exist, do nothing or handle the case
@@ -480,9 +479,6 @@ export const getLeaveApproveRequestAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: GET_LEAVE_REQUEST_REQUEST });
@@ -512,7 +508,6 @@ export const getLeaveApproveRequestAction =
 export const postLeaveApproveRequestAction =
   ({ status, id }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId=localStorage.getItem('employeId')
     // If token does not exist, do nothing or handle the case
@@ -522,9 +517,6 @@ export const postLeaveApproveRequestAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: POST_LEAVE_REQUEST_REQUEST });
@@ -761,7 +753,6 @@ export const postApplyCompOffLeaveAction =
 
 export const getCompoffLeaveRequestAction =
   () => async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = localStorage.getItem("employeId");
     // If token does not exist, do nothing or handle the case
@@ -771,9 +762,6 @@ export const getCompoffLeaveRequestAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: GET_COMPOFF_LEAVE_APPROVAL_REQUEST });
@@ -814,7 +802,6 @@ export const getCompoffLeaveRequestAction =
 export const putCompOffLeaveRequestAction =
   ({ status, id }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId=localStorage.getItem('employeId')
     // If token does not exist, do nothing or handle the case
@@ -824,9 +811,6 @@ export const putCompOffLeaveRequestAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: PUT_COMPOFF_LEAVE_STATUS_REQUEST });
@@ -1096,7 +1080,6 @@ export const getCompoffDataAction = () => async (dispatch, getState) => {
 };
 
 export const getVendorLogsAction = () => async (dispatch, getState) => {
-  const { allUserData } = getState();
   const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
   const employeId = localStorage.getItem("employeId");
   // If token does not exist, do nothing or handle the case
@@ -1106,9 +1089,6 @@ export const getVendorLogsAction = () => async (dispatch, getState) => {
       payload: "Authentication token not found",
     });
   }
-
-  // Prevent duplicate fetch if data already exists
-  if (allUserData.data) return;
 
   try {
     dispatch({ type: GET_VENDOR_LOGS_REQUEST });
@@ -1134,7 +1114,6 @@ export const getVendorLogsAction = () => async (dispatch, getState) => {
 };
 
 export const getVendorSingleLogsAction = () => async (dispatch, getState) => {
-  const { allUserData } = getState();
   const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
   const employeId = localStorage.getItem("employeId");
   // If token does not exist, do nothing or handle the case
@@ -1144,9 +1123,6 @@ export const getVendorSingleLogsAction = () => async (dispatch, getState) => {
       payload: "Authentication token not found",
     });
   }
-
-  // Prevent duplicate fetch if data already exists
-  if (allUserData.data) return;
 
   try {
     dispatch({ type: GET_VENDOR_SINGLE_LOGS_REQUEST });
@@ -1172,7 +1148,6 @@ export const getVendorSingleLogsAction = () => async (dispatch, getState) => {
 };
 
 export const getTeammateDataAction = () => async (dispatch, getState) => {
-  const { allUserData } = getState();
   const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
   // const employeId = localStorage.getItem("employeId");
   // If token does not exist, do nothing or handle the case
@@ -1182,9 +1157,6 @@ export const getTeammateDataAction = () => async (dispatch, getState) => {
       payload: "Authentication token not found",
     });
   }
-
-  // Prevent duplicate fetch if data already exists
-  if (allUserData.data) return;
 
   try {
     dispatch({ type: GET_TEAMMATE_DATA_REQUEST });

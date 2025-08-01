@@ -4,7 +4,6 @@ import { getPayrollAndPayslipAction, getUserDataAction } from "../store/action/u
 import NewPaySlip from "./NewPaySlip";
 
 const EmployeePayroleTable = () => {
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [payslipModel, setPayslipModel] = useState(false);
   const [payslipModelData, setPayslipModelData] = useState("");
@@ -28,16 +27,12 @@ const EmployeePayroleTable = () => {
 
   // ✅ Filter logic with month conversion
   const filteredData = data?.data?.filter((employee) => {
-    const nameMatch = employee?.employee_basic_details?.employee_name
-      ?.toLowerCase()
-      ?.includes(searchTerm.toLowerCase());
-
     const paySlipMonth = getMonthName(employee?.pay_slip_month);
     const monthMatch = selectedMonth
       ? paySlipMonth.toLowerCase() === selectedMonth.toLowerCase()
       : true;
 
-    return nameMatch && monthMatch;
+    return monthMatch;
   });
 
   return (
@@ -49,16 +44,8 @@ const EmployeePayroleTable = () => {
         />
       ) : (
         <div>
-          {/* Search and Month Filter */}
-          <div className="flex justify-between items-center mb-4 gap-4">
-            <input
-              type="text"
-              placeholder="Search by name"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border border-gray-300 rounded-lg p-2 w-1/3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-
+          {/* Month Filter */}
+          <div className="flex justify-end items-center mb-4">
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
