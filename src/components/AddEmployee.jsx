@@ -679,8 +679,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                             : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
                                     }`}>
                                         <div className="max-h-60 overflow-y-auto">
-                                            {/* Show Earned Leave only if in notice period */}
-                                            {(data?.data?.isNotice === true) && (
+                                    {/* Show Earned Leave only if in notice period */}
+                                    {(data?.data?.isNotice === true) && (
                                                 leaveBalance?.earnedLeave === '0' ? (
                                                     <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
                                                         Earned Leave - No balance
@@ -698,10 +698,10 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                         <div className="text-xs text-gray-500">{leaveBalance?.earnedLeave} days remaining</div>
                                                     </button>
                                                 )
-                                            )}
+                                    )}
 
-                                            {/* Show Casual Leave only if in probation period */}
-                                            {(data?.data?.isProbation === true) && (
+                                    {/* Show Casual Leave only if in probation period */}
+                                    {(data?.data?.isProbation === true) && (
                                                 leaveBalance?.casualLeave === '0' ? (
                                                     <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
                                                         Casual Leave - No balance
@@ -721,7 +721,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                 )
                                             )}
                                             
-                                            {(data?.data?.isProbation === true) && (
+                                    {(data?.data?.isProbation === true) && (
                                                 leaveBalance?.compOffLeave === '0' ? (
                                                     <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
                                                         Comp Off - No balance
@@ -741,9 +741,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                 )
                                             )}
 
-                                            {/* Show all leave types if employee is permanent */}
-                                            {(data?.data?.isWorking === true) && (
-                                                <>
+                                    {/* Show all leave types if employee is permanent */}
+                                    {(data?.data?.isWorking === true) && (
+                                        <>
                                                     {leaveBalance?.earnedLeave === '0' ? (
                                                         <div className="px-4 py-3 text-gray-400 cursor-not-allowed text-sm">
                                                             Earned Leave - No balance
@@ -863,8 +863,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                         <div className="font-medium text-gray-900">Optional Leave</div>
                                                         <div className="text-xs text-gray-500">No balance limit</div>
                                                     </button>
-                                                </>
-                                            )}
+                                        </>
+                                    )}
                                         </div>
                                     </div>
                                 </div>
@@ -875,7 +875,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Date Range
-                                </label>
+                                    </label>
                                 <button
                                     type="button"
                                     onClick={openCalendar}

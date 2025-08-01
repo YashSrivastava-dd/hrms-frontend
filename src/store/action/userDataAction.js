@@ -469,7 +469,7 @@ export const postHolidaysDataAction =
   };
 
 export const getLeaveApproveRequestAction =
-  () => async (dispatch, getState) => {
+  ({ page = 1, limit = 10 } = {}) => async (dispatch, getState) => {
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId=localStorage.getItem('employeId')
     // If token does not exist, do nothing or handle the case
@@ -489,6 +489,10 @@ export const getLeaveApproveRequestAction =
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        params: {
+          page,
+          limit
+        }
       };
 
       const { data } = await axios.get(
@@ -752,7 +756,7 @@ export const postApplyCompOffLeaveAction =
   };
 
 export const getCompoffLeaveRequestAction =
-  () => async (dispatch, getState) => {
+  ({ page = 1, limit = 10 } = {}) => async (dispatch, getState) => {
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = localStorage.getItem("employeId");
     // If token does not exist, do nothing or handle the case
@@ -772,6 +776,10 @@ export const getCompoffLeaveRequestAction =
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        params: {
+          page,
+          limit
+        }
       };
       const { data } = await axios.get(
         `${process.env.REACT_APP_BASE_URL}/api/leave/get-all-pending-compoff`,
@@ -1079,7 +1087,7 @@ export const getCompoffDataAction = () => async (dispatch, getState) => {
   }
 };
 
-export const getVendorLogsAction = () => async (dispatch, getState) => {
+export const getVendorLogsAction = ({ page = 1, limit = 10 } = {}) => async (dispatch, getState) => {
   const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
   const employeId = localStorage.getItem("employeId");
   // If token does not exist, do nothing or handle the case
@@ -1099,6 +1107,10 @@ export const getVendorLogsAction = () => async (dispatch, getState) => {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      params: {
+        page,
+        limit
+      }
     };
     const { data } = await axios.get(
       `${process.env.REACT_APP_BASE_URL}/api/leave/get-all-vendor-meeting-logs`,

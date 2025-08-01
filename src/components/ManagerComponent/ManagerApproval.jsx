@@ -24,10 +24,15 @@ const ManagerApproval = () => {
   const vendorDataa = vendorData?.data || [];
   const leaveReqData = data?.data || [];
   const compOffData = compOff?.data || [];
+  
+  // Get total records from API response for proper pagination
+  const totalLeaveRecords = data?.totalRecords || 0;
+  const totalCompOffRecords = compOff?.totalRecords || 0;
+  const totalVendorRecords = vendorData?.totalRecords || 0;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("leave");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const { data: dataa } = useSelector((state) => state.userData);
   const userDataList = dataa?.data || [];
 
@@ -37,6 +42,7 @@ const ManagerApproval = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [currentRejectItem, setCurrentRejectItem] = useState("");
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [goToPage, setGoToPage] = useState("");
 
   // Custom Dropdown Component
   const CustomDropdown = ({ item, isCompOff = false, actionType = "leave" }) => {
@@ -147,24 +153,58 @@ const ManagerApproval = () => {
     ? filteredByStatus.filter(item => item?.leaveType?.toLowerCase() === filterLeaveType.toLowerCase())
     : filteredByStatus;
 
-  // Paginate the filtered data
-  const currentData = filteredByLeaveType.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // Filter comp-off data
+  const filteredCompoffData = activeTab === "compoff" && hasData ? filteredByLeaveType : [];
 
-  // Total pages calculation
-  const totalPages = Math.ceil(filteredByLeaveType.length / itemsPerPage);
-  console.log('totalPages', totalPages, filteredByLeaveType?.length)
+  // Use data directly since API returns paginated data
+  // The API already handles pagination, so we use the data as-is
+  const currentData = filteredByLeaveType;
+
+  // Calculate total pages based on active tab using API total records
+  const getTotalPages = () => {
+    // If itemsPerPage is -1 (Show All), return 1 page
+    if (itemsPerPage === -1) {
+      return 1;
+    }
+    
+    if (activeTab === "leave") {
+      return Math.ceil(totalLeaveRecords / itemsPerPage) || 1;
+    } else if (activeTab === "compoff") {
+      return Math.ceil(totalCompOffRecords / itemsPerPage) || 1;
+    } else if (activeTab === "revert") {
+      return Math.ceil(totalLeaveRecords / itemsPerPage) || 1;
+    } else if (activeTab === "vendor") {
+      return Math.ceil(totalVendorRecords / itemsPerPage) || 1;
+    }
+    return 1;
+  };
+
+  const totalPages = getTotalPages();
+  console.log('totalPages', totalPages, 'totalLeaveRecords', totalLeaveRecords, 'itemsPerPage', itemsPerPage);
   // Pagination Handlers
   const nextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
   const closeModal = () => setIsModalOpen(false);
+  
+  const handleGoToPage = () => {
+    const pageNum = parseInt(goToPage);
+    if (pageNum && pageNum >= 1 && pageNum <= totalPages) {
+      setCurrentPage(pageNum);
+      setGoToPage("");
+    } else {
+      toast.error(`Please enter a valid page number between 1 and ${totalPages}`);
+    }
+  };
 
   useEffect(() => {
     console.log('ManagerApproval: Dispatching actions to fetch data...');
-    dispatch(getLeaveApproveRequestAction());
-    dispatch(getCompoffLeaveRequestAction());
+    // Don't send limit if itemsPerPage is -1 (Show All)
+    const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
+    dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
+    dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
     dispatch(getUserDataAction());
-    dispatch(getVendorLogsAction());
-  }, [dispatch]);
+    dispatch(getVendorLogsAction({ page: currentPage, limit }));
+  }, [dispatch, currentPage, itemsPerPage]);
 
   const handleRejectClick = (item) => {
     if (item && item._id) {
@@ -447,7 +487,10 @@ const ManagerApproval = () => {
               className={`p-5 rounded text-white ${activeTab === "leave" ? "bg-blue-500" : "bg-white text-blue-300 shadow"
                 }`}
               style={activeTab === "leave" ? { color: 'white' } : { color: 'black' }}
-              onClick={() => setActiveTab("leave")}
+              onClick={() => {
+                setActiveTab("leave");
+                setCurrentPage(1);
+              }}
             >
               Leave Approvals
             </button>
@@ -455,7 +498,10 @@ const ManagerApproval = () => {
               className={`p-3 rounded text-white ${activeTab === "compoff" ? "bg-blue-500" : "bg-white text-blue-300 shadow"
                 }`}
               style={activeTab === "compoff" ? { color: 'white' } : { color: 'black' }}
-              onClick={() => setActiveTab("compoff")}
+              onClick={() => {
+                setActiveTab("compoff");
+                setCurrentPage(1);
+              }}
             >
               Comp-Off Approvals
             </button>
@@ -463,7 +509,10 @@ const ManagerApproval = () => {
               className={`p-3 rounded text-white ${activeTab === "revert" ? "bg-blue-500" : "bg-white text-blue-300 shadow"
                 }`}
               style={activeTab === "revert" ? { color: 'white' } : { color: 'black' }}
-              onClick={() => setActiveTab("revert")}
+              onClick={() => {
+                setActiveTab("revert");
+                setCurrentPage(1);
+              }}
             >
               Revert Approvals
             </button>
@@ -471,7 +520,10 @@ const ManagerApproval = () => {
               className={`p-3 rounded text-white ${activeTab === "vendor" ? "bg-blue-500" : "bg-white text-blue-300 shadow"
                 }`}
               style={activeTab === "vendor" ? { color: 'white' } : { color: 'black' }}
-              onClick={() => setActiveTab("vendor")}
+              onClick={() => {
+                setActiveTab("vendor");
+                setCurrentPage(1);
+              }}
             >
               Vendor Meetings
             </button>
@@ -582,61 +634,164 @@ const ManagerApproval = () => {
           )}
         </div>
 
+        {/* Pagination Info - Always show */}
+        <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+          <div className="text-sm text-gray-700">
+            {activeTab === "leave" && (itemsPerPage === -1 
+              ? `Showing all ${totalLeaveRecords} items` 
+              : `Showing ${currentData?.length || 0} of ${totalLeaveRecords} items (Page ${currentPage} of ${totalPages})`)}
+            {activeTab === "compoff" && (itemsPerPage === -1 
+              ? `Showing all ${totalCompOffRecords} items` 
+              : `Showing ${currentData?.length || 0} of ${totalCompOffRecords} items (Page ${currentPage} of ${totalPages})`)}
+            {activeTab === "revert" && (itemsPerPage === -1 
+              ? `Showing all ${totalLeaveRecords} items` 
+              : `Showing ${currentData?.length || 0} of ${totalLeaveRecords} items (Page ${currentPage} of ${totalPages})`)}
+            {activeTab === "vendor" && (itemsPerPage === -1 
+              ? `Showing all ${totalVendorRecords} items` 
+              : `Showing ${currentData?.length || 0} of ${totalVendorRecords} items (Page ${currentPage} of ${totalPages})`)}
+          </div>
+        </div>
+
         {/* Pagination Controls */}
-        {activeTab === "leave" && totalPages > 1 && (
-          <div className="flex justify-between items-center mt-6 px-6 py-4 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="text-sm text-gray-700">
-              Showing page {currentPage} of {totalPages} ({filteredByLeaveType.length} total items)
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                  currentPage === 1 
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                }`}
-                onClick={prevPage}
-                disabled={currentPage === 1}
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Previous
-              </button>
-              
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <button
-                      key={pageNum}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                        currentPage === pageNum
-                          ? "bg-blue-500 text-white"
-                          : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                      }`}
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+        {totalPages > 1 && itemsPerPage !== -1 && (
+          <div className="flex justify-between items-center px-6 py-4 bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center space-x-4">
+              {/* Items per page selector */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Show:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(parseInt(e.target.value));
+                    setCurrentPage(1); // Reset to first page when changing items per page
+                  }}
+                  className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                  <option value={500}>500</option>
+                  <option value={1000}>1000</option>
+                  <option value={-1}>Show All</option>
+                </select>
+                <span className="text-sm text-gray-600">per page</span>
               </div>
               
-              <button
-                className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                  currentPage === totalPages 
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                }`}
-                onClick={nextPage}
-                disabled={currentPage === totalPages}
-              >
-                Next
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              {/* Go to page input */}
+              {totalPages > 5 && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Go to:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalPages}
+                    value={goToPage}
+                    onChange={(e) => setGoToPage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleGoToPage()}
+                    className="w-16 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Page"
+                  />
+                  <button
+                    onClick={handleGoToPage}
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-200"
+                  >
+                    Go
+                  </button>
+                </div>
+              )}
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                    currentPage === 1 
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                  onClick={prevPage}
+                  disabled={currentPage === 1}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous
+                </button>
+                
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-1">
+                    {/* First page */}
+                    {currentPage > 3 && (
+                      <>
+                        <button
+                          className="px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                          onClick={() => setCurrentPage(1)}
+                        >
+                          1
+                        </button>
+                        {currentPage > 4 && (
+                          <span className="px-2 text-gray-400">...</span>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* Page numbers around current page */}
+                    {Array.from({ length: totalPages }, (_, i) => {
+                      const pageNum = i + 1;
+                      const shouldShow = 
+                        pageNum === 1 || 
+                        pageNum === totalPages || 
+                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1);
+                      
+                      if (!shouldShow) return null;
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                            currentPage === pageNum
+                              ? "bg-blue-500 text-white"
+                              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                          }`}
+                          onClick={() => setCurrentPage(pageNum)}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    
+                    {/* Last page */}
+                    {currentPage < totalPages - 2 && (
+                      <>
+                        {currentPage < totalPages - 3 && (
+                          <span className="px-2 text-gray-400">...</span>
+                        )}
+                        <button
+                          className="px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                          onClick={() => setCurrentPage(totalPages)}
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                <button
+                  className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                    currentPage === totalPages 
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                  onClick={nextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         )}
