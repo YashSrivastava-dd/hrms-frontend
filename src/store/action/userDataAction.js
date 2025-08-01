@@ -613,6 +613,55 @@ export const putApprovedLeaveByManagerAction =
     }
   };
 
+// New action specifically for navbar notifications that doesn't reload the page
+export const putApprovedLeaveByManagerNavbarAction =
+  ({ status, id, remarks }) =>
+  async (dispatch, getState) => {
+    const { allUserData } = getState();
+    const token = localStorage.getItem("authToken");
+    
+    if (!token) {
+      return dispatch({
+        type: PUT_LEAVE_APPROVAL_BY_MANAGER_REQUEST,
+        payload: "Authentication token not found",
+      });
+    }
+
+    // Prevent duplicate fetch if data already exists
+    if (allUserData.data) return;
+
+    try {
+      dispatch({ type: PUT_LEAVE_APPROVAL_BY_MANAGER_REQUEST });
+
+      // Add token to request headers
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      };
+
+      const { data } = await axios.put(
+        `${process.env.REACT_APP_BASE_URL}/api/leave/action-for-leave-application/${id}`,
+        { status, remarks },
+        config
+      );
+
+      const successAction = dispatch({ type: PUT_LEAVE_APPROVAL_BY_MANAGER_SUCCESS, payload: data });
+
+      // Return the result for the component to handle
+      return successAction;
+    } catch (error) {
+      const errorAction = dispatch({
+        type: PUT_LEAVE_APPROVAL_BY_MANAGER_FAIL,
+        payload: error.response?.data?.message || "Something went wrong",
+      });
+      
+      // Re-throw the error so the component can catch it
+      throw error;
+    }
+  };
+
 export const putApprovedRegularizationAction =
   ({ status, id, remarks }) =>
   async (dispatch, getState) => {

@@ -45,7 +45,7 @@ const ManagerApproval = () => {
   const [goToPage, setGoToPage] = useState("");
 
   // Custom Dropdown Component
-  const CustomDropdown = ({ item, isCompOff = false, actionType = "leave" }) => {
+  const CustomDropdown = ({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick, onDispatch }) => {
     const dropdownRef = useRef(null);
     const dropdownId = `${actionType}-${item?._id}`;
     const isOpen = openDropdown === dropdownId;
@@ -61,26 +61,28 @@ const ManagerApproval = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleAction = (action) => {
+    const handleDropdownAction = (action) => {
+      console.log('Dropdown action clicked:', { action, actionType, itemId: item?._id, isCompOff });
+      
       if (action === "approve") {
         if (actionType === "leave") {
-          handleAction("Approved", item?._id, isCompOff);
+          onAction("Approved", item?._id, isCompOff);
         } else if (actionType === "revert") {
-          dispatch(putRevertLeaveByManagerAction({ status: "Approved", id: item?._id }));
+          onDispatch(putRevertLeaveByManagerAction({ status: "Approved", id: item?._id }));
         } else if (actionType === "vendor") {
-          dispatch(putVendorStatusDataAction({ status: "Approved", id: item?._id }));
+          onDispatch(putVendorStatusDataAction({ status: "Approved", id: item?._id }));
         }
       } else if (action === "reject") {
         if (actionType === "leave") {
           if (isCompOff) {
-            handleAction("Rejected", item?._id, true);
+            onAction("Rejected", item?._id, true);
           } else {
-            handleRejectClick(item);
+            onRejectClick(item);
           }
         } else if (actionType === "revert") {
-          dispatch(putRevertLeaveByManagerAction({ status: "Rejected", id: item?._id }));
+          onDispatch(putRevertLeaveByManagerAction({ status: "Rejected", id: item?._id }));
         } else if (actionType === "vendor") {
-          dispatch(putVendorStatusDataAction({ status: "Rejected", id: item?._id }));
+          onDispatch(putVendorStatusDataAction({ status: "Rejected", id: item?._id }));
         }
       }
       setOpenDropdown(null);
@@ -102,14 +104,14 @@ const ManagerApproval = () => {
           <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px]">
             <div className="py-1">
               <button
-                onClick={() => handleAction("approve")}
+                onClick={() => handleDropdownAction("approve")}
                 className="w-full px-3 py-2 text-xs text-left hover:bg-green-50 transition-colors duration-200 flex items-center text-green-600 font-medium"
               >
                 <span className="mr-2 text-green-500">✓</span>
                 Approve
               </button>
               <button
-                onClick={() => handleAction("reject")}
+                onClick={() => handleDropdownAction("reject")}
                 className="w-full px-3 py-2 text-xs text-left hover:bg-red-50 transition-colors duration-200 flex items-center text-red-600 font-medium"
               >
                 <span className="mr-2 text-red-500">✗</span>
@@ -238,13 +240,30 @@ const ManagerApproval = () => {
   };
 
   const handleAction = (status, id, isCompOff = false) => {
+    console.log('handleAction called with:', { status, id, isCompOff });
+    
     if (!id) {
       toast.error("Invalid item selected for action.");
       return;
     }
     
+    console.log('Handling action:', { status, id, isCompOff });
+    
     const action = isCompOff ? putCompOffLeaveRequestAction : putApprovedLeaveByManagerAction;
+    console.log('Dispatching action:', action.name, { status, id });
     dispatch(action({ status, id }));
+    
+    // Show success message
+    toast.success(`${status} action completed successfully!`);
+    
+    // Refresh data after action (instead of page reload)
+    setTimeout(() => {
+      const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
+      console.log('Refreshing data with:', { page: currentPage, limit });
+      dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
+      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
+      dispatch(getVendorLogsAction({ page: currentPage, limit }));
+    }, 1500);
   };
 
   const SkeletonLoader = () => (
@@ -343,7 +362,14 @@ const ManagerApproval = () => {
           : ''}
         <td className="px-4 py-3 text-center">
           {item?.status === "Pending" ? (
-            <CustomDropdown item={item} isCompOff={isCompOff} actionType="leave" />
+                            <CustomDropdown 
+                  item={item} 
+                  isCompOff={isCompOff} 
+                  actionType="leave" 
+                  onAction={handleAction} 
+                  onRejectClick={handleRejectClick}
+                  onDispatch={dispatch}
+                />
           ) : (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               item?.status === "Approved" ? "bg-green-100 text-green-800" :
@@ -395,7 +421,13 @@ const ManagerApproval = () => {
         </td>
         <td className="px-4 py-3 text-center">
           {item?.revertLeave?.status === "Pending" ? (
-            <CustomDropdown item={item} actionType="revert" />
+                            <CustomDropdown 
+                  item={item} 
+                  actionType="revert" 
+                  onAction={handleAction} 
+                  onRejectClick={handleRejectClick}
+                  onDispatch={dispatch}
+                />
           ) : (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               item?.revertLeave?.status === "Approved" ? "bg-green-100 text-green-800" :
@@ -447,7 +479,13 @@ const ManagerApproval = () => {
         </td>
         <td className="px-4 py-3 text-center">
           {item?.status === "Pending" ? (
-            <CustomDropdown item={item} actionType="vendor" />
+                            <CustomDropdown 
+                  item={item} 
+                  actionType="vendor" 
+                  onAction={handleAction} 
+                  onRejectClick={handleRejectClick}
+                  onDispatch={dispatch}
+                />
           ) : (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               item?.status === "Approved" ? "bg-green-100 text-green-800" :

@@ -14,7 +14,9 @@ import {
   postPunchInDataAction,
   postPunchOutDataAction,
 } from "../store/action/userAdminAction";
-import { putApprovedLeaveByManagerAction, getLeaveApproveRequestAction } from "../store/action/userDataAction";
+import { putApprovedLeaveByManagerNavbarAction, getLeaveApproveRequestAction } from "../store/action/userDataAction";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function Navbar({ onToggleSidebar }) {
   const dispatch = useDispatch();
@@ -151,15 +153,32 @@ function Navbar({ onToggleSidebar }) {
     setShowProfileDropdown(false);
   };
 
-  const handleNotificationAction = (status, id) => {
-    dispatch(putApprovedLeaveByManagerAction({ status, id }));
+  const handleNotificationAction = async (status, id) => {
+    try {
+      await dispatch(putApprovedLeaveByManagerNavbarAction({ status, id }));
+      
+      // Show toast notification
+      toast.success(`${status} action completed successfully!`);
+      
+      // Close the notification dropdown
+      setShowNotificationDropdown(false);
+      
+      // Refresh the leave request data after a short delay
+      setTimeout(() => {
+        dispatch(getLeaveApproveRequestAction());
+      }, 1500);
+    } catch (error) {
+      toast.error("Failed to process the request. Please try again.");
+    }
   };
 
   const isPunchedIn = punchInData?.InTime?.length > 0;
   const isPunchedOut = punchInData?.OutTime === "NA" || punchInState;
 
   return (
-    <div className="bg-white shadow-md w-full">
+    <>
+      <ToastContainer />
+      <div className="bg-white shadow-md w-full">
       {/* Main Navbar */}
       <div className="flex items-center justify-between p-4">
         {/* Left Section - Menu & Logo */}
@@ -402,7 +421,8 @@ function Navbar({ onToggleSidebar }) {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
