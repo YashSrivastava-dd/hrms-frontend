@@ -548,10 +548,16 @@ const EmployeesAttendanceData = () => {
                     ?.replace(/,$/, "")
                     ?.split(",")
                     ?.map((item, index) => {
-                      const isCheckIn = item.includes("in(IN 1)");
+                      const isCheckIn = item.includes("in(IN") || item.includes(":in(");
+                      
+                      // Debug: log the punch record text
+                      console.log('Punch record:', item.trim(), 'isCheckIn:', isCheckIn);
+                      
+                      // Only make punch-in records green, keep punch-out as original
                       const bgColor = isCheckIn ? "#dcfce7" : "#fee2e2";
                       const textColor = isCheckIn ? "#166534" : "#991b1b";
-                      const borderColor = isCheckIn ? "#86efac" : "#fca5a5";
+                      const borderColor = isCheckIn ? "#22c55e" : "#fca5a5";
+                      
                       const icon = isCheckIn ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
