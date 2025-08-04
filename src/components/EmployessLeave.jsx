@@ -163,17 +163,41 @@ const EmployessLeave = () => {
         return leaveType.toUpperCase().substring(0, 3);
     };
 
+    // Function to format days for display (Half Day/Full Day)
+    const formatDays = (totalDays) => {
+        if (totalDays === 0.5) return 'Half Day';
+        if (totalDays === 1) return 'Full Day';
+        return totalDays;
+    };
+
+    // Function to get first word of reason
+    const getFirstWord = (reason) => {
+        if (!reason) return '---';
+        const firstWord = reason.split(' ')[0];
+        return firstWord.length > 15 ? firstWord.substring(0, 15) + '...' : firstWord;
+    };
+
+    // State for reason dropdown
+    const [reasonDropdown, setReasonDropdown] = useState({});
+
+    const toggleReasonDropdown = (index) => {
+        setReasonDropdown(prev => ({
+            ...prev,
+            [index]: !prev[index]
+        }));
+    };
+
     // Function to render Leave Status table
     const renderLeaveTable = (leaveData) => {
         return leaveData?.map((leave, index) => (
             <tr key={index} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm">
-                    <div className="font-medium text-gray-900 text-xs sm:text-sm">{leave?.employeeInfo?.employeeName}</div>
-                    <div className="text-xs text-gray-500 hidden sm:block">{leave?.employeeInfo?.designation}</div>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm whitespace-nowrap">
+                    <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px]" title={leave?.employeeInfo?.employeeName}>{leave?.employeeInfo?.employeeName}</div>
+                    <div className="text-xs text-gray-500 hidden sm:block truncate max-w-[120px]" title={leave?.employeeInfo?.designation}>{leave?.employeeInfo?.designation}</div>
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{leave.leaveStartDate}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{leave.leaveEndDate}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{leave.totalDays}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{leave.leaveStartDate}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{leave.leaveEndDate}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium whitespace-nowrap">{formatDays(leave.totalDays)}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
                     <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(leave.leaveType)}`} title={leave?.leaveType}>
                         {getLeaveTypeAbbreviation(leave.leaveType)}
@@ -189,16 +213,40 @@ const EmployessLeave = () => {
                         <span className="text-gray-400 text-xs">--</span>
                     )}
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[200px] truncate" title={leave?.reason}>
-                    {leave?.reason}
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 relative">
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition-colors duration-200" onClick={() => toggleReasonDropdown(index)}>
+                        <span className="truncate max-w-[120px]" title={leave?.reason}>
+                            {getFirstWord(leave?.reason)}
+                        </span>
+                        {leave?.reason && leave?.reason.split(' ').length > 1 && (
+                            <span className="text-gray-400 text-xs">
+                                ▼
+                            </span>
+                        )}
+                    </div>
+                    {reasonDropdown[index] && leave?.reason && (
+                        <div className="absolute top-full left-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg p-3 mt-1 max-w-[300px] min-w-[200px]">
+                            <div className="text-gray-800 text-sm leading-relaxed whitespace-normal">
+                                {leave?.reason}
+                            </div>
+                            <div className="flex justify-end items-center mt-2 pt-2 border-t border-gray-100">
+                                <button
+                                    onClick={() => toggleReasonDropdown(index)}
+                                    className="text-gray-500 hover:text-gray-700 text-xs font-medium"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{leave?.remarks || "---"}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell whitespace-nowrap truncate max-w-[100px]" title={leave?.remarks || "---"}>{leave?.remarks || "---"}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(leave.status)}`}>
                         {leave.status}
                     </span>
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                <td className="px-2 sm:px-4 py-3 sm:py-4 whitespace-nowrap">
                     {leave.status === 'Pending' ? (
                         <button
                             className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-50 text-red-700 text-xs font-medium rounded-md hover:bg-red-100 transition-colors"
@@ -249,20 +297,44 @@ const EmployessLeave = () => {
     const renderCompoffTable = (compoffData) => {
         return compoffData?.map((item, index1) => (
             <tr key={index1} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index1 % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm">
-                    <div className="font-medium text-gray-900 text-xs sm:text-sm">{item?.employeeInfo?.employeeName}</div>
-                    <div className="text-xs text-gray-500 hidden sm:block">{item?.employeeInfo?.designation || '---'}</div>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm whitespace-nowrap">
+                    <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px]" title={item?.employeeInfo?.employeeName}>{item?.employeeInfo?.employeeName}</div>
+                    <div className="text-xs text-gray-500 hidden sm:block truncate max-w-[120px]" title={item?.employeeInfo?.designation || '---'}>{item?.employeeInfo?.designation || '---'}</div>
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.compOffDate || '---'}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.compOffDate || '---'}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{item.totalDays}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{item.compOffDate || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{item.compOffDate || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium whitespace-nowrap">{formatDays(item.totalDays)}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
                     <span className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200" title="Comp-Off">
                         CO
                     </span>
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[200px] truncate" title={item?.reason}>
-                    {item?.reason}
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 relative">
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition-colors duration-200" onClick={() => toggleReasonDropdown(`compoff-${index1}`)}>
+                        <span className="truncate max-w-[120px]" title={item?.reason}>
+                            {getFirstWord(item?.reason)}
+                        </span>
+                        {item?.reason && item?.reason.split(' ').length > 1 && (
+                            <span className="text-gray-400 text-xs">
+                                ▼
+                            </span>
+                        )}
+                    </div>
+                    {reasonDropdown[`compoff-${index1}`] && item?.reason && (
+                        <div className="absolute top-full left-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg p-3 mt-1 max-w-[300px] min-w-[200px]">
+                            <div className="text-gray-800 text-sm leading-relaxed whitespace-normal">
+                                {item?.reason}
+                            </div>
+                            <div className="flex justify-end items-center mt-2 pt-2 border-t border-gray-100">
+                                <button
+                                    onClick={() => toggleReasonDropdown(`compoff-${index1}`)}
+                                    className="text-gray-500 hover:text-gray-700 text-xs font-medium"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{item?.comments || '---'}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
@@ -295,8 +367,32 @@ const EmployessLeave = () => {
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
                     <span className="text-gray-400 text-xs">---</span>
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 max-w-[150px] sm:max-w-[200px] truncate" title={item?.reason}>
-                    {item?.reason}
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 relative">
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-blue-600 transition-colors duration-200" onClick={() => toggleReasonDropdown(`vendor-${index1}`)}>
+                        <span className="truncate max-w-[120px]" title={item?.reason}>
+                            {getFirstWord(item?.reason)}
+                        </span>
+                        {item?.reason && item?.reason.split(' ').length > 1 && (
+                            <span className="text-gray-400 text-xs">
+                                ▼
+                            </span>
+                        )}
+                    </div>
+                    {reasonDropdown[`vendor-${index1}`] && item?.reason && (
+                        <div className="absolute top-full left-0 z-50 bg-white border border-gray-200 rounded-md shadow-lg p-3 mt-1 max-w-[300px] min-w-[200px]">
+                            <div className="text-gray-800 text-sm leading-relaxed whitespace-normal">
+                                {item?.reason}
+                            </div>
+                            <div className="flex justify-end items-center mt-2 pt-2 border-t border-gray-100">
+                                <button
+                                    onClick={() => toggleReasonDropdown(`vendor-${index1}`)}
+                                    className="text-gray-500 hover:text-gray-700 text-xs font-medium"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{item?.remarks || '---'}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
@@ -400,21 +496,21 @@ const EmployessLeave = () => {
             {/* Table */}
             <div className="bg-white shadow-sm rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="w-full text-left whitespace-nowrap">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Name & Position</th>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Name & Position</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Start Date</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">End Date</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Day Count</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Leave Type</th>
                                 {selectedTab !== "compoff" && (
-                                    <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Attachment</th>
+                                    <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Attachment</th>
                                 )}
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Remarks</th>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Reason</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell whitespace-nowrap">Remarks</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                <th className="px-2 sm:px-4 py-3 sm:py-4 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">

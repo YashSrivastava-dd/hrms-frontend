@@ -127,36 +127,36 @@ console.log('employeeCount',employeeCount)
             </thead>
             <tbody>
               {filteredData.map((item, idx) => (
-                <tr key={idx} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 flex items-center gap-3">
+                <tr key={idx} className="border-b hover:bg-gray-50 transition-colors duration-200">
+                  <td className="px-4 py-3 flex items-center gap-3 whitespace-nowrap">
                     <img
                       src={item.image}
                       alt={item.name}
                       className="w-8 h-8 rounded-full"
                     />
-                    <span className="font-medium text-gray-800">
+                    <span className="font-medium text-gray-800 truncate max-w-[150px]" title={item.employeeInfo.employeeName}>
                       {item.employeeInfo.employeeName}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {getLeaveTypeAbbreviation(item.leaveType)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">
+                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap truncate max-w-[120px]" title={item.employeeInfo.designation}>
                     {item.employeeInfo.designation}
                   </td>
-                  <td className="px-4 py-3">{item.totalDays} Days</td>
-                  <td className="px-4 py-3">{item.leaveStartDate}</td>
-                  <td className="px-4 py-3">{item.leaveEndDate}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">{item.totalDays} Days</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{item.leaveStartDate}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{item.leaveEndDate}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span
                       className={`text-xs px-3 py-1 rounded-full font-semibold ${statusColors[item.status]}`}
                     >
                       {item.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {item.status === "Approved" ? (
                       <MoreHorizontal className="h-4 w-4 text-gray-500" />
                     ) : (
@@ -168,7 +168,7 @@ console.log('employeeCount',employeeCount)
                             id: item._id,
                           })
                         }
-                        className="border px-2 py-1 rounded text-sm"
+                        className="border px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                       >
                         <option value="" disabled>
                           Select

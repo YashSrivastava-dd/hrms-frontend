@@ -93,8 +93,8 @@ function Announcement({ reloadHandel }) {
           </thead>
           <tbody>
             {data?.data?.map((item, index) => (
-              <tr key={index} className="border-t">
-                <td className="px-6 py-4 flex items-center gap-4">
+              <tr key={index} className="border-t hover:bg-gray-50 transition-colors duration-200">
+                <td className="px-6 py-4 flex items-center gap-4 whitespace-nowrap">
                   <img src={item.imageUrl || 'https://via.placeholder.com/40'} alt="avatar" className="w-10 h-10 rounded-md object-cover" />
                   <a
                     href={item.imageUrl}
@@ -103,30 +103,30 @@ function Announcement({ reloadHandel }) {
                   >
                     Download
                   </a>
-                  <span className="text-gray-800 font-medium">
+                  <span className="text-gray-800 font-medium truncate max-w-[200px]" title={item.title}>
                     {item.title}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-gray-600">
+                <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
                   {/* Status logic can be dynamic if needed */}
                   {new Date(item.dateTime) > new Date() ? 'Expires in 2 weeks' : 'Expired'}
                 </td>
-                <td className="px-6 py-4 text-gray-600">
+                <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
                   {new Date(item.dateTime).toLocaleDateString('en-GB', {
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric'
                   })}
                 </td>
-                <td className="px-6 py-4 flex gap-2">
+                <td className="px-6 py-4 flex gap-2 whitespace-nowrap">
                   <button
-                    className="p-2 rounded hover:bg-gray-100"
+                    className="p-2 rounded hover:bg-gray-100 transition-colors duration-200"
                     onClick={() => handleEdit(item)}
                   >
                     <Pencil className="w-4 h-4 text-blue-600" />
                   </button>
                   <button
-                    className="p-2 rounded hover:bg-gray-100"
+                    className="p-2 rounded hover:bg-gray-100 transition-colors duration-200"
                     onClick={() => handleDelete(item._id)}
                   >
                     <Trash2 className="w-4 h-4 text-red-600" />

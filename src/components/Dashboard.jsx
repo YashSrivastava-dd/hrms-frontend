@@ -234,10 +234,36 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
     return "UNKNOWN";
   };
 
+  // Deduplicate and clean punch records
+  const cleanPunchRecords = (punchRecords) => {
+    if (!punchRecords) return [];
+    
+    // Split and clean punch records
+    const punches = punchRecords
+      .split(",")
+      .map(p => p.trim())
+      .filter(p => p.length > 0); // Remove empty entries
+    
+    // Remove duplicates while preserving order
+    const uniquePunches = [];
+    const seen = new Set();
+    
+    punches.forEach(punch => {
+      // Normalize the punch record for comparison
+      const normalized = punch.replace(/\s+/g, ' ').trim();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        uniquePunches.push(punch);
+      }
+    });
+    
+    return uniquePunches;
+  };
+
   const calculateTotalHours = (punchRecords) => {
     if (!punchRecords) return "00:00";
     
-    const punches = punchRecords.split(",").map(p => p.trim());
+    const punches = cleanPunchRecords(punchRecords);
     const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
     const outTimes = punches.filter(p => p.includes("(OUT")).map(p => formatTime(p));
     
@@ -284,7 +310,7 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
   }
 
   const totalHours = calculateTotalHours(attendanceData.PunchRecords);
-  const punchRecords = attendanceData.PunchRecords ? attendanceData.PunchRecords.split(",").map(p => p.trim()) : [];
+  const punchRecords = cleanPunchRecords(attendanceData.PunchRecords);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -529,11 +555,6 @@ const Dashboard = ({ reloadHandel }) => {
               </>
             ) : null}
 
-            {/* Announcements Section - Moved Above Monthly Attendance */}
-            {userDataList?.role !== "HR-Admin" && (
-              <AnnouncementsSection announcements={announcementData?.data || []} />
-            )}
-
             {userDataList?.role !== "HR-Admin" && (
               <>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4">Monthly Attendance</h3>
@@ -578,6 +599,11 @@ const Dashboard = ({ reloadHandel }) => {
               <>
                 <HrAdminDashboard />
               </>
+            )}
+
+            {/* Announcements Section - Moved to Bottom */}
+            {userDataList?.role !== "HR-Admin" && (
+              <AnnouncementsSection announcements={announcementData?.data || []} />
             )}
 
             {/* Footer - Responsive positioning */}

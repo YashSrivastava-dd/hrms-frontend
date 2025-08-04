@@ -88,20 +88,20 @@ const EmployeePayroleTable = () => {
             </thead>
             <tbody>
               {filteredData?.map((employee, index) => (
-                <tr key={index} className="border-t hover:bg-gray-100">
-                  <td className="py-4 px-3">{employee?.employee_basic_details?.employee_code}</td>
-                  <td className="py-4 px-3">{employee?.employee_basic_details?.employee_name}</td>
-                  <td className="py-4 px-3">{employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation}</td>
-                  <td className="py-4 px-3">{employee.pay_slip_month}</td>
-                  <td className="py-4 px-3">{employee.leave_summary?.payable_days || employee.leave_summary?.workedDays}</td>
-                  <td className="py-4 px-3">{employee.leave_summary?.unpaid_days || employee.leave_summary?.absent}</td>
-                  <td className="py-4 px-3">
+                <tr key={index} className="border-t hover:bg-gray-100 transition-colors duration-200">
+                  <td className="py-4 px-3 whitespace-nowrap">{employee?.employee_basic_details?.employee_code}</td>
+                  <td className="py-4 px-3 whitespace-nowrap truncate max-w-[150px]" title={employee?.employee_basic_details?.employee_name}>{employee?.employee_basic_details?.employee_name}</td>
+                  <td className="py-4 px-3 whitespace-nowrap truncate max-w-[120px]" title={employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation}>{employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation}</td>
+                  <td className="py-4 px-3 whitespace-nowrap">{employee.pay_slip_month}</td>
+                  <td className="py-4 px-3 whitespace-nowrap">{employee.leave_summary?.payable_days || employee.leave_summary?.workedDays}</td>
+                  <td className="py-4 px-3 whitespace-nowrap">{employee.leave_summary?.unpaid_days || employee.leave_summary?.absent}</td>
+                  <td className="py-4 px-3 whitespace-nowrap">
                     <button
                       onClick={() => {
                         setPayslipModel(true);
                         setPayslipModelData(employee);
                       }}
-                      className="flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                      className="flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200"
                     >
                       View
                     </button>

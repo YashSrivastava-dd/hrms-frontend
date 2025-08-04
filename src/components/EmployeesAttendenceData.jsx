@@ -387,7 +387,7 @@ const EmployeesAttendanceData = () => {
                           index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                         }`}
                       >
-                        <td className="px-6 py-4 hidden sm:table-cell">
+                        <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                               <span className="text-blue-600 font-semibold text-sm">
@@ -395,11 +395,11 @@ const EmployeesAttendanceData = () => {
                               </span>
                             </div>
                             <div>
-                              <div className="font-medium text-gray-900">{employee.EmployeeName}</div>
+                              <div className="font-medium text-gray-900 truncate max-w-[150px]" title={employee.EmployeeName}>{employee.EmployeeName}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 hidden sm:table-cell">
+                        <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
                           <span 
                             className="inline-flex px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
                             style={statusStyle}
@@ -407,12 +407,12 @@ const EmployeesAttendanceData = () => {
                             {employee.Status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 sm:px-6">
+                        <td className="px-4 py-4 sm:px-6 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
                             {employee.AttendanceDate?.split("T")[0]}
                           </div>
                         </td>
-                        <td className="px-4 py-4 sm:px-6">
+                        <td className="px-4 py-4 sm:px-6 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                             <span className="text-sm font-medium text-gray-900">
@@ -422,7 +422,7 @@ const EmployeesAttendanceData = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-4 sm:px-6">
+                        <td className="px-4 py-4 sm:px-6 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                             <span className="text-sm font-medium text-gray-900">
@@ -432,7 +432,7 @@ const EmployeesAttendanceData = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 hidden sm:table-cell">
+                        <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
                           <div className="flex items-center">
                             <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -442,7 +442,7 @@ const EmployeesAttendanceData = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-4 sm:px-6">
+                        <td className="px-4 py-4 sm:px-6 whitespace-nowrap">
                           <span 
                             className="inline-flex px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
                             style={dayTypeStyle}
@@ -450,12 +450,12 @@ const EmployeesAttendanceData = () => {
                             {dayType}
                           </span>
                         </td>
-                        <td className="px-6 py-4 hidden sm:table-cell">
+                        <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
                           <span className="text-sm text-gray-500">
                             {employee.LeaveType || '---'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 hidden sm:table-cell">
+                        <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
                           <button
                             className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                               employee.Duration === 0 
@@ -543,11 +543,33 @@ const EmployeesAttendanceData = () => {
                   <span className="text-sm font-medium text-gray-700">Punch Records Timeline</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {selectedEmployee.PunchRecords
-                    ?.trim()
-                    ?.replace(/,$/, "")
-                    ?.split(",")
-                    ?.map((item, index) => {
+                  {(() => {
+                    // Clean and deduplicate punch records
+                    const cleanPunchRecords = (punchRecords) => {
+                      if (!punchRecords) return [];
+                      
+                      const punches = punchRecords
+                        .split(",")
+                        .map(p => p.trim())
+                        .filter(p => p.length > 0);
+                      
+                      const uniquePunches = [];
+                      const seen = new Set();
+                      
+                      punches.forEach(punch => {
+                        const normalized = punch.replace(/\s+/g, ' ').trim();
+                        if (!seen.has(normalized)) {
+                          seen.add(normalized);
+                          uniquePunches.push(punch);
+                        }
+                      });
+                      
+                      return uniquePunches;
+                    };
+                    
+                    const cleanedRecords = cleanPunchRecords(selectedEmployee.PunchRecords);
+                    
+                    return cleanedRecords.map((item, index) => {
                       const isCheckIn = item.includes("in(IN") || item.includes(":in(");
                       
                       // Debug: log the punch record text
@@ -589,7 +611,8 @@ const EmployeesAttendanceData = () => {
                           </span>
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                 </div>
               </div>
             ) : (

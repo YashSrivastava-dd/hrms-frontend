@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { postApplyLeaveByEmployee, postMedicalFileAction } from "../store/action/userDataAction";
+import { postApplyLeaveByEmployee, postMedicalFileAction, getAttendenceLogsOfEmploye } from "../store/action/userDataAction";
 import { Bounce, ToastContainer, toast } from 'react-toastify';
 import { RxCross2 } from "react-icons/rx";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
+import { FaClock } from "react-icons/fa";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
@@ -19,29 +20,73 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     const { loading: uploadLoading, data: medicalReport } = useSelector((state) => state.medicalFileReducer);
     const navigate = useNavigate();
     const { data: dataa, error } = useSelector((state) => state.leaveApplyByEmployee)
+    const { data: attendanceData, loading: attendanceLoading } = useSelector((state) => state.attendanceLogs);
+
+    // Reset function to clear all form data - defined before useEffect hooks
+    const resetForm = () => {
+        setLeaveData({
+            leaveType: "",
+            startDate: "",
+            endDate: "",
+            selectTime: '',
+            reason: "",
+            totalDays: 0,
+            compOffDayType: "",
+        });
+        setLeaveTypeError(null);
+        setTotalDayError(null);
+        setReasonError(null);
+        setFileError(null);
+        setCompOffDayTypeError(null);
+        setLeaveError({
+            medical: null,
+            casual: null,
+            earned: null,
+        });
+        setFile(null);
+        setCalendarOpen(false);
+        setSelectedStartDate(null);
+        setSelectedEndDate(null);
+        setIsLeaveTypeDropdownOpen(false);
+    };
 
     useEffect(() => {
-        toast.dismiss()
-    }, [toast])
+        // Remove the problematic toast.dismiss() call that's causing the runtime error
+        // toast.dismiss()
+    }, [])
 
     useEffect(() => {
-        if (error) {
-            toast.error(error, {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: false,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
-            return;
+        if (error && typeof error === 'string' && error.length > 0) {
+            // Provide more user-friendly error messages
+            let errorMessage = error;
+            
+            if (error.includes('Outreached pending earnedLeave balance')) {
+                errorMessage = 'Insufficient earned leave balance. Please check your available leave balance.';
+            } else if (error.includes('balance')) {
+                errorMessage = 'Insufficient leave balance. Please check your available leave balance before applying.';
+            }
+            
+            // Use a try-catch to prevent toast errors from crashing the app
+            try {
+                toast.error(errorMessage, {
+                    position: "top-center",
+                    autoClose: 5000,
+                    hideProgressBar: false,
+                    closeOnClick: false,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                    theme: "colored",
+                    transition: Bounce,
+                });
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
         }
     }, [error])
     useEffect(() => {
-        toast.dismiss()
+        // Remove the problematic toast.dismiss() call that's causing the runtime error
+        // toast.dismiss()
     }, [])
     useEffect(() => {
         if (error === "jwt expired") {
@@ -53,39 +98,51 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         }
     }, [error])
     useEffect(() => {
-        if (dataa) {
-            toast.success(dataa?.message, {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: false,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
-            return;
+        if (dataa && dataa?.message) {
+            // Use a try-catch to prevent toast errors from crashing the app
+            try {
+                toast.success(dataa.message, {
+                    position: "top-center",
+                    autoClose: 5000,
+                    hideProgressBar: false,
+                    closeOnClick: false,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                    theme: "colored",
+                    transition: Bounce,
+                });
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+            
+            // Reset form after successful submission
+            setTimeout(() => {
+                resetForm();
+                setIsOpen(false);
+            }, 1000);
         }
-        setIsOpen(false)
     }, [dataa])
 
     useEffect(() => {
         if (medicalReport && medicalReport.location) {  // ✅ Ensure medicalReport is defined
-            toast.success('File Upload Successfully', {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: false,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
-            return;
+            // Use a try-catch to prevent toast errors from crashing the app
+            try {
+                toast.success('File Upload Successfully', {
+                    position: "top-center",
+                    autoClose: 5000,
+                    hideProgressBar: false,
+                    closeOnClick: false,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                    theme: "colored",
+                    transition: Bounce,
+                });
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
         }
-        setIsOpen(false);
     }, [medicalReport]);
 
     // Handle dropdown click outside
@@ -109,6 +166,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     const [totalDayError, setTotalDayError] = useState(null);
     const [reasonError, setReasonError] = useState(null);
     const [fileError, setFileError] = useState(null);
+    const [compOffDayTypeError, setCompOffDayTypeError] = useState(null);
     const [leaveError, setLeaveError] = useState({
         medical: null,
         casual: null,
@@ -122,6 +180,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         selectTime: '',
         reason: "",
         totalDays: 0, // New field for total days
+        compOffDayType: "", // New field for comp-off day type
     });
 
     // Date range picker state
@@ -134,8 +193,25 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     const [isLeaveTypeDropdownOpen, setIsLeaveTypeDropdownOpen] = useState(false);
     const leaveTypeDropdownRef = useRef(null);
 
-    const openModal = () => setIsOpen(true);
-    const closeModal = () => setIsOpen(false);
+    // Attendance date range navigation state
+    const [currentAttendanceDate, setCurrentAttendanceDate] = useState(dayjs());
+    const [attendanceDateRange, setAttendanceDateRange] = useState([]);
+    const [currentAttendanceIndex, setCurrentAttendanceIndex] = useState(0);
+
+    const openModal = () => {
+        setIsOpen(true);
+        // Fetch attendance data when modal opens
+        const employeeId = localStorage.getItem("employeId");
+        if (employeeId) {
+            // If a date range is selected, we might need to fetch data for that range
+            // For now, we'll fetch current data and let the navigation handle the rest
+            dispatch(getAttendenceLogsOfEmploye(employeeId));
+        }
+    };
+    const closeModal = () => {
+        setIsOpen(false);
+        resetForm(); // Reset form when modal is closed
+    };
     const dispatch = useDispatch();
 
     const [file, setFile] = useState(null);
@@ -356,6 +432,34 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         }
     }, [leaveData.totalDays, leaveData.leaveType, leaveData.selectTime]);
 
+    // Add useEffect to recalculate totalDays when startDate or endDate changes
+    useEffect(() => {
+        if (leaveData.startDate || leaveData.endDate) {
+            const startDate = leaveData.startDate ? new Date(leaveData.startDate + 'T00:00:00') : null;
+            const endDate = leaveData.endDate ? new Date(leaveData.endDate + 'T00:00:00') : null;
+
+            let calculatedTotalDays = 0;
+            if (startDate) {
+                if (!endDate || endDate < startDate) {
+                    // If only start date is selected or end date is invalid, total days is 1
+                    calculatedTotalDays = 1;
+                } else if (endDate >= startDate) {
+                    // If both start and end dates are valid, calculate total days
+                    const timeDiff = endDate - startDate;
+                    calculatedTotalDays = Math.round(timeDiff / (1000 * 60 * 60 * 24)) + 1; // Include start date and round to avoid floating point issues
+                }
+            }
+
+            // Only update if the calculated value is different from current totalDays
+            if (Math.abs(calculatedTotalDays - leaveData.totalDays) > 0.01) {
+                setLeaveData(prevData => ({
+                    ...prevData,
+                    totalDays: calculatedTotalDays
+                }));
+            }
+        }
+    }, [leaveData.startDate, leaveData.endDate]);
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setLeaveData((prevData) => {
@@ -367,8 +471,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             setTotalDayError('')
             setReasonError('')
             if (name === "startDate" || name === "endDate") {
-                const startDate = updatedData.startDate ? new Date(updatedData.startDate) : null;
-                const endDate = updatedData.endDate ? new Date(updatedData.endDate) : null;
+                const startDate = updatedData.startDate ? new Date(updatedData.startDate + 'T00:00:00') : null;
+                const endDate = updatedData.endDate ? new Date(updatedData.endDate + 'T00:00:00') : null;
 
                 if (startDate && (!endDate || endDate < startDate)) {
                     // If only start date is selected or end date is invalid, total days is 1
@@ -376,7 +480,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 } else if (startDate && endDate && endDate >= startDate) {
                     // If both start and end dates are valid, calculate total days
                     const timeDiff = endDate - startDate;
-                    updatedData.totalDays = timeDiff / (1000 * 60 * 60 * 24) + 1; // Include start date
+                    updatedData.totalDays = Math.round(timeDiff / (1000 * 60 * 60 * 24)) + 1; // Include start date and round to avoid floating point issues
                 } else {
                     // Default case for total days
                     updatedData.totalDays = 0;
@@ -472,6 +576,12 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             return;
         }
 
+        // Validate comp-off day type selection
+        if (leaveData.leaveType === 'compOffLeave' && !leaveData.compOffDayType) {
+            setCompOffDayTypeError('Please select whether this is a Half Day or Full Day comp-off.');
+            return;
+        }
+
         if (leaveData.totalDays < 0.5) {
             setTotalDayError('You must apply for at least 1 day of leave.');
             return;
@@ -484,6 +594,47 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
         if (!leaveData?.reason) {
             setReasonError('Reason cannot be empty.');
+            return;
+        }
+
+        // Check leave balance before submitting
+        const requestedDays = parseFloat(leaveData.totalDays);
+        const availableBalance = parseFloat(leaveBalance?.[leaveData.leaveType] || 0);
+        
+        if (requestedDays > availableBalance) {
+            try {
+                toast.error(`Insufficient leave balance. You have ${availableBalance} days available but requesting ${requestedDays} days.`);
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+            return;
+        }
+
+        // Additional balance check for specific leave types
+        if (leaveData.leaveType === 'earnedLeave' && availableBalance <= 0) {
+            try {
+                toast.error('You have no earned leave balance available.');
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+            return;
+        }
+
+        if (leaveData.leaveType === 'casualLeave' && availableBalance <= 0) {
+            try {
+                toast.error('You have no casual leave balance available.');
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+            return;
+        }
+
+        if (leaveData.leaveType === 'compOffLeave' && availableBalance <= 0) {
+            try {
+                toast.error('You have no comp-off leave balance available.');
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
             return;
         }
 
@@ -523,6 +674,65 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         return formattedDate;
     };
 
+    // Attendance summary calculation functions
+    const formatTime = (timeString) => {
+        if (!timeString) return '--:--';
+        // Extract time from format like "09:13 (IN 1)" or "18:31 (OUT 1)"
+        const timeMatch = timeString.match(/(\d{2}:\d{2})/);
+        return timeMatch ? timeMatch[1] : timeString;
+    };
+
+    // Deduplicate and clean punch records
+    const cleanPunchRecords = (punchRecords) => {
+        if (!punchRecords) return [];
+        
+        // Split and clean punch records
+        const punches = punchRecords
+            .split(",")
+            .map(p => p.trim())
+            .filter(p => p.length > 0); // Remove empty entries
+        
+        // Remove duplicates while preserving order
+        const uniquePunches = [];
+        const seen = new Set();
+        
+        punches.forEach(punch => {
+            // Normalize the punch record for comparison
+            const normalized = punch.replace(/\s+/g, ' ').trim();
+            if (!seen.has(normalized)) {
+                seen.add(normalized);
+                uniquePunches.push(punch);
+            }
+        });
+        
+        return uniquePunches;
+    };
+
+    const calculateTotalHours = (punchRecords) => {
+        if (!punchRecords) return "00:00";
+        
+        const punches = cleanPunchRecords(punchRecords);
+        const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
+        const outTimes = punches.filter(p => p.includes("(OUT")).map(p => formatTime(p));
+        
+        if (inTimes.length === 0 || outTimes.length === 0) return "00:00";
+        
+        // Calculate total hours from first in and last out
+        const firstIn = inTimes[0];
+        const lastOut = outTimes[outTimes.length - 1];
+        
+        if (!firstIn || !lastOut) return "00:00";
+        
+        const inMinutes = parseInt(firstIn.split(':')[0]) * 60 + parseInt(firstIn.split(':')[1]);
+        const outMinutes = parseInt(lastOut.split(':')[0]) * 60 + parseInt(lastOut.split(':')[1]);
+        
+        const totalMinutes = outMinutes - inMinutes;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    };
+
     // Calendar functions
     const openCalendar = () => {
         setCalendarOpen(true);
@@ -535,10 +745,30 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     };
 
     const applyDateRange = () => {
+        const newStartDate = selectedStartDate ? selectedStartDate.format('YYYY-MM-DD') : '';
+        const newEndDate = selectedEndDate ? selectedEndDate.format('YYYY-MM-DD') : '';
+        
+        // Calculate total days when applying date range
+        let calculatedTotalDays = 0;
+        if (newStartDate) {
+            const startDate = new Date(newStartDate + 'T00:00:00');
+            const endDate = newEndDate ? new Date(newEndDate + 'T00:00:00') : null;
+            
+            if (!endDate || endDate < startDate) {
+                // If only start date is selected or end date is invalid, total days is 1
+                calculatedTotalDays = 1;
+            } else if (endDate >= startDate) {
+                // If both start and end dates are valid, calculate total days
+                const timeDiff = endDate - startDate;
+                calculatedTotalDays = Math.round(timeDiff / (1000 * 60 * 60 * 24)) + 1; // Include start date and round to avoid floating point issues
+            }
+        }
+        
         setLeaveData({
             ...leaveData,
-            startDate: selectedStartDate ? selectedStartDate.format('YYYY-MM-DD') : '',
-            endDate: selectedEndDate ? selectedEndDate.format('YYYY-MM-DD') : ''
+            startDate: newStartDate,
+            endDate: newEndDate,
+            totalDays: calculatedTotalDays
         });
         setCalendarOpen(false);
     };
@@ -594,9 +824,56 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         return days;
     };
 
-    // Example usage
-    const inputDate = "Fri Jan 10 2025 12:14:10 GMT+0530 (India Standard Time)";
-    const formattedDate = convertToDateFormat(inputDate);
+    // Attendance date range navigation functions
+    const navigateAttendanceDate = (direction) => {
+        if (direction === 'next') {
+            setCurrentAttendanceIndex(prev => Math.min(prev + 1, attendanceDateRange.length - 1));
+        } else {
+            setCurrentAttendanceIndex(prev => Math.max(prev - 1, 0));
+        }
+    };
+
+    const getCurrentAttendanceData = () => {
+        if (!attendanceData?.data || attendanceData.data.length === 0) return null;
+        
+        if (attendanceDateRange.length === 0) {
+            // If no date range is selected, show today's data
+            return attendanceData.data[0];
+        }
+        
+        const currentDate = attendanceDateRange[currentAttendanceIndex];
+        if (!currentDate) return attendanceData.data[0];
+        
+        // Find attendance data for the current date
+        const foundData = attendanceData.data.find(record => 
+            record.AttendanceDate?.split("T")[0] === currentDate.format("YYYY-MM-DD")
+        );
+        
+        // Return found data or null if no data exists for this date
+        return foundData || null;
+    };
+
+    const updateAttendanceDateRange = () => {
+        if (selectedStartDate && selectedEndDate) {
+            const range = [];
+            let current = selectedStartDate.clone();
+            while (current.isSameOrBefore(selectedEndDate)) {
+                range.push(current.clone());
+                current = current.add(1, 'day');
+            }
+            setAttendanceDateRange(range);
+            setCurrentAttendanceIndex(0);
+        } else {
+            setAttendanceDateRange([]);
+            setCurrentAttendanceIndex(0);
+        }
+    };
+
+    // Update attendance date range when date selection changes
+    useEffect(() => {
+        updateAttendanceDateRange();
+    }, [selectedStartDate, selectedEndDate]);
+
     return (
         <div>
             <ToastContainer />
@@ -634,6 +911,107 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                         <p className="text-gray-500 text-sm mt-1">
                             Only applicable if you have pending leave balance.
                         </p>
+
+                        {/* Attendance Summary Section */}
+                        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                                    <FaClock className="w-4 h-4 text-blue-600" />
+                                    {attendanceDateRange.length > 0 ? 'Date Range Attendance' : "Today's Attendance Summary"}
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                    {attendanceDateRange.length > 0 && (
+                                        <>
+                                            <button
+                                                onClick={() => navigateAttendanceDate('prev')}
+                                                disabled={currentAttendanceIndex === 0}
+                                                className={`p-1 rounded-full transition-colors duration-200 ${
+                                                    currentAttendanceIndex === 0 
+                                                        ? 'text-gray-300 cursor-not-allowed' 
+                                                        : 'text-blue-600 hover:bg-blue-100'
+                                                }`}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                                </svg>
+                                            </button>
+                                            <span className="text-xs text-gray-600 font-medium">
+                                                {currentAttendanceIndex + 1} of {attendanceDateRange.length}
+                                            </span>
+                                            <button
+                                                onClick={() => navigateAttendanceDate('next')}
+                                                disabled={currentAttendanceIndex === attendanceDateRange.length - 1}
+                                                className={`p-1 rounded-full transition-colors duration-200 ${
+                                                    currentAttendanceIndex === attendanceDateRange.length - 1 
+                                                        ? 'text-gray-300 cursor-not-allowed' 
+                                                        : 'text-blue-600 hover:bg-blue-100'
+                                                }`}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </button>
+                                        </>
+                                    )}
+                                    <span className="text-xs text-gray-500">
+                                        {getCurrentAttendanceData()?.AttendanceDate?.split("T")[0] || 
+                                         (attendanceDateRange.length > 0 ? 
+                                          attendanceDateRange[currentAttendanceIndex]?.format("YYYY-MM-DD") : 
+                                          "Today")}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            {attendanceLoading ? (
+                                <div className="animate-pulse">
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div className="h-12 bg-gray-200 rounded-lg"></div>
+                                        <div className="h-12 bg-gray-200 rounded-lg"></div>
+                                        <div className="h-12 bg-gray-200 rounded-lg"></div>
+                                    </div>
+                                </div>
+                            ) : attendanceData?.data && attendanceData.data.length > 0 && getCurrentAttendanceData() ? (
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                                        <p className="text-xs text-blue-600 font-medium mb-1">Total Hours</p>
+                                        <p className="text-sm font-semibold text-blue-800">
+                                            {calculateTotalHours(getCurrentAttendanceData()?.PunchRecords)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                                        <p className="text-xs text-green-600 font-medium mb-1">First In</p>
+                                        <p className="text-sm font-semibold text-green-800">
+                                            {getCurrentAttendanceData()?.InTime ? formatTime(getCurrentAttendanceData().InTime) : '--:--'}
+                                        </p>
+                                    </div>
+                                    <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                                        <p className="text-xs text-red-600 font-medium mb-1">Last Out</p>
+                                        <p className="text-sm font-semibold text-red-800">
+                                            {getCurrentAttendanceData()?.OutTime ? formatTime(getCurrentAttendanceData().OutTime) : '--:--'}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-4">
+                                    <FaClock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-500">
+                                        {attendanceDateRange.length > 0 
+                                            ? `No attendance data available for ${attendanceDateRange[currentAttendanceIndex]?.format("MMM DD, YYYY")}`
+                                            : "No attendance data available for today"
+                                        }
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {getCurrentAttendanceData()?.AttendanceStatus && (
+                                <div className="mt-3 p-2 bg-white rounded-lg border border-gray-200">
+                                    <p className="text-xs text-gray-600 font-medium mb-1">Status</p>
+                                    <p className="text-sm font-semibold text-gray-800">
+                                        {getCurrentAttendanceData().AttendanceStatus}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Form */}
                         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
@@ -871,6 +1249,110 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                 <p className="text-red-600 mt-2">{leaveTypeError ? leaveTypeError : ''}</p>
                             </div>
 
+                            {/* Comp-Off Day Type Selection */}
+                            {leaveData.leaveType === "compOffLeave" && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Comp-Off Day Type<span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                        <div className="flex items-start space-x-3">
+                                            <div className="flex-shrink-0">
+                                                <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-medium text-blue-900 mb-2">How to choose your Comp-Off day type:</h4>
+                                                <ul className="text-xs text-blue-800 space-y-1">
+                                                    <li className="flex items-start">
+                                                        <span className="font-medium mr-1">• Half Day:</span>
+                                                        Choose this if your working hours were less than 4.5 hours
+                                                    </li>
+                                                    <li className="flex items-start">
+                                                        <span className="font-medium mr-1">• Full Day:</span>
+                                                        Choose this if your working hours were 4.5 hours or more
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setLeaveData({ ...leaveData, compOffDayType: "halfDay", totalDays: 0.5 })}
+                                            className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
+                                                leaveData.compOffDayType === "halfDay"
+                                                    ? "bg-blue-50 text-blue-700"
+                                                    : "border border-gray-200 bg-white text-gray-700 hover:bg-blue-50"
+                                            }`}
+                                        >
+                                            {/* Check icon for selected state */}
+                                            {leaveData.compOffDayType === "halfDay" && (
+                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                                    <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Icon */}
+                                            <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
+                                                leaveData.compOffDayType === "halfDay"
+                                                    ? "bg-blue-100 text-blue-600"
+                                                    : "bg-gray-100 text-gray-500 group-hover:bg-blue-100 group-hover:text-blue-600"
+                                            }`}>
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </div>
+                                            
+                                            <div className="font-medium text-xs mb-0.5">Half Day</div>
+                                            <div className="text-xs text-gray-500">Less than 4.5 hours</div>
+                                            <div className="text-xs font-medium text-blue-600">0.5 days</div>
+                                        </button>
+                                        
+                                        <button
+                                            type="button"
+                                            onClick={() => setLeaveData({ ...leaveData, compOffDayType: "fullDay", totalDays: 1 })}
+                                            className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
+                                                leaveData.compOffDayType === "fullDay"
+                                                    ? "bg-green-50 text-green-700"
+                                                    : "border border-gray-200 bg-white text-gray-700 hover:bg-green-50"
+                                            }`}
+                                        >
+                                            {/* Check icon for selected state */}
+                                            {leaveData.compOffDayType === "fullDay" && (
+                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                                    <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Icon */}
+                                            <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
+                                                leaveData.compOffDayType === "fullDay"
+                                                    ? "bg-green-100 text-green-600"
+                                                    : "bg-gray-100 text-gray-500 group-hover:bg-green-100 group-hover:text-green-600"
+                                            }`}>
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </div>
+                                            
+                                            <div className="font-medium text-xs mb-0.5">Full Day</div>
+                                            <div className="text-xs text-gray-500">4.5 hours or more</div>
+                                            <div className="text-xs font-medium text-green-600">1.0 day</div>
+                                        </button>
+                                    </div>
+                                    {compOffDayTypeError && (
+                                        <p className="text-red-600 mt-2 text-sm">{compOffDayTypeError}</p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Date Range */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -953,7 +1435,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     htmlFor="reason"
                                     className="block text-sm font-medium text-gray-700"
                                 >
-                                    Reason for Leave
+                                    {leaveData.leaveType === "compOffLeave" ? "Reason for Comp-Off" : "Reason for Leave"}
                                 </label>
                                 <textarea
                                     id="reason"
@@ -961,7 +1443,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     rows="4"
                                     value={leaveData.reason}
                                     onChange={handleInputChange}
-                                    placeholder="Provide your reason for leave..."
+                                    placeholder={leaveData.leaveType === "compOffLeave" ? "Provide your reason for comp-off..." : "Provide your reason for leave..."}
                                     className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none hover:border-gray-300"
                                 ></textarea>
                             </div>

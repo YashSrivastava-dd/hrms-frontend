@@ -196,12 +196,12 @@ function HrAdminDashboard() {
                             </thead>
                             <tbody>
                                 {managerApprove?.slice(0, 4)?.map((item, index) => (
-                                    <tr key={index} className="border-b hover:bg-gray-50">
-                                        <td className="px-4 py-4 font-medium">{item.employeeInfo.employeeName}</td>
-                                        <td className="px-4 py-4">{item.employeeInfo.designation}</td>
-                                        <td className="px-4 py-4">{item.totalDays}</td>
-                                        <td className="px-4 py-4">{item.dateTime.split(' ')[0]}</td>
-                                        <td className="px-4 py-3">
+                                    <tr key={index} className="border-b hover:bg-gray-50 transition-colors duration-200">
+                                        <td className="px-4 py-4 font-medium whitespace-nowrap truncate max-w-[120px]" title={item.employeeInfo.employeeName}>{item.employeeInfo.employeeName}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap truncate max-w-[100px]" title={item.employeeInfo.designation}>{item.employeeInfo.designation}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap">{item.totalDays}</td>
+                                        <td className="px-4 py-4 whitespace-nowrap">{item.dateTime.split(' ')[0]}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
                                             {item.status === "Approved" ? (
                                                 <MoreHorizontal className="h-4 w-4 text-gray-500" />
                                             ) : (
@@ -213,7 +213,7 @@ function HrAdminDashboard() {
                                                             id: item._id,
                                                         })
                                                     }
-                                                    className="border px-2 py-1 rounded text-sm"
+                                                    className="border px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                                                 >
                                                     <option value="" disabled>
                                                         Select

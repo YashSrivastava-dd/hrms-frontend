@@ -49,6 +49,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const [hide, setunhide] = useState(0);
   const [clickedDay, setClickedDay] = useState(null);
   const [showAbbreviations, setShowAbbreviations] = useState(false);
+  const [compOffDayType, setCompOffDayType] = useState(""); // For comp-off day type selection
 
   const dispatch = useDispatch();
   
@@ -284,11 +285,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
     if (actionType === 'compOff') {
       // Handle Comp-Off submissions (Half Day or Full Day)
-      if (selectType === 'halfDay') {
-        dispatch(postApplyCompOffLeaveAction(selectedDate, reason, 0.5));
-      } else if (selectType === 'fullDay') {
-        dispatch(postApplyCompOffLeaveAction(selectedDate, reason, 1));
+      if (!compOffDayType) {
+        toast.error("Please select whether this is a Half Day or Full Day comp-off.", TOAST_CONFIG);
+        return;
       }
+      
+      const totalDays = compOffDayType === 'halfDay' ? 0.5 : 1;
+      dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
     } else if (actionType === 'leave') {
       // Handle Leave submissions (Short Leave, Vendor Meeting, Regularization)
       const date = new Date(selectedDate + " 00:00:00");
@@ -317,6 +320,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setActionType("");
     setSelectDuration(null);
     setClickedDay(null);
+    setCompOffDayType("");
   }, []);
 
   const handleInputChange = useCallback((e) => {
@@ -326,6 +330,84 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const handleChangeDuration = useCallback((e) => {
     setSelectDuration(e.target.value);
   }, []);
+
+  // Format time helper function
+  const formatTime = useCallback((timeString) => {
+    if (!timeString) return '--:--';
+    // Extract time from format like "09:13 (IN 1)" or "18:31 (OUT 1)"
+    const timeMatch = timeString.match(/(\d{2}:\d{2})/);
+    return timeMatch ? timeMatch[1] : timeString;
+  }, []);
+
+  // Deduplicate and clean punch records
+  const cleanPunchRecords = useCallback((punchRecords) => {
+    if (!punchRecords) return [];
+    
+    // Split and clean punch records
+    const punches = punchRecords
+      .split(",")
+      .map(p => p.trim())
+      .filter(p => p.length > 0); // Remove empty entries
+    
+    // Remove duplicates while preserving order
+    const uniquePunches = [];
+    const seen = new Set();
+    
+    punches.forEach(punch => {
+      // Normalize the punch record for comparison
+      const normalized = punch.replace(/\s+/g, ' ').trim();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        uniquePunches.push(punch);
+      }
+    });
+    
+    return uniquePunches;
+  }, []);
+
+  // Calculate total hours from punch records
+  const calculateTotalHours = useCallback((punchRecords) => {
+    if (!punchRecords) return "00:00";
+    
+    const punches = cleanPunchRecords(punchRecords);
+    const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
+    const outTimes = punches.filter(p => p.includes("(OUT")).map(p => formatTime(p));
+    
+    if (inTimes.length === 0 || outTimes.length === 0) return "00:00";
+    
+    // Calculate total hours from first in and last out
+    const firstIn = inTimes[0];
+    const lastOut = outTimes[outTimes.length - 1];
+    
+    if (!firstIn || !lastOut) return "00:00";
+    
+    const inMinutes = parseInt(firstIn.split(':')[0]) * 60 + parseInt(firstIn.split(':')[1]);
+    const outMinutes = parseInt(lastOut.split(':')[0]) * 60 + parseInt(lastOut.split(':')[1]);
+    
+    const totalMinutes = outMinutes - inMinutes;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }, [formatTime, cleanPunchRecords]);
+
+  // Get attendance summary for selected day
+  const getAttendanceSummary = useCallback(() => {
+    if (!selectedDay) return null;
+    
+    const formattedDate = `${selectedDay} ${MONTHS[currentMonth]} ${currentYear}`;
+    const dayData = dayLogs?.find((log) => log.AttendanceDate === formattedDate);
+    
+    if (!dayData) return null;
+    
+    return {
+      date: formattedDate,
+      totalHours: calculateTotalHours(dayData?.PunchRecords) || "00:00",
+      firstIn: dayData?.InTime ? formatTime(dayData.InTime) : "00:00",
+      lastOut: dayData?.OutTime ? formatTime(dayData.OutTime) : "00:00",
+      status: dayData?.AttendanceStatus || "Absent"
+    };
+  }, [selectedDay, currentMonth, currentYear, dayLogs, calculateTotalHours, formatTime]);
 
   return (
     <div className="space-y-6">
@@ -593,52 +675,166 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
             </div>
 
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-              {/* Leave Type Selection */}
-              <div>
-                <label
-                  htmlFor="leaveType"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Leave Type<span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="leaveType"
-                    name="leaveType"
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base appearance-none bg-white hover:border-gray-300"
-                  >
-                    <option value="">✓ Select Leave Type</option>
-                    {actionType === 'leave' ? (
-                      // Apply Leave options - exactly 3 options
-                      <>
-                        <option value="shortLeave">Short Leave</option>
-                        <option value="vendor-meeting">Vendor Meeting</option>
-                        <option value="regularized">Regularization</option>
-                      </>
-                    ) : actionType === 'compOff' ? (
-                      // Comp-Off options - exactly 2 options
-                      <>
-                        <option value="halfDay">Half Day</option>
-                        <option value="fullDay">Full Day</option>
-                      </>
-                    ) : (
-                      // Default options when no action is selected
-                      <>
-                        <option value="shortLeave">Short Leave</option>
-                        <option value="vendor-meeting">Vendor Meeting</option>
-                        <option value="regularized">Regularization</option>
-                      </>
-                    )}
-                  </select>
-                  {/* Custom dropdown arrow */}
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+              {/* Attendance Summary for Both Leave and Comp-Off */}
+              {getAttendanceSummary() && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {actionType === 'compOff' ? "Today's Attendance Summary" : "Attendance Summary"}
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                      {getAttendanceSummary().date}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                      <p className="text-xs text-blue-600 font-medium mb-1">Total Hours</p>
+                      <p className="text-sm font-semibold text-blue-800">{getAttendanceSummary().totalHours}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                      <p className="text-xs text-green-600 font-medium mb-1">First In</p>
+                      <p className="text-sm font-semibold text-green-800">{getAttendanceSummary().firstIn}</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                      <p className="text-xs text-red-600 font-medium mb-1">Last Out</p>
+                      <p className="text-sm font-semibold text-red-800">{getAttendanceSummary().lastOut}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Leave Type Selection */}
+              {actionType === 'leave' && (
+                <div>
+                  <label
+                    htmlFor="leaveType"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Leave Type<span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="leaveType"
+                      name="leaveType"
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base appearance-none bg-white hover:border-gray-300"
+                    >
+                      <option value="">✓ Select Leave Type</option>
+                      <option value="shortLeave">Short Leave</option>
+                      <option value="vendor-meeting">Vendor Meeting</option>
+                      <option value="regularized">Regularization</option>
+                    </select>
+                    {/* Custom dropdown arrow */}
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Comp-Off Day Type Selection */}
+              {actionType === 'compOff' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Comp-Off Day Type<span className="text-red-500">*</span>
+                  </label>
+                  
+                  {/* Information Box */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-start gap-2">
+                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">How to choose your Comp-Off day type:</h4>
+                        <ul className="text-xs text-blue-800 space-y-1">
+                          <li>• <strong>Half Day:</strong> Choose this if your working hours were less than 4.5 hours</li>
+                          <li>• <strong>Full Day:</strong> Choose this if your working hours were 4.5 hours or more</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Day Type Selection Buttons */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCompOffDayType("halfDay")}
+                      className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
+                        compOffDayType === "halfDay"
+                          ? "bg-blue-50 text-blue-700"
+                          : "border border-gray-200 bg-white text-gray-700 hover:bg-blue-50"
+                      }`}
+                    >
+                      {/* Check icon for selected state */}
+                      {compOffDayType === "halfDay" && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      
+                      {/* Icon */}
+                      <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
+                        compOffDayType === "halfDay"
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-gray-100 text-gray-500 group-hover:bg-blue-100 group-hover:text-blue-600"
+                      }`}>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      
+                      <div className="font-medium text-xs mb-0.5">Half Day</div>
+                      <div className="text-xs text-gray-500">Less than 4.5 hours</div>
+                      <div className="text-xs font-medium text-blue-600">0.5 days</div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setCompOffDayType("fullDay")}
+                      className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
+                        compOffDayType === "fullDay"
+                          ? "bg-green-50 text-green-700"
+                          : "border border-gray-200 bg-white text-gray-700 hover:bg-green-50"
+                      }`}
+                    >
+                      {/* Check icon for selected state */}
+                      {compOffDayType === "fullDay" && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      
+                      {/* Icon */}
+                      <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
+                        compOffDayType === "fullDay"
+                          ? "bg-green-100 text-green-600"
+                          : "bg-gray-100 text-gray-500 group-hover:bg-green-100 group-hover:text-green-600"
+                      }`}>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      
+                      <div className="font-medium text-xs mb-0.5">Full Day</div>
+                      <div className="text-xs text-gray-500">4.5 hours or more</div>
+                      <div className="text-xs font-medium text-green-600">1.0 day</div>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Reason Field */}
               <div>
@@ -646,7 +842,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   htmlFor="reason"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Enter your reason<span className="text-red-500">*</span>
+                  {actionType === "compOff" ? "Reason for Comp-Off" : "Enter your reason"}<span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="reason"
@@ -654,7 +850,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   rows="3"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="Provide your reason for leave/comp-off..."
+                  placeholder={actionType === "compOff" ? "Provide your reason for comp-off..." : "Provide your reason for leave/comp-off..."}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300"
                 />
               </div>

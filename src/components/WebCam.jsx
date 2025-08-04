@@ -118,16 +118,16 @@ function Navbar() {
                     </thead>
                     <tbody>
                         {outsideLogs?.data?.map((entry, index) => (
-                            <tr key={index} className="bg-white border-b">
-                                <td className="px-4 py-2">{entry.createdAt.split("T")[0]}</td>
-                                <td className="px-4 py-2">{entry.duration || "--"}</td>
-                                <td className="px-4 py-2 text-green-600 font-medium">
+                            <tr key={index} className="bg-white border-b hover:bg-gray-50 transition-colors duration-200">
+                                <td className="px-4 py-2 whitespace-nowrap">{entry.createdAt.split("T")[0]}</td>
+                                <td className="px-4 py-2 whitespace-nowrap">{entry.duration || "--"}</td>
+                                <td className="px-4 py-2 text-green-600 font-medium whitespace-nowrap">
                                     {entry.InTime.split(" ")[1]}
                                 </td>
-                                <td className="px-4 py-2 text-red-500 font-medium">
+                                <td className="px-4 py-2 text-red-500 font-medium whitespace-nowrap">
                                     {entry.OutTime.split(" ")[1] || "--"}
                                 </td>
-                                <td className="px-4 py-2">
+                                <td className="px-4 py-2 whitespace-nowrap">
                                     {entry.imageUrl && (
                                         <div className="flex flex-col gap-1">
                                             <img
@@ -145,10 +145,10 @@ function Navbar() {
                                         </div>
                                     )}
                                 </td>
-                                <td className="px-4 py-2">{entry.location}</td>
-                                <td className="px-4 py-2">
+                                <td className="px-4 py-2 whitespace-nowrap truncate max-w-[150px]" title={entry.location}>{entry.location}</td>
+                                <td className="px-4 py-2 whitespace-nowrap">
                                     <button
-                                        className="p-2 bg-blue-600 text-white rounded"
+                                        className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200"
                                         onClick={() => getLocationAndDispatch(entry?._id)}
                                     >
                                         Update Locaiton

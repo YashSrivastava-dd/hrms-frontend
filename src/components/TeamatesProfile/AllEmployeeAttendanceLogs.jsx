@@ -193,32 +193,32 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
                                                 return (
                                                     <tr
                                                         key={employee.id}
-                                                        className="border-t hover:bg-gray-100"
+                                                        className="border-t hover:bg-gray-100 transition-colors duration-200"
                                                     >
-                                                        <td className="p-3 text-center hidden sm:table-cell">
-                                                            {employee.EmployeeName}
+                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
+                                                            <span className="truncate max-w-[120px]" title={employee.EmployeeName}>{employee.EmployeeName}</span>
                                                         </td>
-                                                        <td className="p-3 text-center hidden sm:table-cell">
+                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
                                                             {employee.Status}
                                                         </td>
-                                                        <td className="p-3 text-center">
+                                                        <td className="p-3 text-center whitespace-nowrap">
                                                             {employee.AttendanceDate?.split("T")[0]}
                                                         </td>
-                                                        <td className="p-3 text-center">
+                                                        <td className="p-3 text-center whitespace-nowrap">
                                                             {employee.InTime.split(" ")[1] === "00:00:00"
                                                                 ? "--"
                                                                 : employee.InTime.split(" ")[1]}
                                                         </td>
-                                                        <td className="p-3 text-center">
+                                                        <td className="p-3 text-center whitespace-nowrap">
                                                             {employee.OutTime.split(" ")[1] === "00:00:00"
                                                                 ? "--"
                                                                 : employee.OutTime.split(" ")[1]}
                                                         </td>
-                                                        <td className="p-3 text-center hidden sm:table-cell">
+                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
                                                             {hours} Hours {minutes} Minutes
                                                         </td>
                                                         <td
-                                                            className="p-3 text-center"
+                                                            className="p-3 text-center whitespace-nowrap"
                                                             style={{
                                                                 color:
                                                                     dayType === "Full Day"
@@ -232,9 +232,9 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
                                                         >
                                                             {dayType}
                                                         </td>
-                                                        <td className="p-3 text-center hidden sm:table-cell">
+                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
                                                             <button
-                                                                className={`p-2 rounded ${
+                                                                className={`p-2 rounded transition-colors duration-200 ${
                                                                     employee.Duration === 0 
                                                                         ? "bg-gray-400 text-gray-600 cursor-not-allowed" 
                                                                         : "bg-blue-600 text-white hover:bg-blue-700"

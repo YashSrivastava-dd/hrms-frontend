@@ -73,23 +73,23 @@ const TeammatesProfile = ({selectedTag}) => {
                 {filteredTeammates?.map((teammate, index) => (
                   <tr
                     key={index}
-                    className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100`}
+                    className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100 transition-colors duration-200`}
                   >
-                    <td className="p-4">AgVa-{teammate.employeeId}</td>
-                    <td className="p-4 font-medium">{teammate.employeeName}</td>
-                    <td className="p-4">{teammate.designation}</td>
-                    <td className="p-4">{teammate.shiftTime?.startAt}</td>
-                    <td className="p-4">{teammate.shiftTime?.endAt}</td>
-                    <td className="p-4">{teammate.contactNo}</td>
-                    <td className="p-4">{teammate.doj}</td>
-                    <td className="p-4">
+                    <td className="p-4 whitespace-nowrap">AgVa-{teammate.employeeId}</td>
+                    <td className="p-4 font-medium whitespace-nowrap truncate max-w-[150px]" title={teammate.employeeName}>{teammate.employeeName}</td>
+                    <td className="p-4 whitespace-nowrap truncate max-w-[120px]" title={teammate.designation}>{teammate.designation}</td>
+                    <td className="p-4 whitespace-nowrap">{teammate.shiftTime?.startAt}</td>
+                    <td className="p-4 whitespace-nowrap">{teammate.shiftTime?.endAt}</td>
+                    <td className="p-4 whitespace-nowrap">{teammate.contactNo}</td>
+                    <td className="p-4 whitespace-nowrap">{teammate.doj}</td>
+                    <td className="p-4 whitespace-nowrap">
                       <button
                         onClick={() => {
                           setSelectedComponent("employee");
                           setEmployeeTicket(teammate?.employeeId);
                           setemployeeLeaveBalance(teammate?.leaveBalance)
                         }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
                       >
                         View
                       </button>
