@@ -46,6 +46,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const [reason, setReason] = useState("");
   const [selectType, setSelectType] = useState("");
   const [actionType, setActionType] = useState(""); // 'leave' or 'compOff'
+  const [leaveType, setLeaveType] = useState(""); // For leave type selection
   const [hide, setunhide] = useState(0);
   const [clickedDay, setClickedDay] = useState(null);
   const [showAbbreviations, setShowAbbreviations] = useState(false);
@@ -271,7 +272,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       return;
     }
     
-    if (!selectType) {
+    if (actionType === 'leave' && !selectType) {
       toast.error("Please select a leave type", TOAST_CONFIG);
       return;
     }
@@ -284,13 +285,19 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     const selectedDate = `${selectedDay} ${MONTHS[currentMonth]} ${currentYear}`;
 
     if (actionType === 'compOff') {
-      // Handle Comp-Off submissions (Half Day or Full Day)
+      // Handle Comp-Off submissions (First Half, Second Half, or Full Day)
       if (!compOffDayType) {
-        toast.error("Please select whether this is a Half Day or Full Day comp-off.", TOAST_CONFIG);
+        toast.error("Please select a duration (First Half, Second Half, or Full Day).", TOAST_CONFIG);
         return;
       }
       
-      const totalDays = compOffDayType === 'halfDay' ? 0.5 : 1;
+      let totalDays = 0;
+      if (compOffDayType === 'firstHalf' || compOffDayType === 'secondHalf') {
+        totalDays = 0.5;
+      } else if (compOffDayType === 'fullDay') {
+        totalDays = 1;
+      }
+      
       dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
     } else if (actionType === 'leave') {
       // Handle Leave submissions (Short Leave, Vendor Meeting, Regularization)
@@ -318,6 +325,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setReason("");
     setSelectType("");
     setActionType("");
+    setLeaveType("");
     setSelectDuration(null);
     setClickedDay(null);
     setCompOffDayType("");
@@ -662,7 +670,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActionType('compOff')}
+                  onClick={() => {
+                    setActionType('compOff');
+                    setLeaveType('compOffLeave'); // Set default leave type for comp-off
+                  }}
                   className={`flex-1 px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-200 ${
                     actionType === 'compOff' 
                       ? 'bg-blue-600 text-white shadow-md' 
@@ -741,97 +752,28 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
               {actionType === 'compOff' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Comp-Off Day Type<span className="text-red-500">*</span>
+                    Select Duration<span className="text-red-500">*</span>
                   </label>
-                  
-                  {/* Information Box */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-blue-900 mb-2">How to choose your Comp-Off day type:</h4>
-                        <ul className="text-xs text-blue-800 space-y-1">
-                          <li>• <strong>Half Day:</strong> Choose this if your working hours were less than 4.5 hours</li>
-                          <li>• <strong>Full Day:</strong> Choose this if your working hours were 4.5 hours or more</li>
-                        </ul>
-                      </div>
+                  <div className="relative">
+                    <select
+                      value={compOffDayType}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCompOffDayType(value);
+                      }}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
+                    >
+                      <option value="">Select Duration</option>
+                      <option value="firstHalf">First Half</option>
+                      <option value="secondHalf">Second Half</option>
+                      <option value="fullDay">Full Day</option>
+                    </select>
+                    {/* Custom dropdown arrow */}
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
-                  </div>
-
-                  {/* Day Type Selection Buttons */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCompOffDayType("halfDay")}
-                      className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
-                        compOffDayType === "halfDay"
-                          ? "bg-blue-50 text-blue-700"
-                          : "border border-gray-200 bg-white text-gray-700 hover:bg-blue-50"
-                      }`}
-                    >
-                      {/* Check icon for selected state */}
-                      {compOffDayType === "halfDay" && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                      
-                      {/* Icon */}
-                      <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
-                        compOffDayType === "halfDay"
-                          ? "bg-blue-100 text-blue-600"
-                          : "bg-gray-100 text-gray-500 group-hover:bg-blue-100 group-hover:text-blue-600"
-                      }`}>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      
-                      <div className="font-medium text-xs mb-0.5">Half Day</div>
-                      <div className="text-xs text-gray-500">Less than 4.5 hours</div>
-                      <div className="text-xs font-medium text-blue-600">0.5 days</div>
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => setCompOffDayType("fullDay")}
-                      className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
-                        compOffDayType === "fullDay"
-                          ? "bg-green-50 text-green-700"
-                          : "border border-gray-200 bg-white text-gray-700 hover:bg-green-50"
-                      }`}
-                    >
-                      {/* Check icon for selected state */}
-                      {compOffDayType === "fullDay" && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                      
-                      {/* Icon */}
-                      <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
-                        compOffDayType === "fullDay"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-gray-100 text-gray-500 group-hover:bg-green-100 group-hover:text-green-600"
-                      }`}>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      
-                      <div className="font-medium text-xs mb-0.5">Full Day</div>
-                      <div className="text-xs text-gray-500">4.5 hours or more</div>
-                      <div className="text-xs font-medium text-green-600">1.0 day</div>
-                    </button>
                   </div>
                 </div>
               )}

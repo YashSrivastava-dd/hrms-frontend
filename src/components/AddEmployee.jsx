@@ -578,7 +578,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
         // Validate comp-off day type selection
         if (leaveData.leaveType === 'compOffLeave' && !leaveData.compOffDayType) {
-            setCompOffDayTypeError('Please select whether this is a Half Day or Full Day comp-off.');
+            setCompOffDayTypeError('Please select a duration (First Half, Second Half, or Full Day).');
             return;
         }
 
@@ -1249,110 +1249,6 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                 <p className="text-red-600 mt-2">{leaveTypeError ? leaveTypeError : ''}</p>
                             </div>
 
-                            {/* Comp-Off Day Type Selection */}
-                            {leaveData.leaveType === "compOffLeave" && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Comp-Off Day Type<span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                                        <div className="flex items-start space-x-3">
-                                            <div className="flex-shrink-0">
-                                                <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="text-sm font-medium text-blue-900 mb-2">How to choose your Comp-Off day type:</h4>
-                                                <ul className="text-xs text-blue-800 space-y-1">
-                                                    <li className="flex items-start">
-                                                        <span className="font-medium mr-1">• Half Day:</span>
-                                                        Choose this if your working hours were less than 4.5 hours
-                                                    </li>
-                                                    <li className="flex items-start">
-                                                        <span className="font-medium mr-1">• Full Day:</span>
-                                                        Choose this if your working hours were 4.5 hours or more
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setLeaveData({ ...leaveData, compOffDayType: "halfDay", totalDays: 0.5 })}
-                                            className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
-                                                leaveData.compOffDayType === "halfDay"
-                                                    ? "bg-blue-50 text-blue-700"
-                                                    : "border border-gray-200 bg-white text-gray-700 hover:bg-blue-50"
-                                            }`}
-                                        >
-                                            {/* Check icon for selected state */}
-                                            {leaveData.compOffDayType === "halfDay" && (
-                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                                    <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                </div>
-                                            )}
-                                            
-                                            {/* Icon */}
-                                            <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
-                                                leaveData.compOffDayType === "halfDay"
-                                                    ? "bg-blue-100 text-blue-600"
-                                                    : "bg-gray-100 text-gray-500 group-hover:bg-blue-100 group-hover:text-blue-600"
-                                            }`}>
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            </div>
-                                            
-                                            <div className="font-medium text-xs mb-0.5">Half Day</div>
-                                            <div className="text-xs text-gray-500">Less than 4.5 hours</div>
-                                            <div className="text-xs font-medium text-blue-600">0.5 days</div>
-                                        </button>
-                                        
-                                        <button
-                                            type="button"
-                                            onClick={() => setLeaveData({ ...leaveData, compOffDayType: "fullDay", totalDays: 1 })}
-                                            className={`relative p-3 rounded-md transition-all duration-200 text-center group ${
-                                                leaveData.compOffDayType === "fullDay"
-                                                    ? "bg-green-50 text-green-700"
-                                                    : "border border-gray-200 bg-white text-gray-700 hover:bg-green-50"
-                                            }`}
-                                        >
-                                            {/* Check icon for selected state */}
-                                            {leaveData.compOffDayType === "fullDay" && (
-                                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                                    <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                </div>
-                                            )}
-                                            
-                                            {/* Icon */}
-                                            <div className={`w-6 h-6 mx-auto mb-1 rounded-full flex items-center justify-center ${
-                                                leaveData.compOffDayType === "fullDay"
-                                                    ? "bg-green-100 text-green-600"
-                                                    : "bg-gray-100 text-gray-500 group-hover:bg-green-100 group-hover:text-green-600"
-                                            }`}>
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            </div>
-                                            
-                                            <div className="font-medium text-xs mb-0.5">Full Day</div>
-                                            <div className="text-xs text-gray-500">4.5 hours or more</div>
-                                            <div className="text-xs font-medium text-green-600">1.0 day</div>
-                                        </button>
-                                    </div>
-                                    {compOffDayTypeError && (
-                                        <p className="text-red-600 mt-2 text-sm">{compOffDayTypeError}</p>
-                                    )}
-                                </div>
-                            )}
-
                             {/* Date Range */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1376,6 +1272,47 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     </svg>
                                 </button>
                             </div>
+
+                            {/* Comp-Off Day Type Selection */}
+                            {leaveData.leaveType === "compOffLeave" && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Select Duration<span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            id="compOffDayType"
+                                            name="compOffDayType"
+                                            value={leaveData.compOffDayType}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                let totalDays = 0;
+                                                if (value === "firstHalf" || value === "secondHalf") {
+                                                    totalDays = 0.5;
+                                                } else if (value === "fullDay") {
+                                                    totalDays = 1;
+                                                }
+                                                setLeaveData({ ...leaveData, compOffDayType: value, totalDays });
+                                            }}
+                                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
+                                        >
+                                            <option value="">Select Duration</option>
+                                            <option value="firstHalf">First Half</option>
+                                            <option value="secondHalf">Second Half</option>
+                                            <option value="fullDay">Full Day</option>
+                                        </select>
+                                        {/* Custom dropdown arrow */}
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    {compOffDayTypeError && (
+                                        <p className="text-red-600 mt-2 text-sm">{compOffDayTypeError}</p>
+                                    )}
+                                </div>
+                            )}
                             {leaveData.totalDays < 2 ? leaveData.leaveType === 'casualLeave' || leaveData.leaveType === 'earnedLeave' ?
                                 <div>
                                     <label
