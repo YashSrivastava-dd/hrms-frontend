@@ -1313,7 +1313,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     )}
                                 </div>
                             )}
-                            {leaveData.totalDays < 2 ? leaveData.leaveType === 'casualLeave' || leaveData.leaveType === 'earnedLeave' ?
+                            {leaveData.totalDays <= 1 ? leaveData.leaveType === 'casualLeave' || leaveData.leaveType === 'earnedLeave' ?
                                 <div>
                                     <label
                                         htmlFor="startDate"
