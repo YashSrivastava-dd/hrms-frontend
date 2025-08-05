@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getCompoffLeaveRequestAction,
+  getAllCompoffLeaveRequestAction,
   getLeaveApproveRequestAction,
   getUserDataAction,
   getVendorLogsAction,
@@ -11,6 +12,7 @@ import {
   putCompOffLeaveRequestAction,
   putRevertLeaveByManagerAction,
   putVendorStatusDataAction,
+  postApplyCompOffLeaveAction,
 } from "../../store/action/userDataAction";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -19,24 +21,29 @@ import { RxCross2 } from "react-icons/rx";
 
 const ManagerApproval = () => {
   const dispatch = useDispatch();
+  
+  // Redux selectors with memoization
   const { loading, data, error: leaveError } = useSelector((state) => state.managerLeaveApprove);
   const { data: compOff, error: compOffError } = useSelector((state) => state.compoffApprove);
   const { data: vendorData, error: vendorError } = useSelector((state) => state.vendorLogsData);
-  const vendorDataa = vendorData?.data || [];
-  const leaveReqData = data?.data || [];
-  const compOffData = compOff?.data || [];
+  const { data: dataa } = useSelector((state) => state.userData);
   
-  // Get total records from API response for proper pagination
-  const totalLeaveRecords = data?.totalRecords || 0;
-  const totalCompOffRecords = compOff?.totalRecords || 0;
-  const totalVendorRecords = vendorData?.totalRecords || 0;
+  // Memoized data extraction
+  const vendorDataa = useMemo(() => vendorData?.data || [], [vendorData?.data]);
+  const leaveReqData = useMemo(() => data?.data || [], [data?.data]);
+  const compOffData = useMemo(() => compOff?.data || [], [compOff?.data]);
+  const userDataList = useMemo(() => dataa?.data || [], [dataa?.data]);
+  
+  // Memoized total records
+  const totalLeaveRecords = useMemo(() => data?.totalRecords || 0, [data?.totalRecords]);
+  const totalCompOffRecords = useMemo(() => compOff?.totalRecords || 0, [compOff?.totalRecords]);
+  const totalVendorRecords = useMemo(() => vendorData?.totalRecords || 0, [vendorData?.totalRecords]);
+  
+  // State management
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("leave");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
-  const { data: dataa } = useSelector((state) => state.userData);
-  const userDataList = dataa?.data || [];
-
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("");
@@ -57,7 +64,7 @@ const ManagerApproval = () => {
 
   // Custom Dropdown Component
   // Custom Status Filter Dropdown Component
-  const StatusFilterDropdown = ({ value, onChange }) => {
+  const StatusFilterDropdown = useCallback(({ value, onChange }) => {
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -73,20 +80,29 @@ const ManagerApproval = () => {
       };
     }, []);
 
-    const statusOptions = [
+    const statusOptions = useMemo(() => [
       { value: "", label: "All Status" },
       { value: "Pending", label: "Pending" },
       { value: "Approved", label: "Approved" },
       { value: "Rejected", label: "Rejected" }
-    ];
+    ], []);
 
-    const selectedOption = statusOptions.find(option => option.value === value) || statusOptions[0];
+    const selectedOption = useMemo(() => 
+      statusOptions.find(option => option.value === value) || statusOptions[0], 
+      [statusOptions, value]
+    );
+
+    const handleOptionClick = useCallback((optionValue) => {
+      onChange(optionValue);
+      setStatusFilterDropdownOpen(false);
+    }, [onChange]);
 
     return (
-      <div className="relative" ref={dropdownRef}>
+      <div className="relative" ref={dropdownRef} style={{ zIndex: statusFilterDropdownOpen ? 9999 : 'auto' }}>
         <button
+          type="button"
           onClick={() => setStatusFilterDropdownOpen(!statusFilterDropdownOpen)}
-          className="px-4 py-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 flex items-center justify-between min-w-[140px]"
+          className="px-4 py-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 flex items-center justify-between min-w-[140px] cursor-pointer"
         >
           <span className={value === "" ? "text-gray-500" : "text-gray-900"}>
             {selectedOption.label}
@@ -104,17 +120,38 @@ const ManagerApproval = () => {
         </button>
         
         {statusFilterDropdownOpen && (
-          <div className="absolute right-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+          <div 
+            className="absolute right-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg"
+            style={{ 
+              zIndex: 10000,
+              pointerEvents: 'auto',
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              minWidth: '140px'
+            }}
+          >
             {statusOptions.map((option) => (
               <button
                 key={option.value}
-                onClick={() => {
-                  onChange(option.value);
-                  setStatusFilterDropdownOpen(false);
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOptionClick(option.value);
                 }}
-                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 transition-colors duration-200 ${
-                  value === option.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                } ${option.value === "" ? 'border-b border-gray-100' : ''}`}
+                style={{ 
+                  pointerEvents: 'auto',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: value === option.value ? '#2563eb' : '#374151',
+                  backgroundColor: value === option.value ? '#eff6ff' : 'transparent'
+                }}
+                className="hover:bg-gray-50 transition-colors duration-200"
               >
                 {option.label}
               </button>
@@ -123,12 +160,13 @@ const ManagerApproval = () => {
         )}
       </div>
     );
-  };
+  }, []);
 
-  const CustomDropdown = ({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick, onDispatch }) => {
+  const CustomDropdown = useCallback(({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick, onDispatch }) => {
     const dropdownRef = useRef(null);
-    const dropdownId = `${actionType}-${item?._id}`;
+    const dropdownId = useMemo(() => `${actionType}-${item?._id}`, [actionType, item?._id]);
     const isOpen = openDropdown === dropdownId;
+    const isPending = item?.status === "Pending";
 
     useEffect(() => {
       const handleClickOutside = (event) => {
@@ -141,58 +179,153 @@ const ManagerApproval = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleDropdownAction = (action) => {
-      console.log('Dropdown action clicked:', { action, actionType, itemId: item?._id, isCompOff });
+    const handleApprove = useCallback(async () => {
+      if (!isPending) {
+        toast.error("This request is no longer pending and cannot be modified.");
+        return;
+      }
       
-      if (action === "approve") {
-        if (actionType === "leave") {
-          onAction("Approved", item?._id, isCompOff);
+      try {
+        if (actionType === "compoff") {
+          await onAction("Approved", item?._id, true);
+        } else if (actionType === "leave") {
+          await onAction("Approved", item?._id, isCompOff);
         } else if (actionType === "revert") {
-          onAction("Approved", item?._id);
+          await onAction("Approved", item?._id);
         } else if (actionType === "vendor") {
-          onAction("Approved", item?._id);
+          await onAction("Approved", item?._id);
         }
-      } else if (action === "reject") {
-        if (actionType === "leave") {
+      } catch (error) {
+        console.error('Error in handleApprove:', error);
+        toast.error("An error occurred while processing the approval.");
+      }
+      
+      setOpenDropdown(null);
+    }, [actionType, item, isCompOff, isPending, onAction]);
+
+    const handleReject = useCallback(async () => {
+      if (!isPending) {
+        toast.error("This request is no longer pending and cannot be modified.");
+        return;
+      }
+      
+      try {
+        if (actionType === "compoff") {
+          await onAction("Rejected", item?._id, true);
+        } else if (actionType === "leave") {
           if (isCompOff) {
-            onAction("Rejected", item?._id, true);
+            await onAction("Rejected", item?._id, true);
           } else {
             onRejectClick(item);
           }
         } else if (actionType === "revert") {
-          onAction("Rejected", item?._id);
+          await onAction("Rejected", item?._id);
         } else if (actionType === "vendor") {
-          onAction("Rejected", item?._id);
+          await onAction("Rejected", item?._id);
         }
+      } catch (error) {
+        console.error('Error in handleReject:', error);
+        toast.error("An error occurred while processing the rejection.");
       }
+      
       setOpenDropdown(null);
-    };
+    }, [actionType, item, isCompOff, isPending, onAction, onRejectClick]);
 
+    const handleToggleDropdown = useCallback(() => {
+      setOpenDropdown(isOpen ? null : dropdownId);
+    }, [isOpen, dropdownId]);
+
+    // If not pending, show status instead of dropdown
+    if (!isPending) {
+      const statusClass = item?.status === "Approved" ? "bg-green-100 text-green-800" : 
+                         item?.status === "Rejected" ? "bg-red-100 text-red-800" : 
+                         "bg-gray-100 text-gray-800";
+      
+      return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+          {item?.status || "---"}
+        </span>
+      );
+    }
+
+    // For pending items, show dropdown
     return (
-      <div className="relative inline-block w-full" ref={dropdownRef}>
+      <div className="relative inline-block w-full" ref={dropdownRef} style={{ zIndex: isOpen ? 9999 : 'auto' }}>
         <button
-          onClick={() => setOpenDropdown(isOpen ? null : dropdownId)}
-          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 flex items-center justify-between"
+          type="button"
+          onClick={handleToggleDropdown}
+          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 flex items-center justify-between cursor-pointer"
         >
-          <span className="text-gray-600 truncate">Select Action</span>
-          <svg className={`w-3 h-3 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="truncate text-gray-600">Select Action</span>
+          <svg 
+            className={`w-3 h-3 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
         
         {isOpen && (
-          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px]">
+          <div 
+            className="absolute mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px]"
+            style={{ 
+              zIndex: 10000,
+              pointerEvents: 'auto',
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0
+            }}
+          >
             <div className="py-1">
               <button
-                onClick={() => handleDropdownAction("approve")}
-                className="w-full px-3 py-2 text-xs text-left hover:bg-green-50 transition-colors duration-200 flex items-center text-green-600 font-medium"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleApprove();
+                }}
+                style={{ 
+                  pointerEvents: 'auto',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: '#059669',
+                  fontWeight: '500'
+                }}
+                className="hover:bg-green-50 transition-colors duration-200"
               >
                 <span className="mr-2 text-green-500">✓</span>
                 Approve
               </button>
               <button
-                onClick={() => handleDropdownAction("reject")}
-                className="w-full px-3 py-2 text-xs text-left hover:bg-red-50 transition-colors duration-200 flex items-center text-red-600 font-medium"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReject();
+                }}
+                style={{ 
+                  pointerEvents: 'auto',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: '#dc2626',
+                  fontWeight: '500'
+                }}
+                className="hover:bg-red-50 transition-colors duration-200"
               >
                 <span className="mr-2 text-red-500">✗</span>
                 Reject
@@ -202,126 +335,112 @@ const ManagerApproval = () => {
         )}
       </div>
     );
-  };
+  }, [openDropdown]);
 
-  // Filter data based on the active tab
-  const filteredData = activeTab === "leave" ? leaveReqData : activeTab === "revert" ? leaveReqData : activeTab === 'vendor' ? vendorDataa : compOffData;
-  console.log('filteredData', filteredData)
-  console.log('loading state:', loading)
-  console.log('data state:', data)
-  console.log('compOff state:', compOff)
-  console.log('vendorData state:', vendorData)
-  console.log('userData state:', dataa)
-  
-  // Debug: Log the first few items to see their structure
-  if (activeTab === "revert" && leaveReqData && leaveReqData.length > 0) {
-    console.log('Sample leave request data for revert tab:', leaveReqData.slice(0, 3));
-    console.log('Items with revertLeave:', leaveReqData.filter(item => item?.revertLeave));
+  // Memoized data filtering and processing
+  const filteredData = useMemo(() => {
+    if (activeTab === "leave") return leaveReqData;
+    if (activeTab === "revert") return leaveReqData;
+    if (activeTab === 'vendor') return vendorDataa;
+    if (activeTab === "compoff") {
+      return compOffData;
+    }
+    return [];
+  }, [activeTab, leaveReqData, vendorDataa, compOffData]);
+
+  // Memoized data processing
+  const processedData = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return [];
     
-    // Count items with empty revert data
-    const itemsWithEmptyRevert = leaveReqData.filter(item => 
-      item?.revertLeave && 
-      typeof item.revertLeave === 'object' && 
-      (!item.revertLeave.revertedDays || item.revertLeave.revertedDays === '')
-    );
-    console.log('Items with empty revert data:', itemsWithEmptyRevert.length, 'out of', leaveReqData.length);
-  }
+    let processed = filteredData;
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      processed = processed.filter(item =>
+        (item?.employeeInfo?.employeeName?.toLowerCase() || '').includes(searchLower) ||
+        (item?.reason?.toLowerCase() || '').includes(searchLower)
+      );
+    }
+    
+    // Apply status filter
+    if (filterStatus) {
+      processed = processed.filter(item => item?.status === filterStatus);
+    }
+    
+    // Apply leave type filter
+    if (filterLeaveType) {
+      processed = processed.filter(item => 
+        item?.leaveType?.toLowerCase() === filterLeaveType.toLowerCase()
+      );
+    }
+    
+    return processed;
+  }, [filteredData, searchTerm, filterStatus, filterLeaveType, activeTab]);
+
+  // Memoized data checks
+  const hasData = useMemo(() => 
+    processedData && Array.isArray(processedData) && processedData.length > 0, 
+    [processedData]
+  );
   
-  // Check if data is still loading
-  const isLoading = loading;
+  const hasRevertData = useMemo(() => {
+    if (activeTab !== "revert") return hasData;
+    return hasData && processedData.filter(item => 
+      item?.revertLeave && item?.revertLeave?.status === "Pending"
+    ).length > 0;
+  }, [activeTab, hasData, processedData]);
   
-  // Check if we have data for the current tab - add null checks
-  const hasData = filteredData && Array.isArray(filteredData) && filteredData.length > 0;
-  
-  // For revert tab, check if there are revert requests that need approval
-  const hasRevertData = activeTab === "revert" && hasData 
-    ? filteredData.filter(item => item?.revertLeave && item?.revertLeave?.status === "Pending").length > 0
-    : hasData;
-  
-  // Check if there are total records for the current tab
-  const hasTotalRecords = () => {
-    // First check if there's actual data to display
+  const hasTotalRecords = useCallback(() => {
     if (activeTab === "revert") {
-      if (!hasRevertData) {
-        return false;
-      }
+      if (!hasRevertData) return false;
     } else {
-      if (!hasData) {
-        return false;
-      }
+      if (!hasData) return false;
     }
     
-    // Then check the total records count
-    if (activeTab === "leave") {
-      return totalLeaveRecords > 0;
-    } else if (activeTab === "compoff") {
-      return totalCompOffRecords > 0;
-    } else if (activeTab === "revert") {
-      return totalLeaveRecords > 0;
-    } else if (activeTab === "vendor") {
-      return totalVendorRecords > 0;
-    }
+    if (activeTab === "leave") return totalLeaveRecords > 0;
+    if (activeTab === "compoff") return totalCompOffRecords > 0;
+    if (activeTab === "revert") return totalLeaveRecords > 0;
+    if (activeTab === "vendor") return totalVendorRecords > 0;
     return false;
-  };
-  
-  // Apply search filter only if data exists with proper null checks
-  const filteredBySearch = hasData ? filteredData.filter(item =>
-    (item?.employeeInfo?.employeeName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (item?.reason?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-  ) : [];
+  }, [activeTab, hasRevertData, hasData, totalLeaveRecords, totalCompOffRecords, totalVendorRecords]);
 
-  // Apply status filter
-  const filteredByStatus = filterStatus && hasData
-    ? filteredBySearch?.filter(item => item?.status === filterStatus)
-    : filteredBySearch;
-
-  // Apply leave type filter
-  const filteredByLeaveType = filterLeaveType && hasData
-    ? filteredByStatus.filter(item => item?.leaveType?.toLowerCase() === filterLeaveType.toLowerCase())
-    : filteredByStatus;
-
-  // Filter comp-off data
-  const filteredCompoffData = activeTab === "compoff" && hasData ? filteredByLeaveType : [];
-
-  // Use data directly since API returns paginated data
-  // The API already handles pagination, so we use the data as-is
-  const currentData = filteredByLeaveType;
-
-  // Calculate total pages based on active tab using API total records
-  const getTotalPages = () => {
-    // If itemsPerPage is -1 (Show All), return 1 page
-    if (itemsPerPage === -1) {
-      return 1;
-    }
+  // Memoized pagination calculations
+  const totalPages = useMemo(() => {
+    if (itemsPerPage === -1) return 1;
     
-    if (activeTab === "leave") {
-      return Math.ceil(totalLeaveRecords / itemsPerPage) || 1;
-    } else if (activeTab === "compoff") {
-      return Math.ceil(totalCompOffRecords / itemsPerPage) || 1;
-    } else if (activeTab === "revert") {
-      return Math.ceil(totalLeaveRecords / itemsPerPage) || 1;
-    } else if (activeTab === "vendor") {
-      return Math.ceil(totalVendorRecords / itemsPerPage) || 1;
-    }
+    if (activeTab === "leave") return Math.ceil(totalLeaveRecords / itemsPerPage) || 1;
+    if (activeTab === "compoff") return Math.ceil(totalCompOffRecords / itemsPerPage) || 1;
+    if (activeTab === "revert") return Math.ceil(totalLeaveRecords / itemsPerPage) || 1;
+    if (activeTab === "vendor") return Math.ceil(totalVendorRecords / itemsPerPage) || 1;
     return 1;
-  };
+  }, [activeTab, itemsPerPage, totalLeaveRecords, totalCompOffRecords, totalVendorRecords]);
 
-  const totalPages = getTotalPages();
-  console.log('totalPages', totalPages, 'totalLeaveRecords', totalLeaveRecords, 'itemsPerPage', itemsPerPage);
-  // Pagination Handlers
-  const nextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  const prevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-    const closeModal = () => setIsModalOpen(false);
+  // Use processed data directly since API returns paginated data
+  const currentData = processedData;
 
-  const openReasonPopup = (reason, title = "Reason Details") => {
+  // Optimized event handlers
+  const nextPage = useCallback(() => 
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages)), 
+    [totalPages]
+  );
+  
+  const prevPage = useCallback(() => 
+    setCurrentPage((prev) => Math.max(prev - 1, 1)), 
+    []
+  );
+  
+  const closeModal = useCallback(() => setIsModalOpen(false), []);
+
+  const openReasonPopup = useCallback((reason, title = "Reason Details") => {
     setReasonPopup({ isOpen: true, reason, title });
-  };
+  }, []);
 
-  const closeReasonPopup = () => {
+  const closeReasonPopup = useCallback(() => {
     setReasonPopup({ isOpen: false, reason: "", title: "" });
-  };
+  }, []);
 
-  const handleGoToPage = () => {
+  const handleGoToPage = useCallback(() => {
     const pageNum = parseInt(goToPage);
     if (pageNum && pageNum >= 1 && pageNum <= totalPages) {
       setCurrentPage(pageNum);
@@ -329,126 +448,26 @@ const ManagerApproval = () => {
     } else {
       toast.error(`Please enter a valid page number between 1 and ${totalPages}`);
     }
-  };
+  }, [goToPage, totalPages]);
 
-  // Load user data on component mount (needed for all tabs)
-  useEffect(() => {
-    if (!loadedAPIs.userData) {
-      console.log('ManagerApproval: Loading user data...');
-      dispatch(getUserDataAction());
-      setLoadedAPIs(prev => ({ ...prev, userData: true }));
-    }
-  }, [dispatch, loadedAPIs.userData]);
-
-  // Load data based on active tab
-  useEffect(() => {
-    const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
-    
-    if (activeTab === "leave" && !loadedAPIs.leave) {
-      console.log('ManagerApproval: Loading leave data...');
-      dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
-      setLoadedAPIs(prev => ({ ...prev, leave: true }));
-    }
-    
-    if (activeTab === "compoff" && !loadedAPIs.compOff) {
-      console.log('ManagerApproval: Loading comp-off data...');
-      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
-      setLoadedAPIs(prev => ({ ...prev, compOff: true }));
-    }
-    
-    if (activeTab === "vendor" && !loadedAPIs.vendor) {
-      console.log('ManagerApproval: Loading vendor data...');
-      dispatch(getVendorLogsAction({ page: currentPage, limit }));
-      setLoadedAPIs(prev => ({ ...prev, vendor: true }));
-    }
-    
-    // Revert tab uses the same data as leave tab, so no additional API call needed
-  }, [dispatch, activeTab, currentPage, itemsPerPage, loadedAPIs]);
-
-  // Handle pagination changes for the active tab
-  useEffect(() => {
-    const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
-    
-    if (activeTab === "leave" && loadedAPIs.leave) {
-      dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
-    }
-    
-    if (activeTab === "compoff" && loadedAPIs.compOff) {
-      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
-    }
-    
-    if (activeTab === "vendor" && loadedAPIs.vendor) {
-      dispatch(getVendorLogsAction({ page: currentPage, limit }));
-    }
-  }, [dispatch, currentPage, itemsPerPage, activeTab, loadedAPIs]);
-
-  // Handle tab change
-  const handleTabChange = (tabName) => {
+  const handleTabChange = useCallback((tabName) => {
     setActiveTab(tabName);
     setCurrentPage(1); // Reset to first page when switching tabs
     setSearchTerm("");
     setFilterStatus("");
     setFilterLeaveType("");
-  };
+  }, []);
 
-  // Reset search and filters when switching tabs
-  useEffect(() => {
-    setSearchTerm("");
-    setFilterStatus("");
-    setFilterLeaveType("");
-  }, [activeTab]);
-
-  // Listen for error states and show notifications
-  useEffect(() => {
-    // Only show error notification for actual API errors, not empty data states
-    if (leaveError && 
-        typeof leaveError === 'string' && 
-        leaveError.length > 0 && 
-        !leaveError.includes('No data') && 
-        !leaveError.includes('empty') &&
-        leaveError !== 'null' &&
-        leaveError !== 'undefined') {
-      toast.error(`Leave approval error: ${leaveError}`);
-    }
-  }, [leaveError]);
-
-  useEffect(() => {
-    // Only show error notification for actual API errors, not empty data states
-    if (compOffError && 
-        typeof compOffError === 'string' && 
-        compOffError.length > 0 && 
-        !compOffError.includes('No data') && 
-        !compOffError.includes('empty') &&
-        compOffError !== 'null' &&
-        compOffError !== 'undefined') {
-      toast.error(`Comp-Off approval error: ${compOffError}`);
-    }
-  }, [compOffError]);
-
-  useEffect(() => {
-    console.log('Vendor error state:', vendorError, typeof vendorError);
-    // Only show error notification for actual API errors, not empty data states
-    if (vendorError && 
-        typeof vendorError === 'string' && 
-        vendorError.length > 0 && 
-        !vendorError.includes('No data') && 
-        !vendorError.includes('empty') &&
-        vendorError !== 'null' &&
-        vendorError !== 'undefined') {
-      toast.error(`Vendor meeting approval error: ${vendorError}`);
-    }
-  }, [vendorError]);
-
-  const handleRejectClick = (item) => {
+  const handleRejectClick = useCallback((item) => {
     if (item && item._id) {
       setCurrentRejectItem(item);
       setIsModalOpen(true);
     } else {
       toast.error("Invalid item selected for rejection.");
     }
-  };
+  }, []);
 
-  const handleSubmitRejection = () => {
+  const handleSubmitRejection = useCallback(() => {
     if (!rejectionReason.trim()) {
       toast.error("Please provide a reason for rejection.");
       return;
@@ -472,11 +491,9 @@ const ManagerApproval = () => {
     
     setRejectionReason("");
     setIsModalOpen(false);
-  };
+  }, [rejectionReason, currentRejectItem, dispatch]);
 
-  const handleRevertAction = (item) => {
-    console.log('handleRevertAction called with:', item);
-    
+  const handleRevertAction = useCallback((item) => {
     if (!item?._id) {
       toast.error("Invalid item selected for revert action.");
       return;
@@ -498,11 +515,9 @@ const ManagerApproval = () => {
     // Call the revert API - convert days to string as required by API
     dispatch(postrevertLeaveRequest(days.toString(), item._id));
     toast.success(`Revert request submitted for ${days} days`);
-  };
+  }, [dispatch]);
 
-  const handleRevertApprovalAction = (status, id) => {
-    console.log('handleRevertApprovalAction called with:', { status, id });
-    
+  const handleRevertApprovalAction = useCallback((status, id) => {
     if (!id) {
       toast.error("Invalid item selected for revert approval action.");
       return;
@@ -511,47 +526,180 @@ const ManagerApproval = () => {
     // Call the revert approval API
     dispatch(putRevertLeaveByManagerAction({ status, id }));
     toast.success(`Revert request ${status.toLowerCase()} successfully!`);
-  };
+  }, [dispatch]);
 
-  const handleAction = (status, id, isCompOff = false) => {
-    console.log('handleAction called with:', { status, id, isCompOff });
-    
+  const handleAction = useCallback(async (status, id, isCompOff = false) => {
     if (!id) {
       toast.error("Invalid item selected for action.");
       return;
     }
     
-    console.log('Handling action:', { status, id, isCompOff });
+    // Check if the request is in pending status
+    const currentData = activeTab === "compoff" ? compOffData : leaveReqData;
+    const targetItem = currentData?.find(item => item._id === id);
+    
+    if (!targetItem) {
+      toast.error("Request not found.");
+      return;
+    }
+    
+    if (targetItem.status !== "Pending") {
+      toast.error("This request is no longer pending and cannot be modified.");
+      return;
+    }
     
     // Show loading notification
-    if (isCompOff) {
-      toast.info(`Processing Comp-Off ${status.toLowerCase()}...`);
-    } else {
-      toast.info(`Processing leave ${status.toLowerCase()}...`);
+    const loadingToastId = toast.loading(
+      isCompOff 
+        ? `Processing Comp-Off ${status.toLowerCase()}...` 
+        : `Processing leave ${status.toLowerCase()}...`
+    );
+    
+    try {
+      const action = isCompOff ? putCompOffLeaveRequestAction : putApprovedLeaveByManagerAction;
+      
+      // Dispatch the action and wait for the result
+      const result = await dispatch(action({ status, id }));
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+      
+      // Check if the action was successful
+      if (result?.success || result?.payload?.statusCode === 200) {
+        // Show success message
+        toast.success(
+          isCompOff 
+            ? `Comp-Off request ${status.toLowerCase()} successfully!` 
+            : `Leave request ${status.toLowerCase()} successfully!`
+        );
+        
+        // Refresh the data immediately after successful action
+        const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
+        
+        if (isCompOff) {
+          // For Comp Off, refresh the comp-off data
+          dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
+        } else {
+          // For regular leave, refresh the leave data
+          dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
+        }
+        
+        // Also refresh vendor data if needed
+        if (activeTab === "vendor") {
+          dispatch(getVendorLogsAction({ page: currentPage, limit }));
+        }
+        
+      } else {
+        // Show error message if the action failed
+        const errorMessage = result?.error || "Unknown error occurred";
+        toast.error(
+          isCompOff 
+            ? `Failed to ${status.toLowerCase()} Comp-Off request: ${errorMessage}` 
+            : `Failed to ${status.toLowerCase()} leave request: ${errorMessage}`
+        );
+      }
+      
+    } catch (error) {
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+      
+      // Show error message
+      toast.error(
+        isCompOff 
+          ? `Failed to ${status.toLowerCase()} Comp-Off request: ${error.message || 'Unknown error'}` 
+          : `Failed to ${status.toLowerCase()} leave request: ${error.message || 'Unknown error'}`
+      );
     }
-    
-    const action = isCompOff ? putCompOffLeaveRequestAction : putApprovedLeaveByManagerAction;
-    console.log('Dispatching action:', action.name, { status, id });
-    dispatch(action({ status, id }));
-    
-    // Show specific success message based on approval type
-    if (isCompOff) {
-      toast.success(`Comp-Off request ${status.toLowerCase()} successfully!`);
-    } else {
-      toast.success(`Leave request ${status.toLowerCase()} successfully!`);
-    }
-    
-    // Refresh data after action (instead of page reload)
-    setTimeout(() => {
-      const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
-      console.log('Refreshing data with:', { page: currentPage, limit });
-      dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
-      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
-      dispatch(getVendorLogsAction({ page: currentPage, limit }));
-    }, 1500);
-  };
+  }, [activeTab, compOffData, dispatch, itemsPerPage, leaveReqData, currentPage]);
 
-  const SkeletonLoader = () => (
+  // Optimized useEffect hooks
+  useEffect(() => {
+    if (!loadedAPIs.userData) {
+      dispatch(getUserDataAction());
+      setLoadedAPIs(prev => ({ ...prev, userData: true }));
+    }
+  }, [dispatch, loadedAPIs.userData]);
+
+  useEffect(() => {
+    const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
+    
+    if (activeTab === "leave" && !loadedAPIs.leave) {
+      dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
+      setLoadedAPIs(prev => ({ ...prev, leave: true }));
+    }
+    
+    if (activeTab === "compoff" && !loadedAPIs.compOff) {
+      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
+      setLoadedAPIs(prev => ({ ...prev, compOff: true }));
+    }
+    
+    if (activeTab === "vendor" && !loadedAPIs.vendor) {
+      dispatch(getVendorLogsAction({ page: currentPage, limit }));
+      setLoadedAPIs(prev => ({ ...prev, vendor: true }));
+    }
+  }, [dispatch, activeTab, currentPage, itemsPerPage, loadedAPIs]);
+
+  useEffect(() => {
+    const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
+    
+    if (activeTab === "leave" && loadedAPIs.leave) {
+      dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
+    }
+    
+    if (activeTab === "compoff" && loadedAPIs.compOff) {
+      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
+    }
+    
+    if (activeTab === "vendor" && loadedAPIs.vendor) {
+      dispatch(getVendorLogsAction({ page: currentPage, limit }));
+    }
+  }, [dispatch, currentPage, itemsPerPage, activeTab, loadedAPIs]);
+
+  useEffect(() => {
+    setSearchTerm("");
+    setFilterStatus("");
+    setFilterLeaveType("");
+  }, [activeTab]);
+
+  // Error handling effects
+  useEffect(() => {
+    if (leaveError && 
+        typeof leaveError === 'string' && 
+        leaveError.length > 0 && 
+        !leaveError.includes('No data') && 
+        !leaveError.includes('empty') &&
+        leaveError !== 'null' &&
+        leaveError !== 'undefined') {
+      toast.error(`Leave approval error: ${leaveError}`);
+    }
+  }, [leaveError]);
+
+  useEffect(() => {
+    if (compOffError && 
+        typeof compOffError === 'string' && 
+        compOffError.length > 0 && 
+        !compOffError.includes('No data') && 
+        !compOffError.includes('empty') &&
+        compOffError !== 'null' &&
+        compOffError !== 'undefined') {
+      toast.error(`Comp-Off approval error: ${compOffError}`);
+    }
+  }, [compOffError]);
+
+  useEffect(() => {
+    if (vendorError && 
+        typeof vendorError === 'string' && 
+        vendorError.length > 0 && 
+        !vendorError.includes('No data') && 
+        !vendorError.includes('empty') &&
+        vendorError !== 'null' &&
+        vendorError !== 'undefined') {
+      toast.error(`Vendor meeting approval error: ${vendorError}`);
+    }
+  }, [vendorError]);
+
+  // Optimized component functions
+  const SkeletonLoader = useCallback(() => (
     <>
       {Array(5).fill(0).map((_, index) => (
         <tr key={index} className="animate-pulse border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -563,26 +711,51 @@ const ManagerApproval = () => {
         </tr>
       ))}
     </>
-  );
+  ), []);
 
-  const NoDataMessage = ({ colSpan = 10 }) => (
-    <tr>
-      <td colSpan={colSpan} className="px-6 py-12 text-center">
-        <div className="flex flex-col items-center justify-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+  const NoDataMessage = useCallback(({ colSpan = 10 }) => {
+    // Check if we're on the Comp Off tab and have data but no pending requests
+    const hasCompOffData = activeTab === "compoff" && compOffData && compOffData.length > 0;
+    const hasPendingCompOff = hasCompOffData && compOffData.some(item => item?.status === "Pending");
+    
+    if (activeTab === "compoff" && hasCompOffData && !hasPendingCompOff) {
+      return (
+        <tr>
+          <td colSpan={colSpan} className="px-6 py-12 text-center">
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-green-600 text-lg font-medium">All Comp-Off Requests Processed!</p>
+              <p className="text-green-500 text-sm mt-1">There are no pending Comp-Off approvals at the moment</p>
+              <p className="text-gray-400 text-xs mt-2">All requests have been either approved or rejected</p>
+            </div>
+          </td>
+        </tr>
+      );
+    }
+    
+    return (
+      <tr>
+        <td colSpan={colSpan} className="px-6 py-12 text-center">
+          <div className="flex flex-col items-center justify-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-gray-500 text-lg font-medium">No data available</p>
+            <p className="text-gray-400 text-sm mt-1">There are no pending approvals at the moment</p>
           </div>
-          <p className="text-gray-500 text-lg font-medium">No data available</p>
-          <p className="text-gray-400 text-sm mt-1">There are no pending approvals at the moment</p>
-        </div>
-      </td>
-    </tr>
-  );
+        </td>
+      </tr>
+    );
+  }, [activeTab, compOffData]);
 
-  // Reason Cell Component with dropdown functionality
-  const ReasonCell = ({ reason, className = "" }) => {
+  // Optimized Reason Cell Component
+  const ReasonCell = useCallback(({ reason, className = "" }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -597,19 +770,22 @@ const ManagerApproval = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const toggleDropdown = (e) => {
+    const toggleDropdown = useCallback((e) => {
       e.stopPropagation();
       setIsDropdownOpen(!isDropdownOpen);
-    };
+    }, [isDropdownOpen]);
 
-    // Get first word of the reason
-    const getFirstWord = (text) => {
-      if (!text) return "---";
-      const words = text.trim().split(' ');
+    // Memoized first word calculation
+    const firstWord = useMemo(() => {
+      if (!reason) return "---";
+      const words = reason.trim().split(' ');
       return words[0] || "---";
-    };
+    }, [reason]);
 
-    const firstWord = getFirstWord(reason);
+    const hasMultipleWords = useMemo(() => 
+      reason && reason.split(' ').length > 1, 
+      [reason]
+    );
 
     return (
       <div className="relative" ref={dropdownRef}>
@@ -619,7 +795,7 @@ const ManagerApproval = () => {
           onClick={toggleDropdown}
         >
           <span className="text-gray-700">{firstWord}</span>
-          {reason && reason.split(' ').length > 1 && (
+          {hasMultipleWords && (
             <span className="text-gray-400 text-xs">
               ▼
             </span>
@@ -643,106 +819,116 @@ const ManagerApproval = () => {
         )}
       </div>
     );
-  };
+  }, []);
 
-  const renderTableRows = (data, isCompOff = false) => {
+  // Optimized table rendering functions
+  const renderTableRows = useCallback((data, isCompOff = false) => {
     if (!data || data.length === 0) {
       return <NoDataMessage colSpan={9} />;
     }
     
-    return data.map((item, index) => (
-      <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          <div className="flex items-center justify-center">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-              <span className="text-blue-600 font-medium text-xs">
-                {item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?"}
+    return data.map((item, index) => {
+      
+      // Calculate values for each row (moved outside useMemo since it's inside map)
+      const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?";
+      const requestDate = item?.dateTime?.split(" ")[0] || item?.appliedDate?.split(" ")[0] || "---";
+      const leaveTypeDisplay = item?.leaveType ? item.leaveType.toUpperCase().split("LEAVE")[0] + " LEAVE" : "---";
+      
+      const totalDaysDisplay = (() => {
+        const totalDays = item?.totalDays;
+        if (totalDays === 0.5) return 'Half Day';
+        if (totalDays === 1) return 'Full Day';
+        return totalDays && totalDays !== "undefined" ? `${totalDays} days` : "---";
+      })();
+      
+      const statusClass = (() => {
+        if (item?.status === "Approved") return "bg-green-100 text-green-800";
+        if (item?.status === "Rejected") return "bg-red-100 text-red-800";
+        return "bg-gray-100 text-gray-800";
+      })();
+      
+      return (
+        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+          <td className="px-4 py-3 text-center whitespace-nowrap">
+            <div className="flex items-center justify-center">
+              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                <span className="text-blue-600 font-medium text-xs">
+                  {employeeInitial}
+                </span>
+              </div>
+              <span className="font-medium text-gray-900 text-sm truncate max-w-[120px]" title={item?.employeeInfo?.employeeName || "---"}>
+                {item?.employeeInfo?.employeeName || "---"}
               </span>
             </div>
-            <span className="font-medium text-gray-900 text-sm truncate max-w-[120px]" title={item?.employeeInfo?.employeeName || "---"}>
-              {item?.employeeInfo?.employeeName || "---"}
-            </span>
-          </div>
-        </td>
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
-            {item?.dateTime?.split(" ")[0] || item?.appliedDate?.split(" ")[0] || "---"}
-          </span>
-        </td>
-        {!isCompOff && (
-          <>
-            <td className="px-4 py-3 text-center whitespace-nowrap">
-              <span className="text-xs text-gray-700">{item?.leaveStartDate || "---"}</span>
-            </td>
-            <td className="px-4 py-3 text-center whitespace-nowrap">
-              <span className="text-xs text-gray-700">{item?.leaveEndDate || "---"}</span>
-            </td>
-          </>
-        )}
-        {activeTab === "leave" ?
+          </td>
           <td className="px-4 py-3 text-center whitespace-nowrap">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {item?.leaveType ? item.leaveType.toUpperCase().split("LEAVE")[0] + " LEAVE" : "---"}
+            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+              {requestDate}
             </span>
           </td>
-          : ''}
-        <td className="px-4 py-3 text-center">
-          <ReasonCell reason={item?.reason} />
-        </td>
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            {(() => {
-              const totalDays = item?.totalDays;
-              if (totalDays === 0.5) return 'Half Day';
-              if (totalDays === 1) return 'Full Day';
-              return totalDays && totalDays !== "undefined" ? `${totalDays} days` : "---";
-            })()}
-          </span>
-        </td>
-        {activeTab === "leave" ?
+          {!isCompOff && (
+            <>
+              <td className="px-4 py-3 text-center whitespace-nowrap">
+                <span className="text-xs text-gray-700">{item?.leaveStartDate || "---"}</span>
+              </td>
+              <td className="px-4 py-3 text-center whitespace-nowrap">
+                <span className="text-xs text-gray-700">{item?.leaveEndDate || "---"}</span>
+              </td>
+            </>
+          )}
+          {activeTab === "leave" ?
+            <td className="px-4 py-3 text-center whitespace-nowrap">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {leaveTypeDisplay}
+              </span>
+            </td>
+            : ''}
+          <td className="px-4 py-3 text-center">
+            <ReasonCell reason={item?.reason} />
+          </td>
           <td className="px-4 py-3 text-center whitespace-nowrap">
-            {item?.location ? (
-              <Link className="inline-flex items-center px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors duration-200" to={item?.location}>
-                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                View
-              </Link>
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              {totalDaysDisplay}
+            </span>
+          </td>
+          {activeTab === "leave" ?
+            <td className="px-4 py-3 text-center whitespace-nowrap">
+              {item?.location ? (
+                <Link className="inline-flex items-center px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors duration-200" to={item?.location}>
+                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  View
+                </Link>
+              ) : (
+                <span className="text-gray-400 text-xs">---</span>
+              )}
+            </td>
+            : ''}
+          <td className="px-4 py-3 text-center whitespace-nowrap">
+            {item?.status === "Pending" ? (
+              <CustomDropdown 
+                item={item} 
+                isCompOff={isCompOff} 
+                actionType={isCompOff ? "compoff" : "leave"} 
+                onAction={handleAction} 
+                onRejectClick={handleRejectClick}
+                onDispatch={dispatch}
+              />
             ) : (
-              <span className="text-gray-400 text-xs">---</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+                {item?.status || "---"}
+              </span>
             )}
           </td>
-          : ''}
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          {item?.status === "Pending" ? (
-            <CustomDropdown 
-              item={item} 
-              isCompOff={isCompOff} 
-              actionType="leave" 
-              onAction={handleAction} 
-              onRejectClick={handleRejectClick}
-              onDispatch={dispatch}
-            />
-          ) : (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              item?.status === "Approved" ? "bg-green-100 text-green-800" :
-              item?.status === "Rejected" ? "bg-red-100 text-red-800" :
-              "bg-gray-100 text-gray-800"
-            }`}>
-              {item?.status || "---"}
-            </span>
-          )}
-        </td>
-      </tr>
-    ));
-  };
+        </tr>
+      );
+    });
+  }, [activeTab, CustomDropdown, handleAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
 
-  const renderRevertTableRow = (data) => {
-    console.log('renderRevertTableRow called with data:', data);
-    
+  const renderRevertTableRow = useCallback((data) => {
     if (!data || data.length === 0) {
-      console.log('No data provided to renderRevertTableRow');
       return <NoDataMessage colSpan={5} />;
     }
     
@@ -752,10 +938,7 @@ const ManagerApproval = () => {
       item?.revertLeave?.status === "Pending"
     );
     
-    console.log('Pending revert requests:', pendingRevertRequests);
-    
     if (!pendingRevertRequests || pendingRevertRequests.length === 0) {
-      console.log('No pending revert requests found');
       return (
         <tr>
           <td colSpan={5} className="px-6 py-8 text-center">
@@ -777,107 +960,115 @@ const ManagerApproval = () => {
     }
     
     // Render rows based on the pending revert requests data
-    return pendingRevertRequests?.map((item, index) => (
-      <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
-        <td className="px-6 py-4 text-center whitespace-nowrap">
-          <div className="flex items-center justify-center">
-            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-              <span className="text-purple-600 font-medium text-sm">
-                {item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?"}
+    return pendingRevertRequests?.map((item, index) => {
+      const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?";
+      const requestDate = item?.revertLeave?.requestedDateTime?.split(' ')[0] || "---";
+      
+      return (
+        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+          <td className="px-6 py-4 text-center whitespace-nowrap">
+            <div className="flex items-center justify-center">
+              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                <span className="text-purple-600 font-medium text-sm">
+                  {employeeInitial}
+                </span>
+              </div>
+              <span className="font-medium text-gray-900 truncate max-w-[150px]" title={item?.employeeInfo?.employeeName || "---"}>
+                {item?.employeeInfo?.employeeName || "---"}
               </span>
             </div>
-            <span className="font-medium text-gray-900 truncate max-w-[150px]" title={item?.employeeInfo?.employeeName || "---"}>
-              {item?.employeeInfo?.employeeName || "---"}
+          </td>
+          <td className="px-6 py-4 text-center whitespace-nowrap">
+            <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+              {requestDate}
             </span>
-          </div>
-        </td>
-        <td className="px-6 py-4 text-center whitespace-nowrap">
-          <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-            {item?.revertLeave?.requestedDateTime?.split(' ')[0] || "---"}
-          </span>
-        </td>
-        <td className="px-6 py-4 text-center whitespace-nowrap">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-            {item?.revertLeave?.revertedDays || "---"} days
-          </span>
-        </td>
-        <td className="px-6 py-4 text-center">
-          <ReasonCell reason={item?.revertLeave?.reason || "Revert request"} className="text-sm" />
-        </td>
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          <CustomDropdown 
-            item={item} 
-            actionType="revert" 
-            onAction={handleRevertApprovalAction} 
-            onRejectClick={handleRejectClick}
-            onDispatch={dispatch}
-          />
-        </td>
-      </tr>
-    ));
-  };
+          </td>
+          <td className="px-6 py-4 text-center">
+            <ReasonCell reason={item?.revertLeave?.reason || "Revert request"} className="text-sm" />
+          </td>
+          <td className="px-4 py-3 text-center whitespace-nowrap">
+            <CustomDropdown 
+              item={item} 
+              actionType="revert" 
+              onAction={handleRevertApprovalAction} 
+              onRejectClick={handleRejectClick}
+              onDispatch={dispatch}
+            />
+          </td>
+        </tr>
+      );
+    });
+  }, [CustomDropdown, handleRevertApprovalAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
 
-  const vendorMeetingTable = (data) => {
-    console.log('data', data)
+  const vendorMeetingTable = useCallback((data) => {
     if (!data || data.length === 0) {
       return <NoDataMessage colSpan={5} />;
     }
     
     // Filter data where revertLeave.revertedDays exists and is not an empty string
-    const filteredData = data
+    const filteredData = data;
+    
     // Render rows based on the filtered data
-    return filteredData?.map((item, index) => (
-      <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
-        <td className="px-6 py-4 text-center whitespace-nowrap">
-          <div className="flex items-center justify-center">
-            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-              <span className="text-indigo-600 font-medium text-sm">
-                {item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?"}
+    return filteredData?.map((item, index) => {
+      const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?";
+      const requestDate = item?.dateTime?.split(' ')[0] || "---";
+      const totalDaysDisplay = item?.totalDays && item?.totalDays !== "undefined" ? `${item?.totalDays} days` : "---";
+      
+      const statusClass = (() => {
+        if (item?.status === "Approved") return "bg-green-100 text-green-800";
+        if (item?.status === "Rejected") return "bg-red-100 text-red-800";
+        return "bg-gray-100 text-gray-800";
+      })();
+      
+      return (
+        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+          <td className="px-6 py-4 text-center whitespace-nowrap">
+            <div className="flex items-center justify-center">
+              <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                <span className="text-indigo-600 font-medium text-sm">
+                  {employeeInitial}
+                </span>
+              </div>
+              <span className="font-medium text-gray-900 truncate max-w-[150px]" title={item?.employeeInfo?.employeeName || "---"}>
+                {item?.employeeInfo?.employeeName || "---"}
               </span>
             </div>
-            <span className="font-medium text-gray-900 truncate max-w-[150px]" title={item?.employeeInfo?.employeeName || "---"}>
-              {item?.employeeInfo?.employeeName || "---"}
+          </td>
+          <td className="px-6 py-4 text-center whitespace-nowrap">
+            <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+              {requestDate}
             </span>
-          </div>
-        </td>
-        <td className="px-6 py-4 text-center whitespace-nowrap">
-          <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-            {item?.dateTime?.split(' ')[0] || "---"}
-          </span>
-        </td>
-        <td className="px-6 py-4 text-center">
-          <ReasonCell reason={item?.reason} className="text-sm" />
-        </td>
-        <td className="px-6 py-4 text-center whitespace-nowrap">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-            {item?.totalDays && item?.totalDays !== "undefined" ? `${item?.totalDays} days` : "---"}
-          </span>
-        </td>
-        <td className="px-4 py-3 text-center whitespace-nowrap">
-          {item?.status === "Pending" ? (
-            <CustomDropdown 
-              item={item} 
-              actionType="vendor" 
-              onAction={handleAction} 
-              onRejectClick={handleRejectClick}
-              onDispatch={dispatch}
-            />
-          ) : (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              item?.status === "Approved" ? "bg-green-100 text-green-800" :
-              item?.status === "Rejected" ? "bg-red-100 text-red-800" :
-              "bg-gray-100 text-gray-800"
-            }`}>
-              {item?.status || "---"}
+          </td>
+          <td className="px-6 py-4 text-center">
+            <ReasonCell reason={item?.reason} className="text-sm" />
+          </td>
+          <td className="px-6 py-4 text-center whitespace-nowrap">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+              {totalDaysDisplay}
             </span>
-          )}
-        </td>
-      </tr>
-    ));
-  };
+          </td>
+          <td className="px-4 py-3 text-center whitespace-nowrap">
+            {item?.status === "Pending" ? (
+              <CustomDropdown 
+                item={item} 
+                actionType="vendor" 
+                onAction={handleAction} 
+                onRejectClick={handleRejectClick}
+                onDispatch={dispatch}
+              />
+            ) : (
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+                {item?.status || "---"}
+              </span>
+            )}
+          </td>
+        </tr>
+      );
+    });
+  }, [CustomDropdown, handleAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
 
   // Show loading screen only if data is still loading
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">

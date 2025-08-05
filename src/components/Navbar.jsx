@@ -64,11 +64,11 @@ function Navbar({ onToggleSidebar }) {
   const compOffReqData = compOffData?.data || [];
   const vendorReqData = vendorData?.data || [];
   
-  // Combine all pending notifications from different approval types - only for managers
-  const pendingLeaveNotifications = userType === "Manager" ? leaveReqData?.filter((item) => item.status === "Pending") || [] : [];
-  const pendingCompOffNotifications = userType === "Manager" ? compOffReqData?.filter((item) => item.status === "Pending") || [] : [];
-  const pendingVendorNotifications = userType === "Manager" ? vendorReqData?.filter((item) => item.status === "Pending") || [] : [];
-  const pendingRevertNotifications = userType === "Manager" ? leaveReqData?.filter((item) => item?.revertLeave?.status === "Pending") || [] : [];
+  // Combine all pending notifications from different approval types - for managers and super admins
+  const pendingLeaveNotifications = (userType === "Manager" || userType === "Super-Admin") ? leaveReqData?.filter((item) => item.status === "Pending") || [] : [];
+  const pendingCompOffNotifications = (userType === "Manager" || userType === "Super-Admin") ? compOffReqData?.filter((item) => item.status === "Pending") || [] : [];
+  const pendingVendorNotifications = (userType === "Manager" || userType === "Super-Admin") ? vendorReqData?.filter((item) => item.status === "Pending") || [] : [];
+  const pendingRevertNotifications = (userType === "Manager" || userType === "Super-Admin") ? leaveReqData?.filter((item) => item?.revertLeave?.status === "Pending") || [] : [];
   
   // Combine all notifications with type indicators
   const pendingNotifications = [
@@ -334,7 +334,7 @@ function Navbar({ onToggleSidebar }) {
             </div>
           )}
           
-          {userType === "Manager" && (
+          {(userType === "Manager" || userType === "Super-Admin") && (
             <div className="relative">
               <button
                 onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}

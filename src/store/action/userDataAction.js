@@ -562,19 +562,17 @@ export const postLeaveApproveRequestAction =
 export const putApprovedLeaveByManagerAction =
   ({ status, id, remarks }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
-    // const employeId=localStorage.getItem('employeId')
+    
     // If token does not exist, do nothing or handle the case
     if (!token) {
-      return dispatch({
+      const errorAction = {
         type: PUT_LEAVE_APPROVAL_BY_MANAGER_REQUEST,
         payload: "Authentication token not found",
-      });
+      };
+      dispatch(errorAction);
+      return { error: "Authentication token not found" };
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: PUT_LEAVE_APPROVAL_BY_MANAGER_REQUEST });
@@ -596,20 +594,19 @@ export const putApprovedLeaveByManagerAction =
       dispatch({ type: PUT_LEAVE_APPROVAL_BY_MANAGER_SUCCESS, payload: data });
 
       if (data?.statusCode === 200) {
-        if (status == "Approved") {
-          alert("Approved Successfuly");
-        } else if (status == "Rejected") {
-          alert("Reject Successfuly");
-        }
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // Return the data for the component to handle
+        return { success: true, data };
+      } else {
+        // Handle unexpected response
+        return { success: false, error: data?.message || "Unexpected response from server" };
       }
     } catch (error) {
+      const errorMessage = error.response?.data?.message || "Something went wrong";
       dispatch({
         type: PUT_LEAVE_APPROVAL_BY_MANAGER_FAIL,
-        payload: error.response?.data?.message || "Something went wrong",
+        payload: errorMessage,
       });
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -859,17 +856,24 @@ export const getCompoffLeaveRequestAction =
 export const putCompOffLeaveRequestAction =
   ({ status, id }) =>
   async (dispatch, getState) => {
+    console.log('=== putCompOffLeaveRequestAction START ===');
+    console.log('putCompOffLeaveRequestAction called with:', { status, id });
+    
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId=localStorage.getItem('employeId')
     // If token does not exist, do nothing or handle the case
     if (!token) {
-      return dispatch({
+      console.log('No token found');
+      const errorAction = {
         type: PUT_COMPOFF_LEAVE_STATUS_REQUEST,
         payload: "Authentication token not found",
-      });
+      };
+      dispatch(errorAction);
+      return { error: "Authentication token not found" };
     }
 
     try {
+      console.log('Dispatching PUT_COMPOFF_LEAVE_STATUS_REQUEST');
       dispatch({ type: PUT_COMPOFF_LEAVE_STATUS_REQUEST });
 
       // Add token to request headers
@@ -880,25 +884,40 @@ export const putCompOffLeaveRequestAction =
         },
       };
 
+      console.log('Making API call to:', `${process.env.REACT_APP_BASE_URL}/api/leave/action-for-compoff-request/${id}`);
+      console.log('Request payload:', { status });
+      console.log('Request config:', config);
+
       const { data } = await axios.put(
         `${process.env.REACT_APP_BASE_URL}/api/leave/action-for-compoff-request/${id}`,
         { status },
         config
       );
 
+      console.log('API response:', data);
+
       dispatch({ type: PUT_COMPOFF_LEAVE_STATUS_SUCCESS, payload: data });
 
       if (data?.statusCode === 200) {
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        console.log('Action successful, returning success');
+        // Return the data for the component to handle
+        return { success: true, data };
+      } else {
+        console.log('Unexpected response status:', data?.statusCode);
+        // Handle unexpected response
+        return { success: false, error: data?.message || "Unexpected response from server" };
       }
     } catch (error) {
+      console.error('Error in putCompOffLeaveRequestAction:', error);
+      const errorMessage = error.response?.data?.message || "Something went wrong";
       dispatch({
         type: PUT_COMPOFF_LEAVE_STATUS_FAIL,
-        payload: error.response?.data?.message || "Something went wrong",
+        payload: errorMessage,
       });
+      return { success: false, error: errorMessage };
     }
+    
+    console.log('=== putCompOffLeaveRequestAction END ===');
   };
 
 export const postMedicalFileAction =
@@ -2429,6 +2448,59 @@ export const postAddEmployeeAction =
     } catch (error) {
       dispatch({
         type: GET_EMPLOYEE_LEAVE_COUNT_FAIL,
+        payload: error.response?.data?.message || "Something went wrong",
+      });
+    }
+  };
+
+export const getAllCompoffLeaveRequestAction =
+  ({ page = 1, limit = 10 } = {}) => async (dispatch, getState) => {
+    const token = localStorage.getItem("authToken");
+    const employeId = localStorage.getItem("employeId");
+    
+    if (!token) {
+      return dispatch({
+        type: GET_COMPOFF_LEAVE_APPROVAL_REQUEST,
+        payload: "Authentication token not found",
+      });
+    }
+
+    try {
+      dispatch({ type: GET_COMPOFF_LEAVE_APPROVAL_REQUEST });
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        params: {
+          page,
+          limit
+        }
+      };
+      
+      // Use a different endpoint to get all Comp Off requests, not just pending ones
+      const { data } = await axios.get(
+        `${process.env.REACT_APP_BASE_URL}/api/leave/get-all-compoff`,
+        config
+      );
+
+      dispatch({ type: GET_COMPOFF_LEAVE_APPROVAL_SUCCESS, payload: data });
+
+      if (data?.statusCode === 201) {
+        alert(data?.message);
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
+    } catch (error) {
+      if (error.response?.data?.statusCode === 404) {
+        return;
+      } else {
+        alert(error.response?.data?.message);
+      }
+      dispatch({
+        type: GET_COMPOFF_LEAVE_APPROVAL_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
       });
     }
