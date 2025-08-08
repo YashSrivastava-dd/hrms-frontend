@@ -14,10 +14,11 @@ import {
   putVendorStatusDataAction,
   postApplyCompOffLeaveAction,
 } from "../../store/action/userDataAction";
-import { ToastContainer, toast } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Link } from "react-router-dom";
 import { RxCross2 } from "react-icons/rx";
+import safeToast from "../../utils/safeToast";
 
 const ManagerApproval = () => {
   const dispatch = useDispatch();
@@ -181,7 +182,7 @@ const ManagerApproval = () => {
 
     const handleApprove = useCallback(async () => {
       if (!isPending) {
-        toast.error("This request is no longer pending and cannot be modified.");
+        safeToast.error("This request is no longer pending and cannot be modified.");
         return;
       }
       
@@ -197,7 +198,7 @@ const ManagerApproval = () => {
         }
       } catch (error) {
         console.error('Error in handleApprove:', error);
-        toast.error("An error occurred while processing the approval.");
+        safeToast.error("An error occurred while processing the approval.");
       }
       
       setOpenDropdown(null);
@@ -205,7 +206,7 @@ const ManagerApproval = () => {
 
     const handleReject = useCallback(async () => {
       if (!isPending) {
-        toast.error("This request is no longer pending and cannot be modified.");
+        safeToast.error("This request is no longer pending and cannot be modified.");
         return;
       }
       
@@ -225,7 +226,7 @@ const ManagerApproval = () => {
         }
       } catch (error) {
         console.error('Error in handleReject:', error);
-        toast.error("An error occurred while processing the rejection.");
+        safeToast.error("An error occurred while processing the rejection.");
       }
       
       setOpenDropdown(null);
@@ -250,7 +251,7 @@ const ManagerApproval = () => {
 
     // For pending items, show dropdown
     return (
-      <div className="relative inline-block w-full" ref={dropdownRef} style={{ zIndex: isOpen ? 9999 : 'auto' }}>
+      <div className="relative inline-block w-full" ref={dropdownRef} style={{ zIndex: isOpen ? 99999 : 'auto' }}>
         <button
           type="button"
           onClick={handleToggleDropdown}
@@ -271,7 +272,7 @@ const ManagerApproval = () => {
           <div 
             className="absolute mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px]"
             style={{ 
-              zIndex: 10000,
+              zIndex: 999999,
               pointerEvents: 'auto',
               position: 'absolute',
               top: '100%',
@@ -446,7 +447,7 @@ const ManagerApproval = () => {
       setCurrentPage(pageNum);
       setGoToPage("");
     } else {
-      toast.error(`Please enter a valid page number between 1 and ${totalPages}`);
+      safeToast.error(`Please enter a valid page number between 1 and ${totalPages}`);
     }
   }, [goToPage, totalPages]);
 
@@ -463,18 +464,18 @@ const ManagerApproval = () => {
       setCurrentRejectItem(item);
       setIsModalOpen(true);
     } else {
-      toast.error("Invalid item selected for rejection.");
+      safeToast.error("Invalid item selected for rejection.");
     }
   }, []);
 
   const handleSubmitRejection = useCallback(() => {
     if (!rejectionReason.trim()) {
-      toast.error("Please provide a reason for rejection.");
+      safeToast.error("Please provide a reason for rejection.");
       return;
     }
     
     if (!currentRejectItem?._id) {
-      toast.error("Invalid item selected for rejection.");
+      safeToast.error("Invalid item selected for rejection.");
       return;
     }
     
@@ -487,7 +488,7 @@ const ManagerApproval = () => {
     );
     
     // Show success notification
-    toast.success("Leave request rejected successfully!");
+    safeToast.success("Leave request rejected successfully!");
     
     setRejectionReason("");
     setIsModalOpen(false);
@@ -495,7 +496,7 @@ const ManagerApproval = () => {
 
   const handleRevertAction = useCallback((item) => {
     if (!item?._id) {
-      toast.error("Invalid item selected for revert action.");
+      safeToast.error("Invalid item selected for revert action.");
       return;
     }
     
@@ -508,109 +509,142 @@ const ManagerApproval = () => {
     
     const days = parseFloat(revertedDays);
     if (isNaN(days) || days <= 0 || days > item?.totalDays) {
-      toast.error(`Please enter a valid number of days (1 to ${item?.totalDays})`);
+      safeToast.error(`Please enter a valid number of days (1 to ${item?.totalDays})`);
       return;
     }
     
     // Call the revert API - convert days to string as required by API
     dispatch(postrevertLeaveRequest(days.toString(), item._id));
-    toast.success(`Revert request submitted for ${days} days`);
+    safeToast.success(`Revert request submitted for ${days} days`);
   }, [dispatch]);
 
   const handleRevertApprovalAction = useCallback((status, id) => {
     if (!id) {
-      toast.error("Invalid item selected for revert approval action.");
+      safeToast.error("Invalid item selected for revert approval action.");
       return;
     }
     
     // Call the revert approval API
     dispatch(putRevertLeaveByManagerAction({ status, id }));
-    toast.success(`Revert request ${status.toLowerCase()} successfully!`);
+    safeToast.success(`Revert request ${status.toLowerCase()} successfully!`);
   }, [dispatch]);
 
   const handleAction = useCallback(async (status, id, isCompOff = false) => {
     if (!id) {
-      toast.error("Invalid item selected for action.");
+      safeToast.error("Invalid item selected for action.");
       return;
     }
     
     // Check if the request is in pending status
-    const currentData = activeTab === "compoff" ? compOffData : leaveReqData;
-    const targetItem = currentData?.find(item => item._id === id);
+    let currentData, targetItem;
+    
+    if (activeTab === "compoff") {
+      currentData = compOffData;
+    } else if (activeTab === "vendor") {
+      currentData = vendorDataa;
+    } else {
+      currentData = leaveReqData;
+    }
+    
+    targetItem = currentData?.find(item => item._id === id);
     
     if (!targetItem) {
-      toast.error("Request not found.");
+      safeToast.error("Request not found.");
       return;
     }
     
     if (targetItem.status !== "Pending") {
-      toast.error("This request is no longer pending and cannot be modified.");
+      safeToast.error("This request is no longer pending and cannot be modified.");
       return;
     }
     
     // Show loading notification
-    const loadingToastId = toast.loading(
-      isCompOff 
-        ? `Processing Comp-Off ${status.toLowerCase()}...` 
-        : `Processing leave ${status.toLowerCase()}...`
-    );
+    let loadingMessage;
+    if (activeTab === "vendor") {
+      loadingMessage = `Processing Vendor Meeting ${status.toLowerCase()}...`;
+    } else if (isCompOff) {
+      loadingMessage = `Processing Comp-Off ${status.toLowerCase()}...`;
+    } else {
+      loadingMessage = `Processing leave ${status.toLowerCase()}...`;
+    }
+    
+    const loadingToastId = safeToast.loading(loadingMessage);
     
     try {
-      const action = isCompOff ? putCompOffLeaveRequestAction : putApprovedLeaveByManagerAction;
+      let action;
+      if (activeTab === "vendor") {
+        action = putVendorStatusDataAction;
+      } else if (isCompOff) {
+        action = putCompOffLeaveRequestAction;
+      } else {
+        action = putApprovedLeaveByManagerAction;
+      }
       
       // Dispatch the action and wait for the result
       const result = await dispatch(action({ status, id }));
       
       // Dismiss loading toast
-      toast.dismiss(loadingToastId);
+      safeToast.dismiss(loadingToastId);
       
-      // Check if the action was successful
-      if (result?.success || result?.payload?.statusCode === 200) {
-        // Show success message
-        toast.success(
-          isCompOff 
-            ? `Comp-Off request ${status.toLowerCase()} successfully!` 
-            : `Leave request ${status.toLowerCase()} successfully!`
-        );
+      // For vendor actions, handle success differently (like navbar does)
+      if (activeTab === "vendor") {
+        // Show success message immediately for vendor actions
+        safeToast.success(`Vendor Meeting request ${status.toLowerCase()} successfully!`);
         
         // Refresh the data immediately after successful action
         const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
-        
-        if (isCompOff) {
-          // For Comp Off, refresh the comp-off data
-          dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
-        } else {
-          // For regular leave, refresh the leave data
-          dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
-        }
-        
-        // Also refresh vendor data if needed
-        if (activeTab === "vendor") {
-          dispatch(getVendorLogsAction({ page: currentPage, limit }));
-        }
-        
+        dispatch(getVendorLogsAction({ page: currentPage, limit }));
       } else {
-        // Show error message if the action failed
-        const errorMessage = result?.error || "Unknown error occurred";
-        toast.error(
-          isCompOff 
-            ? `Failed to ${status.toLowerCase()} Comp-Off request: ${errorMessage}` 
-            : `Failed to ${status.toLowerCase()} leave request: ${errorMessage}`
-        );
+        // Check if the action was successful for other actions
+        if (result?.success || result?.payload?.statusCode === 200) {
+          // Show success message
+          let successMessage;
+          if (isCompOff) {
+            successMessage = `Comp-Off request ${status.toLowerCase()} successfully!`;
+          } else {
+            successMessage = `Leave request ${status.toLowerCase()} successfully!`;
+          }
+          
+          safeToast.success(successMessage);
+          
+          // Refresh the data immediately after successful action
+          const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
+          
+          if (isCompOff) {
+            dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
+          } else {
+            dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
+          }
+          
+        } else {
+          // Show error message if the action failed
+          const errorMessage = result?.error || "Unknown error occurred";
+          let errorMsg;
+          if (isCompOff) {
+            errorMsg = `Failed to ${status.toLowerCase()} Comp-Off request: ${errorMessage}`;
+          } else {
+            errorMsg = `Failed to ${status.toLowerCase()} leave request: ${errorMessage}`;
+          }
+          safeToast.error(errorMsg);
+        }
       }
       
     } catch (error) {
       // Dismiss loading toast
-      toast.dismiss(loadingToastId);
+      safeToast.dismiss(loadingToastId);
       
       // Show error message
-      toast.error(
-        isCompOff 
-          ? `Failed to ${status.toLowerCase()} Comp-Off request: ${error.message || 'Unknown error'}` 
-          : `Failed to ${status.toLowerCase()} leave request: ${error.message || 'Unknown error'}`
-      );
+      let errorMsg;
+      if (activeTab === "vendor") {
+        errorMsg = `Failed to ${status.toLowerCase()} Vendor Meeting request: ${error.message || 'Unknown error'}`;
+      } else if (isCompOff) {
+        errorMsg = `Failed to ${status.toLowerCase()} Comp-Off request: ${error.message || 'Unknown error'}`;
+      } else {
+        errorMsg = `Failed to ${status.toLowerCase()} leave request: ${error.message || 'Unknown error'}`;
+      }
+      safeToast.error(errorMsg);
     }
-  }, [activeTab, compOffData, dispatch, itemsPerPage, leaveReqData, currentPage]);
+  }, [activeTab, compOffData, vendorDataa, dispatch, itemsPerPage, leaveReqData, currentPage]);
 
   // Optimized useEffect hooks
   useEffect(() => {
@@ -670,7 +704,7 @@ const ManagerApproval = () => {
         !leaveError.includes('empty') &&
         leaveError !== 'null' &&
         leaveError !== 'undefined') {
-      toast.error(`Leave approval error: ${leaveError}`);
+      safeToast.error(`Leave approval error: ${leaveError}`);
     }
   }, [leaveError]);
 
@@ -682,7 +716,7 @@ const ManagerApproval = () => {
         !compOffError.includes('empty') &&
         compOffError !== 'null' &&
         compOffError !== 'undefined') {
-      toast.error(`Comp-Off approval error: ${compOffError}`);
+      safeToast.error(`Comp-Off approval error: ${compOffError}`);
     }
   }, [compOffError]);
 
@@ -694,9 +728,17 @@ const ManagerApproval = () => {
         !vendorError.includes('empty') &&
         vendorError !== 'null' &&
         vendorError !== 'undefined') {
-      toast.error(`Vendor meeting approval error: ${vendorError}`);
+      safeToast.error(`Vendor meeting approval error: ${vendorError}`);
     }
   }, [vendorError]);
+
+  // Cleanup toasts on component unmount
+  useEffect(() => {
+    return () => {
+      // Dismiss all toasts when component unmounts to prevent runtime errors
+      safeToast.dismiss();
+    };
+  }, []);
 
   // Optimized component functions
   const SkeletonLoader = useCallback(() => (
@@ -911,7 +953,7 @@ const ManagerApproval = () => {
               <CustomDropdown 
                 item={item} 
                 isCompOff={isCompOff} 
-                actionType={isCompOff ? "compoff" : "leave"} 
+                actionType={activeTab === "vendor" ? "vendor" : (isCompOff ? "compoff" : "leave")} 
                 onAction={handleAction} 
                 onRejectClick={handleRejectClick}
                 onDispatch={dispatch}
@@ -1005,14 +1047,18 @@ const ManagerApproval = () => {
       return <NoDataMessage colSpan={5} />;
     }
     
-    // Filter data where revertLeave.revertedDays exists and is not an empty string
-    const filteredData = data;
-    
-    // Render rows based on the filtered data
-    return filteredData?.map((item, index) => {
+    return data.map((item, index) => {
+      
+      // Calculate values for each row (exact copy from comp-off table)
       const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?";
-      const requestDate = item?.dateTime?.split(' ')[0] || "---";
-      const totalDaysDisplay = item?.totalDays && item?.totalDays !== "undefined" ? `${item?.totalDays} days` : "---";
+      const requestDate = item?.dateTime?.split(" ")[0] || item?.appliedDate?.split(" ")[0] || "---";
+      
+      const totalDaysDisplay = (() => {
+        const totalDays = item?.totalDays;
+        if (totalDays === 0.5) return 'Half Day';
+        if (totalDays === 1) return 'Full Day';
+        return totalDays && totalDays !== "undefined" ? `${totalDays} days` : "---";
+      })();
       
       const statusClass = (() => {
         if (item?.status === "Approved") return "bg-green-100 text-green-800";
@@ -1022,28 +1068,28 @@ const ManagerApproval = () => {
       
       return (
         <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
-          <td className="px-6 py-4 text-center whitespace-nowrap">
+          <td className="px-4 py-3 text-center whitespace-nowrap">
             <div className="flex items-center justify-center">
-              <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                <span className="text-indigo-600 font-medium text-sm">
+              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                <span className="text-blue-600 font-medium text-xs">
                   {employeeInitial}
                 </span>
               </div>
-              <span className="font-medium text-gray-900 truncate max-w-[150px]" title={item?.employeeInfo?.employeeName || "---"}>
+              <span className="font-medium text-gray-900 text-sm truncate max-w-[120px]" title={item?.employeeInfo?.employeeName || "---"}>
                 {item?.employeeInfo?.employeeName || "---"}
               </span>
             </div>
           </td>
-          <td className="px-6 py-4 text-center whitespace-nowrap">
-            <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+          <td className="px-4 py-3 text-center whitespace-nowrap">
+            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
               {requestDate}
             </span>
           </td>
-          <td className="px-6 py-4 text-center">
-            <ReasonCell reason={item?.reason} className="text-sm" />
+          <td className="px-4 py-3 text-center">
+            <ReasonCell reason={item?.reason} />
           </td>
-          <td className="px-6 py-4 text-center whitespace-nowrap">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+          <td className="px-4 py-3 text-center whitespace-nowrap">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
               {totalDaysDisplay}
             </span>
           </td>
@@ -1051,6 +1097,7 @@ const ManagerApproval = () => {
             {item?.status === "Pending" ? (
               <CustomDropdown 
                 item={item} 
+                isCompOff={true}
                 actionType="vendor" 
                 onAction={handleAction} 
                 onRejectClick={handleRejectClick}
@@ -1228,7 +1275,7 @@ const ManagerApproval = () => {
                   onChange={setFilterStatus}
                 />
               </div>
-              <div className="overflow-x-auto bg-white rounded-xl shadow-lg border border-gray-200">
+              <div className="overflow-x-auto overflow-y-visible bg-white rounded-xl shadow-lg border border-gray-200">
                 <table className="w-full text-sm min-w-full">
                   <thead className="bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-gray-200">
                     <tr>
@@ -1239,7 +1286,107 @@ const ManagerApproval = () => {
                       <th className="px-6 py-4 font-semibold text-gray-700 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">{loading ? <SkeletonLoader /> : vendorMeetingTable(currentData)}</tbody>
+                  <tbody className="divide-y divide-gray-100">
+                    {loading ? <SkeletonLoader /> : 
+                      currentData?.map((item, index) => (
+                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center">
+                              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                                <span className="text-blue-600 font-medium text-xs">
+                                  {item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?"}
+                                </span>
+                              </div>
+                              <span className="font-medium text-gray-900 text-sm truncate max-w-[120px]" title={item?.employeeInfo?.employeeName || "---"}>
+                                {item?.employeeInfo?.employeeName || "---"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+                              {item?.dateTime?.split(" ")[0] || "---"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <ReasonCell reason={item?.reason} />
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {item?.totalDays && item?.totalDays !== "undefined" ? `${item?.totalDays} days` : "---"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            {item?.status === "Pending" ? (
+                              <div className="relative inline-block w-full">
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenDropdown(openDropdown === `vendor-${item._id}` ? null : `vendor-${item._id}`)}
+                                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 flex items-center justify-between cursor-pointer"
+                                >
+                                  <span className="truncate text-gray-600">Select Action</span>
+                                  <svg 
+                                    className={`w-3 h-3 text-gray-400 transition-transform duration-200 flex-shrink-0 ${openDropdown === `vendor-${item._id}` ? 'rotate-180' : ''}`} 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                                
+                                {openDropdown === `vendor-${item._id}` && (
+                                  <div className="absolute mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px] z-[999999]">
+                                    <div className="py-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const action = putVendorStatusDataAction({ status: "Approved", id: item._id });
+                                          dispatch(action);
+                                          safeToast.success("Vendor meeting request approved successfully!");
+                                          setOpenDropdown(null);
+                                          setTimeout(() => {
+                                            dispatch(getVendorLogsAction({ page: currentPage, limit: itemsPerPage }));
+                                          }, 1500);
+                                        }}
+                                        className="w-full px-3 py-2 text-xs text-left text-green-700 hover:bg-green-50 transition-colors duration-200 flex items-center"
+                                      >
+                                        <span className="mr-2 text-green-500">✓</span>
+                                        Approve
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const action = putVendorStatusDataAction({ status: "Rejected", id: item._id });
+                                          dispatch(action);
+                                          safeToast.success("Vendor meeting request rejected successfully!");
+                                          setOpenDropdown(null);
+                                          setTimeout(() => {
+                                            dispatch(getVendorLogsAction({ page: currentPage, limit: itemsPerPage }));
+                                          }, 1500);
+                                        }}
+                                        className="w-full px-3 py-2 text-xs text-left text-red-700 hover:bg-red-50 transition-colors duration-200 flex items-center"
+                                      >
+                                        <span className="mr-2 text-red-500">✗</span>
+                                        Reject
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                item?.status === "Approved" ? "bg-green-100 text-green-800" : 
+                                item?.status === "Rejected" ? "bg-red-100 text-red-800" : 
+                                "bg-gray-100 text-gray-800"
+                              }`}>
+                                {item?.status || "---"}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
               </table>
             </div>
           </>) : (

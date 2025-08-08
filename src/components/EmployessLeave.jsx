@@ -3,8 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { deleteLeaveRequestAction, getCompoffDataAction, getEmployeLeaveStatusAction, getUserDataAction, getVendorSingleLogsAction, postrevertLeaveRequest } from "../store/action/userDataAction";
 import AddEmployee from "./AddEmployee";
 import { Link } from "react-router-dom";
-import { Bounce, ToastContainer, toast } from 'react-toastify';
+import { Bounce, ToastContainer } from 'react-toastify';
 import { RxCross2 } from "react-icons/rx";
+import safeToast from "../utils/safeToast";
 
 const EmployessLeave = () => {
     const employeeId = localStorage.getItem('employeId');
@@ -14,6 +15,10 @@ const EmployessLeave = () => {
     const { data: vendorData } = useSelector((state) => state.singleVendorLogsData);
     console.log('vendorData', vendorData);
     const { data: dataa } = useSelector((state) => state.deleteLeaveByEmoployee);
+    const { data: revertLeaveData, error: revertLeaveError } = useSelector((state) => state.revertLeaveReducer);
+    const { data: userDataRaw } = useSelector((state) => state.userData);
+    const userData = userDataRaw?.data || {};
+    const userType = userData?.role;
     const [selectDays, setLeaveDays] = useState('');
     const leaveData = data?.data;
     const [filterStatus, setFilterStatus] = useState('All'); // Default is 'All'
@@ -30,7 +35,10 @@ const EmployessLeave = () => {
         return leave.status === filterStatus;
     });
 
-    const filterVendorData=vendorData?.data;
+    const filterVendorData = vendorData?.data?.filter(vendor => {
+        if (filterStatus === 'All') return true;
+        return vendor.status === filterStatus;
+    });
 
     // Get current data slice based on the page
     const currentLeaveData = filteredLeaveData?.slice(
@@ -61,26 +69,81 @@ const EmployessLeave = () => {
     const totalPages = getTotalPages();
     const [openUndoModel, setOpenUndoModel] = useState(false);
     const [userId, setUserId] = useState('');
+    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
     const closeModal = () => setOpenUndoModel(false);
     const handelOpenModel = () => setOpenUndoModel(true);
 
     useEffect(() => {
         if (dataa) {
-            toast.success(dataa?.message, {
+            safeToast.success(dataa?.message, {
                 position: "top-center",
                 autoClose: 5000,
                 hideProgressBar: false,
-                closeOnClick: false,
+                closeOnClick: true,
                 pauseOnHover: true,
                 draggable: true,
                 progress: undefined,
                 theme: "colored",
                 transition: Bounce,
             });
+            
+            // Refresh data after successful delete operation
+            setTimeout(() => {
+                dispatch(getEmployeLeaveStatusAction(employeeId));
+                dispatch(getCompoffDataAction());
+                dispatch(getVendorSingleLogsAction());
+            }, 1000);
+            
             return;
         }
-    }, [dataa]);
+    }, [dataa, dispatch, employeeId]);
+
+    // Handle revert leave success response
+    useEffect(() => {
+        if (revertLeaveData) {
+            safeToast.success(revertLeaveData?.message || "Revert request submitted successfully!", {
+                position: "top-center",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored",
+                transition: Bounce,
+            });
+            
+            // Clear the form
+            setLeaveDays('');
+            
+            // Refresh data after successful revert operation
+            setTimeout(() => {
+                dispatch(getEmployeLeaveStatusAction(employeeId));
+                dispatch(getCompoffDataAction());
+                dispatch(getVendorSingleLogsAction());
+            }, 1000);
+            
+            return;
+        }
+    }, [revertLeaveData, dispatch, employeeId]);
+
+    // Handle revert leave error response
+    useEffect(() => {
+        if (revertLeaveError) {
+            safeToast.error(revertLeaveError || "Failed to submit revert request", {
+                position: "top-center",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored",
+                transition: Bounce,
+            });
+        }
+    }, [revertLeaveError]);
 
     useEffect(() => {
         dispatch(getEmployeLeaveStatusAction(employeeId));
@@ -88,6 +151,41 @@ const EmployessLeave = () => {
         dispatch(getVendorSingleLogsAction());
         dispatch(getUserDataAction());
     }, [dispatch, employeeId]);
+
+    // Cleanup toasts on component unmount
+    useEffect(() => {
+        return () => {
+            // Dismiss all toasts when component unmounts to prevent runtime errors
+            safeToast.dismiss();
+        };
+    }, []);
+
+    // Handle clicking outside dropdown to close it
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (isFilterDropdownOpen && !event.target.closest('.custom-dropdown')) {
+                setIsFilterDropdownOpen(false);
+            }
+        };
+
+        const handleKeyDown = (event) => {
+            if (isFilterDropdownOpen) {
+                if (event.key === 'Escape') {
+                    setIsFilterDropdownOpen(false);
+                } else if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                }
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleKeyDown);
+        
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isFilterDropdownOpen]);
 
     const getLeaveTypeStyle = (type) => {
         switch (type) {
@@ -189,6 +287,24 @@ const EmployessLeave = () => {
 
     // Function to render Leave Status table
     const renderLeaveTable = (leaveData) => {
+        // Check if there's no leave data
+        if (!leaveData || leaveData.length === 0) {
+            return (
+                <tr>
+                    <td colSpan="9" className="px-4 py-8 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="text-4xl mb-4">📅</div>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Leave Data Available</h3>
+                            <p className="text-gray-600 mb-4">No leave requests found at the moment.</p>
+                            <div className="text-sm text-gray-500">
+                                Leave requests will appear here once they are submitted
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            );
+        }
+
         return leaveData?.map((leave, index) => (
             <tr key={index} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm whitespace-nowrap">
@@ -255,39 +371,46 @@ const EmployessLeave = () => {
                             Delete
                         </button>
                     ) : leave.status === 'Approved' ? (
-                        leave?.leaveType === 'UL' ||
-                            leave?.leaveType === 'optionalLeave' ||
-                            leave?.leaveType === 'shortLeave' ? (
-                            <span className="text-gray-400 text-xs">--</span>
-                        ) : leave?.revertLeave?.requestedDateTime === "" ? (
-                            <button
-                                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
-                                onClick={() => {
-                                    setOpenUndoModel(true);
-                                    setUserId(leave?._id);
-                                }}
-                            >
-                                UNDO
-                            </button>
+                        // Only show undo button for managers
+                        (userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") ? (
+                            leave?.leaveType === 'UL' ||
+                                leave?.leaveType === 'optionalLeave' ||
+                                leave?.leaveType === 'shortLeave' ? (
+                                <span className="text-gray-400 text-xs">--</span>
+                            ) : leave?.revertLeave?.requestedDateTime === "" ? (
+                                <button
+                                    className="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
+                                    onClick={() => {
+                                        setOpenUndoModel(true);
+                                        setUserId(leave?._id);
+                                    }}
+                                >
+                                    UNDO
+                                </button>
+                            ) : (
+                                <button
+                                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        leave.revertLeave.status === 'Pending'
+                                            ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                                            : leave.revertLeave.status === 'Rejected'
+                                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                                : 'bg-green-50 text-green-700 hover:bg-green-100'
+                                    }`}
+                                    onClick={() => {
+                                        setOpenUndoModel(true);
+                                        setUserId(leave?._id);
+                                    }}
+                                    disabled={leave.revertLeave.status !== 'Pending'}
+                                >
+                                    {leave.revertLeave.status === 'Pending' ? 'Pending' : leave.revertLeave.status === 'Rejected' ? 'Rejected' : 'Approved'}
+                                </button>
+                            )
                         ) : (
-                            <button
-                                className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                    leave.revertLeave.status === 'Pending'
-                                        ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                                        : leave.revertLeave.status === 'Rejected'
-                                            ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                            : 'bg-green-50 text-green-700 hover:bg-green-100'
-                                }`}
-                                onClick={() => {
-                                    setOpenUndoModel(true);
-                                    setUserId(leave?._id);
-                                }}
-                                disabled={leave.revertLeave.status !== 'Pending'}
-                            >
-                                {leave.revertLeave.status === 'Pending' ? 'Pending' : leave.revertLeave.status === 'Rejected' ? 'Rejected' : 'Approved'}
-                            </button>
+                            <span className="text-gray-400 text-xs">--</span>
                         )
-                    ) : null}
+                    ) : (
+                        <span className="text-gray-400 text-xs">--</span>
+                    )}
                 </td>
             </tr>
         ));
@@ -295,6 +418,24 @@ const EmployessLeave = () => {
 
     // Function to render Compoff Status table
     const renderCompoffTable = (compoffData) => {
+        // Check if there's no compoff data
+        if (!compoffData || compoffData.length === 0) {
+            return (
+                <tr>
+                    <td colSpan="9" className="px-4 py-8 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="text-4xl mb-4">🔄</div>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Comp-Off Data Available</h3>
+                            <p className="text-gray-600 mb-4">No comp-off requests found at the moment.</p>
+                            <div className="text-sm text-gray-500">
+                                Comp-off requests will appear here once they are submitted
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            );
+        }
+
         return compoffData?.map((item, index1) => (
             <tr key={index1} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index1 % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm whitespace-nowrap">
@@ -350,6 +491,24 @@ const EmployessLeave = () => {
     };
 
     const renderVendorTable = (filterVendorData) => {
+        // Check if there's no vendor data
+        if (!filterVendorData || filterVendorData.length === 0) {
+            return (
+                <tr>
+                    <td colSpan="9" className="px-4 py-8 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="text-4xl mb-4">📋</div>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Vendor Data Available</h3>
+                            <p className="text-gray-600 mb-4">No vendor meeting requests found at the moment.</p>
+                            <div className="text-sm text-gray-500">
+                                Vendor meeting requests will appear here once they are submitted
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            );
+        }
+
         return filterVendorData?.map((item, index1) => (
             <tr key={index1} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 ${index1 % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
                 <td className="px-2 sm:px-4 py-3 sm:py-4 text-sm">
@@ -479,18 +638,97 @@ const EmployessLeave = () => {
 
             {/* Filter Dropdown */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center mb-4 sm:mb-6 gap-2 sm:gap-0">
-                <label htmlFor="leaveStatusFilter" className="text-sm font-medium text-gray-700">Filter by Status:</label>
-                <select
-                    id="leaveStatusFilter"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full sm:w-auto"
-                >
-                    <option value="All">All</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Rejected">Rejected</option>
-                </select>
+                <label className="text-sm font-medium text-gray-700">Filter by Status:</label>
+                
+                {/* Custom Dropdown */}
+                <div className="relative w-full sm:w-auto custom-dropdown">
+                    <button
+                        onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                        className="flex items-center justify-between w-full sm:w-36 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    >
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            filterStatus === 'All' ? 'bg-gray-100 text-gray-700' :
+                            filterStatus === 'Approved' ? 'bg-green-100 text-green-700' :
+                            filterStatus === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                        }`}>
+                            {filterStatus}
+                        </span>
+                        <svg 
+                            className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${isFilterDropdownOpen ? 'rotate-180' : ''}`} 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    {isFilterDropdownOpen && (
+                        <div className="absolute z-50 w-full sm:w-36 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                            <button
+                                onClick={() => {
+                                    setFilterStatus('All');
+                                    setCurrentPage(1);
+                                    setIsFilterDropdownOpen(false);
+                                }}
+                                className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 transition-colors duration-150 flex items-center gap-2 ${
+                                    filterStatus === 'All' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                }`}
+                            >
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                    All
+                                </span>
+                            </button>
+                            
+                            <button
+                                onClick={() => {
+                                    setFilterStatus('Approved');
+                                    setCurrentPage(1);
+                                    setIsFilterDropdownOpen(false);
+                                }}
+                                className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 transition-colors duration-150 flex items-center gap-2 ${
+                                    filterStatus === 'Approved' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                }`}
+                            >
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                    Approved
+                                </span>
+                            </button>
+                            
+                            <button
+                                onClick={() => {
+                                    setFilterStatus('Pending');
+                                    setCurrentPage(1);
+                                    setIsFilterDropdownOpen(false);
+                                }}
+                                className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 transition-colors duration-150 flex items-center gap-2 ${
+                                    filterStatus === 'Pending' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                }`}
+                            >
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                                    Pending
+                                </span>
+                            </button>
+                            
+                            <button
+                                onClick={() => {
+                                    setFilterStatus('Rejected');
+                                    setCurrentPage(1);
+                                    setIsFilterDropdownOpen(false);
+                                }}
+                                className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 transition-colors duration-150 flex items-center gap-2 ${
+                                    filterStatus === 'Rejected' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                }`}
+                            >
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                    Rejected
+                                </span>
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Table */}

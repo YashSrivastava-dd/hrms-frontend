@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { postApplyLeaveByEmployee, postMedicalFileAction, getAttendenceLogsOfEmploye } from "../store/action/userDataAction";
-import { Bounce, ToastContainer, toast } from 'react-toastify';
+import { Bounce, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { RxCross2 } from "react-icons/rx";
 import { useNavigate } from "react-router-dom";
 import Modal from "@mui/material/Modal";
@@ -11,6 +12,7 @@ import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { FaClock } from "react-icons/fa";
+import safeToast from '../utils/safeToast';
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
@@ -55,6 +57,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         // toast.dismiss()
     }, [])
 
+    // Cleanup toasts on component unmount
+    useEffect(() => {
+        return () => {
+            // Dismiss all toasts when component unmounts to prevent runtime errors
+            safeToast.dismiss();
+        };
+    }, []);
+
     useEffect(() => {
         if (error && typeof error === 'string' && error.length > 0) {
             // Provide more user-friendly error messages
@@ -68,7 +78,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             
             // Use a try-catch to prevent toast errors from crashing the app
             try {
-                toast.error(errorMessage, {
+                safeToast.error(errorMessage, {
                     position: "top-center",
                     autoClose: 5000,
                     hideProgressBar: false,
@@ -101,7 +111,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         if (dataa && dataa?.message) {
             // Use a try-catch to prevent toast errors from crashing the app
             try {
-                toast.success(dataa.message, {
+                safeToast.success(dataa.message, {
                     position: "top-center",
                     autoClose: 5000,
                     hideProgressBar: false,
@@ -128,7 +138,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         if (medicalReport && medicalReport.location) {  // ✅ Ensure medicalReport is defined
             // Use a try-catch to prevent toast errors from crashing the app
             try {
-                toast.success('File Upload Successfully', {
+                safeToast.success('File Upload Successfully', {
                     position: "top-center",
                     autoClose: 5000,
                     hideProgressBar: false,
@@ -603,7 +613,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         
         if (requestedDays > availableBalance) {
             try {
-                toast.error(`Insufficient leave balance. You have ${availableBalance} days available but requesting ${requestedDays} days.`);
+                safeToast.error(`Insufficient leave balance. You have ${availableBalance} days available but requesting ${requestedDays} days.`);
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }
@@ -613,7 +623,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         // Additional balance check for specific leave types
         if (leaveData.leaveType === 'earnedLeave' && availableBalance <= 0) {
             try {
-                toast.error('You have no earned leave balance available.');
+                safeToast.error('You have no earned leave balance available.');
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }
@@ -622,7 +632,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
         if (leaveData.leaveType === 'casualLeave' && availableBalance <= 0) {
             try {
-                toast.error('You have no casual leave balance available.');
+                safeToast.error('You have no casual leave balance available.');
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }
@@ -631,7 +641,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
         if (leaveData.leaveType === 'compOffLeave' && availableBalance <= 0) {
             try {
-                toast.error('You have no comp-off leave balance available.');
+                safeToast.error('You have no comp-off leave balance available.');
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }

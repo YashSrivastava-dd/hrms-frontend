@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { MdChevronLeft, MdChevronRight, MdToday, MdEvent } from "react-icons/md";
+import { FaChevronDown, FaTimes } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { getCalenderLogsApiAction, postApplyCompOffLeaveAction, postApplyRegularizationAction, postVendorMeetingAction } from "../store/action/userDataAction";
 import { Bounce, ToastContainer, toast } from "react-toastify";
+import safeToast from "../utils/safeToast";
 
 // Constants
 const MONTHS = [
@@ -26,15 +28,18 @@ const LEAVE_TYPE_MAP = {
 };
 
 const TOAST_CONFIG = {
-  position: "top-center",
   autoClose: 1500,
   hideProgressBar: false,
-  closeOnClick: false,
+  closeOnClick: true,
   pauseOnHover: true,
   draggable: true,
   progress: undefined,
   theme: "colored",
   transition: Bounce,
+  toastId: undefined, // Let react-toastify generate unique IDs
+  onClose: () => {
+    // Safe cleanup when toast closes
+  }
 };
 
 function Calendar({ employeeId, userRole, onDaySelect }) {
@@ -51,6 +56,15 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const [clickedDay, setClickedDay] = useState(null);
   const [showAbbreviations, setShowAbbreviations] = useState(false);
   const [compOffDayType, setCompOffDayType] = useState(""); // For comp-off day type selection
+  const [isLeaveTypeDropdownOpen, setIsLeaveTypeDropdownOpen] = useState(false);
+  const [isCompOffDurationDropdownOpen, setIsCompOffDurationDropdownOpen] = useState(false);
+  const leaveTypeDropdownRef = useRef(null);
+  const compOffDurationDropdownRef = useRef(null);
+  
+  // Validation states
+  const [showLeaveTypeError, setShowLeaveTypeError] = useState(false);
+  const [showCompOffDurationError, setShowCompOffDurationError] = useState(false);
+  const [showReasonError, setShowReasonError] = useState(false);
 
   const dispatch = useDispatch();
   
@@ -59,6 +73,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const { data, error } = useSelector((state) => state.compoffReducer);
   const { data: dataa } = useSelector((state) => state.userData);
   const { data: data1, error: error1 } = useSelector((state) => state.regularizeReducer);
+  const { data: vendorMeetingData, error: vendorMeetingError } = useSelector((state) => state.vendorMeetingData);
 
   const dayLogs = dataaa?.data;
   const userDataList = dataa?.data || [];
@@ -100,24 +115,121 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
   }, [monthYear, employeeId, dispatch]);
 
+  // Cleanup toasts on component unmount
+  useEffect(() => {
+    return () => {
+      // Dismiss all toasts when component unmounts to prevent runtime errors
+      safeToast.dismiss();
+    };
+  }, []);
+
+  // Handle clicking outside dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside the dropdown container
+      const leaveTypeContainer = event.target.closest('.leave-type-dropdown');
+      const compOffContainer = event.target.closest('.comp-off-duration-dropdown');
+      
+      if (isLeaveTypeDropdownOpen && !leaveTypeContainer) {
+        setIsLeaveTypeDropdownOpen(false);
+      }
+      if (isCompOffDurationDropdownOpen && !compOffContainer) {
+        setIsCompOffDurationDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isLeaveTypeDropdownOpen, isCompOffDurationDropdownOpen]);
+
   useEffect(() => {
     if (data?.message) {
-      toast.success(data.message, TOAST_CONFIG);
-      setTimeout(() => window.location.reload(), 1500);
+      safeToast.success(data.message, TOAST_CONFIG);
+      // Close modal and clear form data
+      setModalOpen(false);
+      // Clear form data inline to avoid dependency issues
+      setSelectedDay(null);
+      setReason("");
+      setSelectType("");
+      setActionType("");
+      setLeaveType("");
+      setSelectDuration(null);
+      setClickedDay(null);
+      setCompOffDayType("");
+      setIsLeaveTypeDropdownOpen(false);
+      setIsCompOffDurationDropdownOpen(false);
+      setShowLeaveTypeError(false);
+      setShowCompOffDurationError(false);
+      setShowReasonError(false);
+      // Refresh calendar data for the current month
+      if (employeeId) {
+        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
+      }
       return;
     }
     if (data1?.message) {
-      toast.success(data1.message, TOAST_CONFIG);
-      setTimeout(() => window.location.reload(), 1500);
+      safeToast.success(data1.message, TOAST_CONFIG);
+      // Close modal and clear form data
+      setModalOpen(false);
+      // Clear form data inline to avoid dependency issues
+      setSelectedDay(null);
+      setReason("");
+      setSelectType("");
+      setActionType("");
+      setLeaveType("");
+      setSelectDuration(null);
+      setClickedDay(null);
+      setCompOffDayType("");
+      setIsLeaveTypeDropdownOpen(false);
+      setIsCompOffDurationDropdownOpen(false);
+      setShowLeaveTypeError(false);
+      setShowCompOffDurationError(false);
+      setShowReasonError(false);
+      // Refresh calendar data for the current month
+      if (employeeId) {
+        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
+      }
       return;
     }
-  }, [data?.message, data1?.message]);
+    if (vendorMeetingData?.message) {
+      safeToast.success(vendorMeetingData.message, TOAST_CONFIG);
+      // Close modal and clear form data
+      setModalOpen(false);
+      // Clear form data inline to avoid dependency issues
+      setSelectedDay(null);
+      setReason("");
+      setSelectType("");
+      setActionType("");
+      setLeaveType("");
+      setSelectDuration(null);
+      setClickedDay(null);
+      setCompOffDayType("");
+      setIsLeaveTypeDropdownOpen(false);
+      setIsCompOffDurationDropdownOpen(false);
+      setShowLeaveTypeError(false);
+      setShowCompOffDurationError(false);
+      setShowReasonError(false);
+      // Refresh calendar data for the current month
+      if (employeeId) {
+        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
+      }
+      return;
+    }
+  }, [data?.message, data1?.message, vendorMeetingData?.message, employeeId, monthYear, dispatch]);
 
   useEffect(() => {
     if (error1) {
-      toast.error(error1, TOAST_CONFIG);
+      safeToast.error(error1, TOAST_CONFIG);
     }
   }, [error1]);
+
+  useEffect(() => {
+    if (vendorMeetingError) {
+      safeToast.error(vendorMeetingError, TOAST_CONFIG);
+    }
+  }, [vendorMeetingError]);
 
   // Memoized functions
   const getDayType = useCallback((day) => {
@@ -257,7 +369,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setSelectedDay(day);
       setModalOpen(true);
     } else {
-      toast.error(
+      safeToast.error(
         "You can only select short leave for today or regularization for dates within the current month up to today.",
         TOAST_CONFIG
       );
@@ -267,18 +379,31 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     
+    // Reset all validation errors first
+    setShowLeaveTypeError(false);
+    setShowCompOffDurationError(false);
+    setShowReasonError(false);
+    
     if (!actionType) {
-      toast.error("Please select an action (Apply Leave or Raise Comp-Off)", TOAST_CONFIG);
+      safeToast.error("Please select an action (Apply Leave or Raise Comp-Off)", TOAST_CONFIG);
       return;
     }
     
+    // Validate leave type only when submitting leave
     if (actionType === 'leave' && !selectType) {
-      toast.error("Please select a leave type", TOAST_CONFIG);
+      setShowLeaveTypeError(true);
       return;
     }
     
-    if (!reason) {
-      toast.error("Please provide a reason for leave", TOAST_CONFIG);
+    // Validate comp-off duration only when submitting comp-off
+    if (actionType === 'compOff' && !compOffDayType) {
+      setShowCompOffDurationError(true);
+      return;
+    }
+    
+    // Validate reason
+    if (!reason.trim()) {
+      setShowReasonError(true);
       return;
     }
 
@@ -286,11 +411,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
     if (actionType === 'compOff') {
       // Handle Comp-Off submissions (First Half, Second Half, or Full Day)
-      if (!compOffDayType) {
-        toast.error("Please select a duration (First Half, Second Half, or Full Day).", TOAST_CONFIG);
-        return;
-      }
-      
       let totalDays = 0;
       if (compOffDayType === 'firstHalf' || compOffDayType === 'secondHalf') {
         totalDays = 0.5;
@@ -316,8 +436,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       }
     }
     
-    setModalOpen(false);
-  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch]);
+    // Don't close modal here - it will be closed by the success effect
+  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -329,14 +449,41 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setSelectDuration(null);
     setClickedDay(null);
     setCompOffDayType("");
+    setIsLeaveTypeDropdownOpen(false);
+    setIsCompOffDurationDropdownOpen(false);
+    setShowLeaveTypeError(false);
+    setShowCompOffDurationError(false);
+    setShowReasonError(false);
   }, []);
 
   const handleInputChange = useCallback((e) => {
     setSelectType(e.target.value);
   }, []);
 
-  const handleChangeDuration = useCallback((e) => {
-    setSelectDuration(e.target.value);
+  const handleLeaveTypeSelect = useCallback((leaveType) => {
+    setSelectType(leaveType);
+    setIsLeaveTypeDropdownOpen(false);
+    setShowLeaveTypeError(false); // Clear validation error when selection is made
+  }, []);
+
+  const handleCompOffDurationSelect = useCallback((duration) => {
+    setCompOffDayType(duration);
+    setIsCompOffDurationDropdownOpen(false);
+    setShowCompOffDurationError(false); // Clear validation error when selection is made
+  }, []);
+
+  const handleDropdownToggle = useCallback((dropdownType, e) => {
+    e.stopPropagation(); // Prevent event bubbling
+    if (dropdownType === 'leaveType') {
+      setIsLeaveTypeDropdownOpen(!isLeaveTypeDropdownOpen);
+    } else if (dropdownType === 'compOffDuration') {
+      setIsCompOffDurationDropdownOpen(!isCompOffDurationDropdownOpen);
+    }
+  }, [isLeaveTypeDropdownOpen, isCompOffDurationDropdownOpen]);
+
+  const handleReasonChange = useCallback((e) => {
+    setReason(e.target.value);
+    setShowReasonError(false); // Clear validation error when user starts typing
   }, []);
 
   // Format time helper function
@@ -719,7 +866,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
               {/* Leave Type Selection */}
               {actionType === 'leave' && (
-                <div>
+                <div className="leave-type-dropdown">
                   <label
                     htmlFor="leaveType"
                     className="block text-sm font-medium text-gray-700 mb-2"
@@ -727,54 +874,194 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                     Leave Type<span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <select
-                      id="leaveType"
-                      name="leaveType"
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base appearance-none bg-white hover:border-gray-300"
+                    <button
+                      onClick={(e) => handleDropdownToggle('leaveType', e)}
+                      className={`flex items-center justify-between w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white hover:border-gray-300 ${
+                        showLeaveTypeError 
+                          ? 'border-red-300 bg-red-50 text-red-700' 
+                          : selectType 
+                          ? 'border-blue-300 bg-blue-50 text-blue-700' 
+                          : 'border-gray-200 text-gray-700'
+                      }`}
                     >
-                      <option value="">✓ Select Leave Type</option>
-                      <option value="shortLeave">Short Leave</option>
-                      <option value="vendor-meeting">Vendor Meeting</option>
-                      <option value="regularized">Regularization</option>
-                    </select>
-                    {/* Custom dropdown arrow */}
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                      <span className="text-gray-700">
+                        {selectType === 'shortLeave' ? 'Short Leave' : 
+                         selectType === 'vendor-meeting' ? 'Vendor Meeting' : 
+                         selectType === 'regularized' ? 'Regularization' : 
+                         '✓ Select Leave Type'}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
+                          isLeaveTypeDropdownOpen ? 'rotate-180' : ''
+                        } ${selectType ? 'text-blue-500' : 'text-gray-400'}`} />
+                      </div>
+                    </button>
+
+                    {isLeaveTypeDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 leave-type-dropdown transition-all duration-200 ease-in-out">
+                        <div className="p-2">
+                          <button
+                            onClick={() => handleLeaveTypeSelect('shortLeave')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
+                              selectType === 'shortLeave'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                selectType === 'shortLeave' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">Short Leave</span>
+                                <p className="text-xs opacity-75">For short duration absences</p>
+                              </div>
+                            </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => handleLeaveTypeSelect('vendor-meeting')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
+                              selectType === 'vendor-meeting'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                selectType === 'vendor-meeting' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">Vendor Meeting</span>
+                                <p className="text-xs opacity-75">For external vendor meetings</p>
+                              </div>
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => handleLeaveTypeSelect('regularized')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
+                              selectType === 'regularized'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                selectType === 'regularized' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">Regularization</span>
+                                <p className="text-xs opacity-75">For attendance regularization</p>
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
+                  {showLeaveTypeError && (
+                    <p className="mt-1 text-sm text-red-600">Please select a leave type</p>
+                  )}
                 </div>
               )}
 
               {/* Comp-Off Day Type Selection */}
               {actionType === 'compOff' && (
-                <div>
+                <div className="comp-off-duration-dropdown">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Duration<span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <select
-                      value={compOffDayType}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setCompOffDayType(value);
-                      }}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
+                    <button
+                      onClick={(e) => handleDropdownToggle('compOffDuration', e)}
+                      className={`flex items-center justify-between w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white hover:border-gray-300 ${
+                        showCompOffDurationError 
+                          ? 'border-red-300 bg-red-50 text-red-700' 
+                          : compOffDayType 
+                          ? 'border-blue-300 bg-blue-50 text-blue-700' 
+                          : 'border-gray-200 text-gray-700'
+                      }`}
                     >
-                      <option value="">Select Duration</option>
-                      <option value="firstHalf">First Half</option>
-                      <option value="secondHalf">Second Half</option>
-                      <option value="fullDay">Full Day</option>
-                    </select>
-                    {/* Custom dropdown arrow */}
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                      <span className="text-gray-700">
+                        {compOffDayType === 'firstHalf' ? 'First Half' : 
+                         compOffDayType === 'secondHalf' ? 'Second Half' : 
+                         compOffDayType === 'fullDay' ? 'Full Day' : 
+                         'Select Duration'}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
+                          isCompOffDurationDropdownOpen ? 'rotate-180' : ''
+                        } ${compOffDayType ? 'text-blue-500' : 'text-gray-400'}`} />
+                      </div>
+                    </button>
+
+                    {isCompOffDurationDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 comp-off-duration-dropdown transition-all duration-200 ease-in-out">
+                        <div className="p-2">
+                          <button
+                            onClick={() => handleCompOffDurationSelect('firstHalf')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
+                              compOffDayType === 'firstHalf'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                compOffDayType === 'firstHalf' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">First Half</span>
+                                <p className="text-xs opacity-75">Morning shift (9 AM - 1 PM)</p>
+                              </div>
+                            </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => handleCompOffDurationSelect('secondHalf')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
+                              compOffDayType === 'secondHalf'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                compOffDayType === 'secondHalf' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">Second Half</span>
+                                <p className="text-xs opacity-75">Afternoon shift (2 PM - 6 PM)</p>
+                              </div>
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => handleCompOffDurationSelect('fullDay')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
+                              compOffDayType === 'fullDay'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                compOffDayType === 'fullDay' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">Full Day</span>
+                                <p className="text-xs opacity-75">Complete day (9 AM - 6 PM)</p>
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
+                  {showCompOffDurationError && (
+                    <p className="mt-1 text-sm text-red-600">Please select a duration</p>
+                  )}
                 </div>
               )}
 
@@ -791,10 +1078,17 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   name="reason"
                   rows="3"
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
+                  onChange={handleReasonChange}
                   placeholder={actionType === "compOff" ? "Provide your reason for comp-off..." : "Provide your reason for leave/comp-off..."}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300"
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300 ${
+                    showReasonError 
+                      ? 'border-red-300 bg-red-50 text-red-700' 
+                      : 'border-gray-200'
+                  }`}
                 />
+                {showReasonError && (
+                  <p className="mt-1 text-sm text-red-600">Please provide a reason</p>
+                )}
               </div>
 
               {/* Action Buttons */}

@@ -21,10 +21,12 @@ import {
   getVendorLogsAction,
   putCompOffLeaveRequestAction,
   putRevertLeaveByManagerAction,
-  putVendorStatusDataAction
+  putVendorStatusDataAction,
+  getAnnouncementDataAction
 } from "../store/action/userDataAction";
-import { toast, ToastContainer } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import safeToast from "../utils/safeToast";
 
 function Navbar({ onToggleSidebar }) {
   const dispatch = useDispatch();
@@ -59,16 +61,18 @@ function Navbar({ onToggleSidebar }) {
   const { data: leaveRequestData } = useSelector((state) => state?.managerLeaveApprove);
   const { data: compOffData } = useSelector((state) => state?.compoffApprove);
   const { data: vendorData } = useSelector((state) => state?.vendorLogsData);
+  const { data: announcementData } = useSelector((state) => state?.announcementData);
   
   const leaveReqData = leaveRequestData?.data || [];
   const compOffReqData = compOffData?.data || [];
   const vendorReqData = vendorData?.data || [];
+  const announcementDataRaw = announcementData?.data || [];
   
-  // Combine all pending notifications from different approval types - for managers and super admins
-  const pendingLeaveNotifications = (userType === "Manager" || userType === "Super-Admin") ? leaveReqData?.filter((item) => item.status === "Pending") || [] : [];
-  const pendingCompOffNotifications = (userType === "Manager" || userType === "Super-Admin") ? compOffReqData?.filter((item) => item.status === "Pending") || [] : [];
-  const pendingVendorNotifications = (userType === "Manager" || userType === "Super-Admin") ? vendorReqData?.filter((item) => item.status === "Pending") || [] : [];
-  const pendingRevertNotifications = (userType === "Manager" || userType === "Super-Admin") ? leaveReqData?.filter((item) => item?.revertLeave?.status === "Pending") || [] : [];
+  // Combine all pending notifications from different approval types - for managers, super admins, and HR admins
+  const pendingLeaveNotifications = (userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") ? leaveReqData?.filter((item) => item.status === "Pending") || [] : [];
+  const pendingCompOffNotifications = (userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") ? compOffReqData?.filter((item) => item.status === "Pending") || [] : [];
+  const pendingVendorNotifications = (userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") ? vendorReqData?.filter((item) => item.status === "Pending") || [] : [];
+  const pendingRevertNotifications = (userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") ? leaveReqData?.filter((item) => item?.revertLeave?.status === "Pending") || [] : [];
   
   // Combine all notifications with type indicators
   const pendingNotifications = [
@@ -78,11 +82,34 @@ function Navbar({ onToggleSidebar }) {
     ...pendingRevertNotifications.map(item => ({ ...item, type: 'revert' }))
   ];
 
+  // Employee notifications - announcements and warnings
+  const employeeNotifications = (userType !== "Manager" && userType !== "Super-Admin" && userType !== "HR-Admin") ? 
+    announcementDataRaw?.filter((item) => {
+      const announcementDate = new Date(item.dateTime);
+      const now = new Date();
+      const diffTime = announcementDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Show active announcements (not expired) and warnings (expiring soon - within 7 days)
+      return diffDays > -7; // Show announcements from last 7 days and future ones
+    }).map(item => ({
+      ...item,
+      type: 'announcement',
+      isWarning: (() => {
+        const announcementDate = new Date(item.dateTime);
+        const now = new Date();
+        const diffTime = announcementDate.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays > 0 && diffDays <= 7; // Warning if expiring within 7 days
+      })()
+    })) || [] : [];
+
   useEffect(() => {
     dispatch(getPunchInDataAction());
     dispatch(getLeaveApproveRequestAction());
     dispatch(getCompoffLeaveRequestAction());
     dispatch(getVendorLogsAction());
+    dispatch(getAnnouncementDataAction());
   }, []); // Only run once on mount
 
   // Handle browser back button
@@ -136,6 +163,14 @@ function Navbar({ onToggleSidebar }) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showProfileDropdown, showNotificationDropdown, showLogoutConfirm]);
+
+  // Cleanup toasts on component unmount
+  useEffect(() => {
+    return () => {
+      // Dismiss all toasts when component unmounts to prevent runtime errors
+      safeToast.dismiss();
+    };
+  }, []);
 
   const startTimer = () => {
     const id = setInterval(() => setTimer((prev) => prev + 1), 1000);
@@ -249,7 +284,7 @@ function Navbar({ onToggleSidebar }) {
         'revert': 'Revert request'
       };
       
-      toast.success(`${typeLabels[type]} ${status.toLowerCase()} successfully!`);
+      safeToast.success(`${typeLabels[type]} ${status.toLowerCase()} successfully!`);
       
       // Close the notification dropdown
       setShowNotificationDropdown(false);
@@ -261,7 +296,7 @@ function Navbar({ onToggleSidebar }) {
         dispatch(getVendorLogsAction());
       }, 1500);
     } catch (error) {
-      toast.error("Failed to process the request. Please try again.");
+      safeToast.error("Failed to process the request. Please try again.");
     }
   };
 
@@ -334,7 +369,8 @@ function Navbar({ onToggleSidebar }) {
             </div>
           )}
           
-          {(userType === "Manager" || userType === "Super-Admin") && (
+          {/* Notifications for Managers, Super-Admins, and HR-Admins */}
+          {(userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") && (
             <div className="relative">
               <button
                 onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
@@ -437,6 +473,99 @@ function Navbar({ onToggleSidebar }) {
                           <IoMdNotifications className="w-6 h-6 text-gray-400" />
                         </div>
                         <p className="text-sm text-gray-500">No pending notifications</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          )}
+          
+          {/* Notifications for Employees */}
+          {(userType !== "Manager" && userType !== "Super-Admin" && userType !== "HR-Admin") && (
+            <div className="relative">
+              <button
+                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative"
+                aria-label="Notifications"
+              >
+                <IoMdNotifications size={24} />
+                {employeeNotifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                    {employeeNotifications.length}
+                  </span>
+                )}
+              </button>
+              
+              {/* Employee Notification Dropdown */}
+              {showNotificationDropdown && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 notification-dropdown">
+                <div className="py-3">
+                  <div className="px-4 py-3 text-sm text-gray-800 border-b border-gray-100 font-bold bg-gray-50 rounded-t-xl">
+                    Notifications ({employeeNotifications.length})
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {employeeNotifications.length > 0 ? (
+                      employeeNotifications.map((item, index) => {
+                        const announcementDate = new Date(item.dateTime);
+                        const now = new Date();
+                        const diffTime = announcementDate.getTime() - now.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        const getStatusColor = () => {
+                          if (diffDays > 7) return 'bg-green-100 text-green-800';
+                          if (diffDays > 0) return 'bg-yellow-100 text-yellow-800';
+                          return 'bg-red-100 text-red-800';
+                        };
+
+                        const getStatusText = () => {
+                          if (diffDays > 7) return 'Active';
+                          if (diffDays > 0) return `Expires in ${diffDays} days`;
+                          return 'Expired';
+                        };
+
+                        return (
+                          <div key={index} className="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                    item.isWarning ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {item.isWarning ? '⚠️ Warning' : '📢 Announcement'}
+                                  </span>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
+                                    {getStatusText()}
+                                  </span>
+                                </div>
+                                <p className="text-sm font-medium text-gray-900 mb-1">
+                                  {item.title || 'Announcement'}
+                                </p>
+                                <p className="text-xs text-gray-600 line-clamp-2">
+                                  {item.description}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {announcementDate.toLocaleDateString('en-GB', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                  {item.location && ` • ${item.location}`}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="px-4 py-8 text-center">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <IoMdNotifications className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-500">No announcements or warnings</p>
                       </div>
                     )}
                   </div>

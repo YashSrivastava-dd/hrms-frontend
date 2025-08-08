@@ -44,24 +44,26 @@ const PrivateIssueDocuments = ({ onBack }) => {
     );
   }
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4">
       {/* Header Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4 mb-8">
-          <button 
-            onClick={onBack}
-            className="p-2 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-          >
-            <IoChevronBackOutline size={24} />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Private Documents</h1>
-            <p className="text-gray-600 mt-1">Your confidential documents and files</p>
+      <div className="w-full">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={onBack}
+              className="p-2 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+            >
+              <IoChevronBackOutline size={24} />
+            </button>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Private Documents</h1>
+              <p className="text-gray-600 mt-1">Your confidential documents and files</p>
+            </div>
           </div>
         </div>
         
         {/* Document Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {data?.data.map((doc, index) => (
             <div
               key={index}
@@ -107,14 +109,13 @@ const PrivateIssueDocuments = ({ onBack }) => {
         </div>
         
         {data?.data.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div className="text-center">
+              <div className="text-6xl mb-4">📄</div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Private Documents</h3>
+              <p className="text-gray-600 mb-4">You don't have any private documents yet.</p>
+              <div className="text-sm text-gray-500">Private documents will appear here once they are uploaded</div>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Private Documents</h3>
-            <p className="text-gray-500">You don't have any private documents yet.</p>
           </div>
         )}
       </div>

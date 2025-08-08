@@ -786,14 +786,9 @@ export const postApplyCompOffLeaveAction =
         config
       );
       dispatch({ type: POST_APPLY_COMPOFF_LEAVE_SUCCESS, payload: data });
-      if (data?.statusCode === 201) {
-        // alert(data?.message);
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
+      // Removed alert and window.location.reload - let the component handle success
     } catch (error) {
-      alert(error.response?.data?.message);
+      // Removed alert - let the component handle error display
       dispatch({
         type: POST_APPLY_COMPOFF_LEAVE_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
@@ -1000,12 +995,7 @@ export const deleteLeaveRequestAction =
 
       dispatch({ type: DELETE_LEAVE_REQUEST_SUCCESS, payload: data });
 
-      if (data?.statusCode === 200) {
-        // Optionally reload the page or navigate
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
+      // Removed window.location.reload() - let the component handle data refresh
     } catch (error) {
       dispatch({
         type: DELETE_LEAVE_REQUEST_FAIL,
@@ -1049,12 +1039,7 @@ export const deleteLeaveCompoffAction =
 
       dispatch({ type: DELETE_LEAVE_COMPOFF_SUCCESS, payload: data });
 
-      if (data?.statusCode === 200) {
-        // Optionally reload the page or navigate
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
+      // Removed window.location.reload() - let the component handle data refresh
     } catch (error) {
       dispatch({
         type: DELETE_LEAVE_COMPOFF_FAIL,
@@ -1770,11 +1755,7 @@ export const postrevertLeaveRequest =
       );
 
       dispatch({ type: POST_REVERT_LEAVE_SUCCESS, payload: data });
-      if (data?.statusCode == 200) {
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
+      // Removed window.location.reload() - let the component handle data refresh
     } catch (error) {
       dispatch({
         type: POST_REVERT_LEAVE_FAIL,
@@ -1820,11 +1801,7 @@ export const putRevertLeaveByManagerAction =
       );
 
       dispatch({ type: PUT_REVERT_LEAVE_BY_MANAGER_SUCCESS, payload: data });
-      if (data?.statusCode == 200) {
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
+      // Removed window.location.reload() - let the component handle data refresh
     } catch (error) {
       dispatch({
         type: PUT_REVERT_LEAVE_BY_MANAGER_FAIL,
@@ -2147,13 +2124,7 @@ export const postVendorMeetingAction =
         config
       );
       dispatch({ type: POST_VENDOR_MEETING_SUCCESS, payload: data });
-      if (data?.statusCode === 200) {
-        alert("Applied successfully");
-        setTimeout(() => {
-          window.location.reload();
-        }, 100);
-        return;
-      }
+      // Removed alert and window.location.reload - let the component handle success
     } catch (error) {
       dispatch({
         type: POST_VENDOR_MEETING_FAIL,
@@ -2198,16 +2169,7 @@ export const putVendorStatusDataAction =
 
       dispatch({ type: PUT_VENDOR_STATUS_SUCCESS, payload: data });
 
-      if (data?.statusCode === 200) {
-        if (status == "Approved") {
-          alert("Approved Successfuly");
-        } else if (status == "Rejected") {
-          alert("Reject Successfuly");
-        }
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
+      // Removed alerts and window.location.reload - let the component handle success
     } catch (error) {
       dispatch({
         type: PUT_VENDOR_STATUS_FAIL,

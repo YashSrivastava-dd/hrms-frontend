@@ -71,7 +71,7 @@ const MainDocument = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4">
       <ToastContainer />
       {selectedComponent === "private" && (
         <PrivateIssueDocuments onBack={() => setSelectedComponent(null)} />
@@ -81,90 +81,102 @@ const MainDocument = () => {
       )}
 
       {!selectedComponent && (
-        <>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mb-8 text-center">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Document Center</h1>
-              <p className="text-gray-600 text-lg">Access and manage your important documents</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
-              {userType === "HR-Admin" && (
-                <div 
-                  className="group relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden w-full max-w-sm"
-                  onClick={handleOpenModal}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="relative p-8 h-48 flex flex-col justify-between">
-                    <div>
-                      <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
-                        <IoAdd className="text-white text-2xl" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-white mb-2">Add Document</h2>
-                      <p className="text-blue-100 text-sm">Upload new documents to the system</p>
-                    </div>
-                    <div className="flex items-center text-blue-100">
-                      <span className="text-sm font-medium">Click to upload</span>
-                      <FiArrowRight className="ml-2" size={16} />
-                    </div>
-                  </div>
+        <div className="w-full">
+          {/* Header Section */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+            <div className="text-center">
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                 </div>
-              )}
-              
-              <div 
-                className="group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden w-full max-w-sm"
-                onClick={() => setSelectedComponent("private")}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="relative p-8 h-48 flex flex-col justify-between">
-                  <div>
-                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Private Documents</h2>
-                    <p className="text-gray-300 text-sm">Access your confidential documents</p>
-                  </div>
-                  <div className="flex items-center text-gray-300">
-                    <span className="text-sm font-medium">View documents</span>
-                    <FiArrowRight className="ml-2" size={16} />
-                  </div>
-                </div>
-              </div>
-
-              <div 
-                className="group relative bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden w-full max-w-sm"
-                onClick={() => setSelectedComponent("public")}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <div className="relative p-8 h-48 flex flex-col justify-between">
-                  <div>
-                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Public Documents</h2>
-                    <p className="text-green-100 text-sm">Browse shared company documents</p>
-                  </div>
-                  <div className="flex items-center text-green-100">
-                    <span className="text-sm font-medium">View documents</span>
-                    <FiArrowRight className="ml-2" size={16} />
-                  </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Document Center</h1>
+                  <p className="text-gray-600">Access and manage your important documents</p>
                 </div>
               </div>
             </div>
           </div>
-        </>
+          
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {userType === "HR-Admin" && (
+              <div 
+                className="group relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden"
+                onClick={handleOpenModal}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-6 h-48 flex flex-col justify-between">
+                  <div>
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                      <IoAdd className="text-white text-2xl" />
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-2">Add Document</h2>
+                    <p className="text-blue-100 text-sm">Upload new documents to the system</p>
+                  </div>
+                  <div className="flex items-center text-blue-100">
+                    <span className="text-sm font-medium">Click to upload</span>
+                    <FiArrowRight className="ml-2" size={16} />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div 
+              className="group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden"
+              onClick={() => setSelectedComponent("private")}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative p-6 h-48 flex flex-col justify-between">
+                <div>
+                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-2">Private Documents</h2>
+                  <p className="text-gray-300 text-sm">Access your confidential documents</p>
+                </div>
+                <div className="flex items-center text-gray-300">
+                  <span className="text-sm font-medium">View documents</span>
+                  <FiArrowRight className="ml-2" size={16} />
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="group relative bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden"
+              onClick={() => setSelectedComponent("public")}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-green-600 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative p-6 h-48 flex flex-col justify-between">
+                <div>
+                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-2">Public Documents</h2>
+                  <p className="text-green-100 text-sm">Browse shared company documents</p>
+                </div>
+                <div className="flex items-center text-green-100">
+                  <span className="text-sm font-medium">View documents</span>
+                  <FiArrowRight className="ml-2" size={16} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
+      {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Add Document</h2>
+                <h2 className="text-xl font-bold text-gray-900">Add Document</h2>
                 <button
                   onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
@@ -177,7 +189,7 @@ const MainDocument = () => {
               <p className="text-gray-600 text-sm mt-2">Upload a new document to the system</p>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
                 <select

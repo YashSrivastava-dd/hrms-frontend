@@ -98,6 +98,12 @@ import {
   POST_MEDICAL_FILE_FAIL,
   POST_MEDICAL_FILE_REQUEST,
   POST_MEDICAL_FILE_SUCCESS,
+  POST_REVERT_LEAVE_FAIL,
+  POST_REVERT_LEAVE_REQUEST,
+  POST_REVERT_LEAVE_SUCCESS,
+  POST_VENDOR_MEETING_FAIL,
+  POST_VENDOR_MEETING_REQUEST,
+  POST_VENDOR_MEETING_SUCCESS,
   POST_OTP_VERIFICATION_FAIL,
   POST_OTP_VERIFICATION_REQUEST,
   POST_OTP_VERIFICATION_SUCCESS,
@@ -965,6 +971,30 @@ export const getVendorSingleLogsReducer = (state = initialState, action) => {
   }
 };
 
+export const postRevertLeaveReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case POST_REVERT_LEAVE_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case POST_REVERT_LEAVE_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+      };
+
+    case POST_REVERT_LEAVE_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
 export const getEmployeeDataCountReducer = (state = initialState, action) => {
   switch (action.type) {
     case GET_EMPLOYEE_DATA_COUNT_REQUEST:
@@ -1027,6 +1057,30 @@ export const getEmployeeLeaveCoutReducer = (state = initialState, action) => {
       };
 
     case GET_EMPLOYEE_LEAVE_COUNT_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+export const postVendorMeetingReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case POST_VENDOR_MEETING_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case POST_VENDOR_MEETING_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+      };
+
+    case POST_VENDOR_MEETING_FAIL:
       return {
         ...state,
         loading: false,

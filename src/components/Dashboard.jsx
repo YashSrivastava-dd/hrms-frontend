@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { FaUsers, FaUserPlus, FaUserTimes, FaBriefcase, FaClock, FaBullhorn, FaChevronDown, FaChevronUp, FaTimes, FaExpandAlt, FaCompressAlt, FaClock as FaClockIcon } from "react-icons/fa";
 import HrAdminDashboard from "./HrAdminDashboard";
+import safeToast from "../utils/safeToast";
 
 // Memoized SkeletonCard component
 const SkeletonCard = React.memo(({ height = "h-20", width = "w-full" }) => (
@@ -459,7 +460,7 @@ const Dashboard = ({ reloadHandel }) => {
     }
   }, [dispatch, employeeId]);
   const onClick = () => {
-    toast.dismiss()
+    safeToast.dismiss()
   }
   
   // Callback function to handle selected day from calendar
@@ -471,6 +472,14 @@ const Dashboard = ({ reloadHandel }) => {
   useEffect(() => {
     dispatch(getUserDataAction());
     dispatch(getAnnouncementDataAction())
+  }, []);
+
+  // Cleanup toasts on component unmount
+  useEffect(() => {
+    return () => {
+      // Dismiss all toasts when component unmounts to prevent runtime errors
+      safeToast.dismiss();
+    };
   }, []);
 
   return (
