@@ -1083,7 +1083,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300 ${
                     showReasonError 
                       ? 'border-red-300 bg-red-50 text-red-700' 
-                      : 'border-gray-200'
+                      : 'border-gray-200 text-gray-900'
                   }`}
                 />
                 {showReasonError && (
