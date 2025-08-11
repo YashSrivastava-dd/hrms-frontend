@@ -74,7 +74,7 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
             {/* Header Section */}
             <div className="bg-white shadow-lg border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-6 py-6">
+                <div className="w-full px-6 py-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                             <button 
@@ -99,7 +99,7 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 py-6">
+            <div className="w-full px-6 py-6">
                 {/* Leave Balance Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-6 shadow-lg border border-yellow-200">
@@ -342,7 +342,14 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
 
                         {activeTab === "calendar" && (
                             <div className="bg-white rounded-xl border border-gray-200 p-6">
-                                <Calendar />
+                                <Calendar 
+                                    employeeId={employeeTicket} 
+                                    userRole={userDataList}
+                                    onDaySelect={(dayData, selectedDate) => {
+                                        // Handle day selection if needed
+                                        console.log('Selected day:', dayData, selectedDate);
+                                    }}
+                                />
                             </div>
                         )}
                     </div>

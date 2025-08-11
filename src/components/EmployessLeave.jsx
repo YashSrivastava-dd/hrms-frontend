@@ -567,7 +567,7 @@ const EmployessLeave = () => {
     };
 
     return (
-        <div className="p-3 sm:p-6 bg-gray-50 min-h-screen">
+        <div className="p-3 sm:p-6 bg-gray-50 full-height-content flex flex-col">
             <ToastContainer />
             
             {/* Header */}

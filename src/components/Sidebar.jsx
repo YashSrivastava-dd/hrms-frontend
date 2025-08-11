@@ -17,6 +17,7 @@ import EmployeePayroleTable from "./EmployeePayroleTabel";
 import EmployeeLeaveStatus from "./EmployeeLeaveStatus";
 import DeclarationForm from "./DeclarationForm";
 import Finance from "./Finance/Finance";
+import Footer from "./Footer";
 
 const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -120,7 +121,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <div style={{ display: 'flex', height: '100%', width: '100%' }}>
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div 
@@ -134,14 +135,17 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         ref={sidebarRef}
         className={`fixed z-20 top-0 left-0 h-full bg-white shadow-xl border-r border-gray-200 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:min-w-[240px] md:max-w-[480px]`}
+        } transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
         style={{ 
           width: isMobile ? '280px' : `${sidebarWidth}px`,
-          maxWidth: isMobile ? '280px' : `${sidebarWidth}px`
+          maxWidth: isMobile ? '280px' : `${sidebarWidth}px`,
+          flexShrink: 0,
+          height: '100vh',
+          position: isMobile ? 'fixed' : 'relative'
         }}
       >
         {/* Mobile header with close button */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden">
+        <div className="flex items-center justify-between p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-sm font-bold">HR</span>
@@ -159,7 +163,37 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="hidden md:block p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold">HR</span>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
+              <p className="text-sm text-gray-600">{userType || 'User'}</p>
+            </div>
+          </div>
+        </div>
+        {/* Mobile header with close button */}
+        <div className="flex items-center justify-between p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-sm font-bold">HR</span>
+            </div>
+            <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
+          </div>
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold">HR</span>
@@ -171,7 +205,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
           </div>
         </div>
 
-        <nav className="space-y-2 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-140px)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <nav className="space-y-2 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           {/* Main Navigation */}
           <div className="space-y-1">
             <SidebarLink
@@ -296,12 +330,12 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               onClick={() => handleNavigation("declarationForm")}
             />
             
-            <SidebarLink
-              label="Issued Documents"
-              icon="📑"
-              isSelected={selectedTag === "issuedDoc"}
-              onClick={() => handleNavigation("issuedDoc")}
-            />
+                         <SidebarLink
+               label="Issued Documents"
+               icon="📑"
+               isSelected={selectedTag === "issuedDoc"}
+               onClick={() => handleNavigation("issuedDoc")}
+             />
           </div>
 
           {/* Financial Tools Section */}
@@ -362,24 +396,42 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-4 md:p-6 w-full min-w-0">
-        {selectedTag === "dashboard" && <Dashboard reloadHandel={reloadHandel} />}
-        {selectedTag === "profile" && <Profile />}
-        {selectedTag === "allEmployees" && <EmployeeTable selectedTag={selectedTag} reloadHandel={reloadHandel}/>}
-        {selectedTag === "attendance" && <EmployeesAttendanceData />} 
-        {selectedTag === "anouncment" && <Announcement reloadHandel={reloadHandel}/>}
-        {selectedTag === "employeeLeaveStatus" && <EmployeeLeaveStatus reloadHandel={reloadHandel}/>}
-        {selectedTag === "employeeHolidays" && <EmployeeHolidays />}
-        {selectedTag === "viewByEmployee" && <TeammatesProfile selectedTag={selectedTag} />}
-        {selectedTag === "payslipAndPayRole" && <EmployeePayroleTable />}
-        {selectedTag === "declarationForm" && <DeclarationForm />}
-        {selectedTag === "leaves" && <EmployessLeave />}
-        {selectedTag === "managerApproval" && <ManagerApproval />}
-        {selectedTag === "taskRecords" && <TotalTask />}
-        {selectedTag === "hrmanual" && <ComingSoon />}
-        {selectedTag === "coc" && <ComingSoon />}
-        {selectedTag === "issuedDoc" && <MainDocuent />}
-        {selectedTag === "finance" && <Finance />}
+      <div 
+        style={{
+          flex: '1 1 auto',
+          width: '100%',
+          maxWidth: 'none',
+          minWidth: '0',
+          overflowY: 'auto',
+          height: '100vh',
+          paddingTop: '124px',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        {/* Page Content */}
+        <div style={{ flex: '1 1 auto', padding: '1rem 1.5rem' }}>
+          {selectedTag === "dashboard" && <Dashboard reloadHandel={reloadHandel} />}
+          {selectedTag === "profile" && <Profile />}
+          {selectedTag === "allEmployees" && <EmployeeTable selectedTag={selectedTag} reloadHandel={reloadHandel}/>}
+          {selectedTag === "attendance" && <EmployeesAttendanceData />} 
+          {selectedTag === "anouncment" && <Announcement reloadHandel={reloadHandel}/>}
+          {selectedTag === "employeeLeaveStatus" && <EmployeeLeaveStatus reloadHandel={reloadHandel}/>}
+          {selectedTag === "employeeHolidays" && <EmployeeHolidays />}
+          {selectedTag === "viewByEmployee" && <TeammatesProfile selectedTag={selectedTag} />}
+          {selectedTag === "payslipAndPayRole" && <EmployeePayroleTable />}
+          {selectedTag === "declarationForm" && <DeclarationForm />}
+          {selectedTag === "leaves" && <EmployessLeave />}
+          {selectedTag === "managerApproval" && <ManagerApproval />}
+          {selectedTag === "taskRecords" && <TotalTask />}
+          {selectedTag === "hrmanual" && <ComingSoon />}
+          {selectedTag === "coc" && <ComingSoon />}
+          {selectedTag === "issuedDoc" && <MainDocuent />}
+          {selectedTag === "finance" && <Finance />}
+        </div>
+        
+        {/* Global Footer */}
+        <Footer />
       </div>
     </div>
   );

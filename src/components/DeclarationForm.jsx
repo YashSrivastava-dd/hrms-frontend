@@ -280,8 +280,8 @@ const DeclarationForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div ref={formRef} className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
+    <div className="full-height-content bg-gray-50 py-8">
+      <div ref={formRef} className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
           <div className="text-center">

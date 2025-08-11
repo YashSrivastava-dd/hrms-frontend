@@ -203,295 +203,297 @@ const EmployeesAttendanceData = () => {
   );
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Filters Section */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-        <div className="flex gap-4 w-full sm:w-auto">
-          <button
-            onClick={handleSort}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2"
-            title={`Sort by date: ${sortOrder === 'asc' ? 'Oldest first (1-30)' : 'Newest first (30-1)'}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-            </svg>
-            Sort {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
-          </button>
+    <div className="p-6 bg-gray-50 full-height-content flex flex-col">
+      <div className="w-full flex-1">
+        {/* Filters Section */}
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+          <div className="flex gap-4 w-full sm:w-auto">
+            <button
+              onClick={handleSort}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2"
+              title={`Sort by date: ${sortOrder === 'asc' ? 'Oldest first (1-30)' : 'Newest first (30-1)'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+              </svg>
+              Sort {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+            </button>
+          </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-800">Attendance</h1>
+          </div>
+          <div className="flex gap-4 w-full sm:w-auto">
+            <button
+              onClick={openCalendar}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {date.startDate && date.endDate 
+                ? `${date.startDate.format('MMM DD')} - ${date.endDate.format('MMM DD, YYYY')}`
+                : 'Select Date Range'
+              }
+            </button>
+          </div>
         </div>
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800">Attendance</h1>
-        </div>
-        <div className="flex gap-4 w-full sm:w-auto">
-          <button
-            onClick={openCalendar}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            {date.startDate && date.endDate 
-              ? `${date.startDate.format('MMM DD')} - ${date.endDate.format('MMM DD, YYYY')}`
-              : 'Select Date Range'
-            }
-          </button>
-        </div>
-      </div>
 
-      {/* Table Section */}
-      <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
-        {/* Table with Horizontal Scroll for Mobile */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-              <tr>
-                {[
-                  "Employee Name",
-                  "Status",
-                  "Date",
-                  "Check In",
-                  "Check Out",
-                  "Effective Hours",
-                  "Days",
-                  "Leave type",
-                  "Records",
-                ].map((header, idx) => (
-                  <th
-                    key={idx}
-                    className="px-4 sm:px-6 py-3 sm:py-4 text-left font-semibold text-gray-700 text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading
-                ? Array(10)
-                  .fill(0)
-                  .map((_, idx) => <SkeletonLoader key={idx} />)
-                : employees
-                  ?.filter((employee) =>
-                    employee.EmployeeName.toLowerCase().includes(
-                      search.toLowerCase()
+        {/* Table Section */}
+        <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
+          {/* Table with Horizontal Scroll for Mobile */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+                <tr>
+                  {[
+                    "Employee Name",
+                    "Status",
+                    "Date",
+                    "Check In",
+                    "Check Out",
+                    "Effective Hours",
+                    "Days",
+                    "Leave type",
+                    "Records",
+                  ].map((header, idx) => (
+                    <th
+                      key={idx}
+                      className="px-4 sm:px-6 py-3 sm:py-4 text-left font-semibold text-gray-700 text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap"
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading
+                  ? Array(10)
+                    .fill(0)
+                    .map((_, idx) => <SkeletonLoader key={idx} />)
+                  : employees
+                    ?.filter((employee) =>
+                      employee.EmployeeName.toLowerCase().includes(
+                        search.toLowerCase()
+                      )
                     )
-                  )
-                  ?.sort((a, b) => {
-                    const dateA = new Date(a.AttendanceDate);
-                    const dateB = new Date(b.AttendanceDate);
-                    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-                  })
-                  ?.map((employee, index) => {
-                    const hours = Math.floor(employee.Duration / 60);
-                    const minutes = employee.Duration % 60;
-                    // Helper function to get day type and colors with inline styles
-                    const getDayTypeStyle = (duration, status) => {
-                      if (duration >= 8 * 60 + 30) {
-                        return {
-                          type: "Full Day",
-                          style: {
-                            backgroundColor: "#bbf7d0",
-                            color: "#15803d"
-                          }
-                        };
-                      } else if (duration >= 4 * 60 + 30 && duration < 8 * 60 + 30) {
-                        return {
-                          type: "Half Day",
-                          style: {
-                            backgroundColor: "#fed7aa",
-                            color: "#c2410c"
-                          }
-                        };
-                      } else if (status === "Absent") {
-                        return {
-                          type: "Off Day",
-                          style: {
-                            backgroundColor: "#fecaca",
-                            color: "#b91c1c"
-                          }
-                        };
-                      } else {
-                        return {
-                          type: "Off Day",
-                          style: {
-                            backgroundColor: "#e5e7eb",
-                            color: "#374151"
-                          }
-                        };
-                      }
-                    };
-
-                    const dayTypeInfo = getDayTypeStyle(employee.Duration, employee.Status);
-                    const dayType = dayTypeInfo.type;
-                    const dayTypeStyle = dayTypeInfo.style;
-
-                    // Helper function to get status colors with inline styles (like days column)
-                    const getStatusStyle = (status) => {
-                      console.log('getStatusStyle called with:', status);
-                      
-                      // Normalize the status string to handle case and whitespace
-                      const normalizedStatus = status?.trim() || '';
-                      console.log('Normalized status:', normalizedStatus);
-                      
-                      switch (normalizedStatus) {
-                        case "Present":
+                    ?.sort((a, b) => {
+                      const dateA = new Date(a.AttendanceDate);
+                      const dateB = new Date(b.AttendanceDate);
+                      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+                    })
+                    ?.map((employee, index) => {
+                      const hours = Math.floor(employee.Duration / 60);
+                      const minutes = employee.Duration % 60;
+                      // Helper function to get day type and colors with inline styles
+                      const getDayTypeStyle = (duration, status) => {
+                        if (duration >= 8 * 60 + 30) {
                           return {
-                            backgroundColor: "#bbf7d0",
-                            color: "#15803d"
+                            type: "Full Day",
+                            style: {
+                              backgroundColor: "#bbf7d0",
+                              color: "#15803d"
+                            }
                           };
-                        case "1/2 Present":
-                        case "½Present":
-                        case "Half Day":
+                        } else if (duration >= 4 * 60 + 30 && duration < 8 * 60 + 30) {
                           return {
-                            backgroundColor: "#fed7aa",
-                            color: "#c2410c"
+                            type: "Half Day",
+                            style: {
+                              backgroundColor: "#fed7aa",
+                              color: "#c2410c"
+                            }
                           };
-                        case "Absent":
+                        } else if (status === "Absent") {
                           return {
-                            backgroundColor: "#fecaca",
-                            color: "#b91c1c"
+                            type: "Off Day",
+                            style: {
+                              backgroundColor: "#fecaca",
+                              color: "#b91c1c"
+                            }
                           };
-                        case "Weekly Off":
-                        case "WeeklyOff":
-                        case "Holiday":
-                        case "Off Day":
-                        default:
+                        } else {
                           return {
-                            backgroundColor: "#e5e7eb",
-                            color: "#374151"
+                            type: "Off Day",
+                            style: {
+                              backgroundColor: "#e5e7eb",
+                              color: "#374151"
+                            }
                           };
-                      }
-                    };
+                        }
+                      };
 
-                    const statusStyle = getStatusStyle(employee.Status);
-                    console.log('Status Debug:', {
-                      status: employee.Status,
-                      statusStyle: statusStyle,
-                      hasStyle: !!statusStyle
-                    });
+                      const dayTypeInfo = getDayTypeStyle(employee.Duration, employee.Status);
+                      const dayType = dayTypeInfo.type;
+                      const dayTypeStyle = dayTypeInfo.style;
 
-                    return (
-                      <tr
-                        key={employee.id}
-                        className={`hover:bg-gray-50 transition-colors duration-200 ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                        }`}
-                      >
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-3">
-                              <span className="text-blue-600 font-semibold text-xs sm:text-sm">
-                                {employee.EmployeeName.charAt(0).toUpperCase()}
+                      // Helper function to get status colors with inline styles (like days column)
+                      const getStatusStyle = (status) => {
+                        console.log('getStatusStyle called with:', status);
+                        
+                        // Normalize the status string to handle case and whitespace
+                        const normalizedStatus = status?.trim() || '';
+                        console.log('Normalized status:', normalizedStatus);
+                        
+                        switch (normalizedStatus) {
+                          case "Present":
+                            return {
+                              backgroundColor: "#bbf7d0",
+                              color: "#15803d"
+                            };
+                          case "1/2 Present":
+                          case "½Present":
+                          case "Half Day":
+                            return {
+                              backgroundColor: "#fed7aa",
+                              color: "#c2410c"
+                            };
+                          case "Absent":
+                            return {
+                              backgroundColor: "#fecaca",
+                              color: "#b91c1c"
+                            };
+                          case "Weekly Off":
+                          case "WeeklyOff":
+                          case "Holiday":
+                          case "Off Day":
+                          default:
+                            return {
+                              backgroundColor: "#e5e7eb",
+                              color: "#374151"
+                            };
+                        }
+                      };
+
+                      const statusStyle = getStatusStyle(employee.Status);
+                      console.log('Status Debug:', {
+                        status: employee.Status,
+                        statusStyle: statusStyle,
+                        hasStyle: !!statusStyle
+                      });
+
+                      return (
+                        <tr
+                          key={employee.id}
+                          className={`hover:bg-gray-50 transition-colors duration-200 ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                          }`}
+                        >
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-3">
+                                <span className="text-blue-600 font-semibold text-xs sm:text-sm">
+                                  {employee.EmployeeName.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[150px]" title={employee.EmployeeName}>{employee.EmployeeName}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <span 
+                              className="inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
+                              style={statusStyle}
+                            >
+                              {employee.Status}
+                            </span>
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="text-xs sm:text-sm font-medium text-gray-900">
+                              {employee.AttendanceDate?.split("T")[0]}
+                            </div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                              <span className="text-xs sm:text-sm font-medium text-gray-900">
+                                {employee.InTime.split(" ")[1] === "00:00:00"
+                                  ? "--"
+                                  : employee.InTime.split(" ")[1]}
                               </span>
                             </div>
-                            <div>
-                              <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[150px]" title={employee.EmployeeName}>{employee.EmployeeName}</div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                              <span className="text-xs sm:text-sm font-medium text-gray-900">
+                                {employee.OutTime.split(" ")[1] === "00:00:00"
+                                  ? "--"
+                                  : employee.OutTime.split(" ")[1]}
+                              </span>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <span 
-                            className="inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
-                            style={statusStyle}
-                          >
-                            {employee.Status}
-                          </span>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <div className="text-xs sm:text-sm font-medium text-gray-900">
-                            {employee.AttendanceDate?.split("T")[0]}
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                            <span className="text-xs sm:text-sm font-medium text-gray-900">
-                              {employee.InTime.split(" ")[1] === "00:00:00"
-                                ? "--"
-                                : employee.InTime.split(" ")[1]}
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="text-xs sm:text-sm font-medium text-gray-900">
+                                {hours}h {minutes}m
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <span 
+                              className="inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
+                              style={dayTypeStyle}
+                            >
+                              {dayType}
                             </span>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                            <span className="text-xs sm:text-sm font-medium text-gray-900">
-                              {employee.OutTime.split(" ")[1] === "00:00:00"
-                                ? "--"
-                                : employee.OutTime.split(" ")[1]}
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <span className="text-xs sm:text-sm text-gray-500">
+                              {employee.LeaveType || '---'}
                             </span>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="text-xs sm:text-sm font-medium text-gray-900">
-                              {hours}h {minutes}m
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <span 
-                            className="inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
-                            style={dayTypeStyle}
-                          >
-                            {dayType}
-                          </span>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <span className="text-xs sm:text-sm text-gray-500">
-                            {employee.LeaveType || '---'}
-                          </span>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <button
-                            className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
-                              employee.Duration === 0 
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                                : "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
-                            }`}
-                            onClick={() => handleOpenModal(employee)}
-                            disabled={employee.Duration === 0}
-                          >
-                            <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="hidden sm:inline">Records</span>
-                            <span className="sm:hidden">View</span>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-            </tbody>
-          </table>
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <button
+                              className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
+                                employee.Duration === 0 
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                                  : "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
+                              }`}
+                              onClick={() => handleOpenModal(employee)}
+                              disabled={employee.Duration === 0}
+                            >
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="hidden sm:inline">Records</span>
+                              <span className="sm:hidden">View</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-center sm:justify-end mt-4 gap-4">
-        <div className="text-sm text-gray-600">
-          Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)} of {allEmployees.length} items
+        {/* Pagination */}
+        <div className="flex items-center justify-center sm:justify-end mt-4 gap-4">
+          <div className="text-sm text-gray-600">
+            Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)} of {allEmployees.length} items
+          </div>
+          {currentPage === 1 ? "" :
+          <button
+            onClick={handlePrevious}
+            className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          >
+            Previous
+          </button>}
+          <button
+            onClick={handleNext}
+            className={`px-6 py-2 rounded-lg ${
+              currentPage >= totalPages
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+            disabled={currentPage >= totalPages}
+          >
+            Next
+          </button>
         </div>
-        {currentPage === 1 ? "" :
-        <button
-          onClick={handlePrevious}
-          className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-        >
-          Previous
-        </button>}
-        <button
-          onClick={handleNext}
-          className={`px-6 py-2 rounded-lg ${
-            currentPage >= totalPages
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-blue-600 text-white hover:bg-blue-700"
-          }`}
-          disabled={currentPage >= totalPages}
-        >
-          Next
-        </button>
       </div>
 
       {/* Records Modal */}

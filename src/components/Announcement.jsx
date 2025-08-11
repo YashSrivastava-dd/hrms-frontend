@@ -91,8 +91,8 @@ function Announcement({ reloadHandel }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4">
-      <div className="w-full">
+    <div className="full-height-content bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 flex flex-col">
+      <div className="w-full flex-1">
         {/* Header Section */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 mb-4">
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-3 lg:space-y-0">

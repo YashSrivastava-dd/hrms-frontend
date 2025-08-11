@@ -120,7 +120,7 @@ const Finance = () => {
 
         {/* Main Content */}
         <div className="flex-1 p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+          <div className="w-full">
             {/* Active Calculator Header */}
             <div className="mb-6">
               <div className="flex items-center space-x-3 mb-2">

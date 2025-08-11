@@ -5,6 +5,30 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  height: 100vh;
+}
+
+html {
+  scroll-behavior: smooth;
+  height: 100%;
+}
+
+/* Ensure proper stacking context for fixed navbar */
+#root {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+/* Prevent body scroll when modals are open */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Full height layout */
+.full-height-layout {
+  height: 100vh;
+  min-height: 100vh;
 }
 
 code {

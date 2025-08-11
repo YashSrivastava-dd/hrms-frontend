@@ -7,9 +7,62 @@
   pointer-events: none;
 }
 
-/* Custom styles for DateRangePicker (optional) */
-.react-date-range {
-  font-family: "Inter", sans-serif;
+/* SIMPLE GRID LAYOUT SOLUTION */
+.app-layout-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  width: 100vw;
+}
+
+.navbar-area {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 1000;
+}
+
+.sidebar-area {
+  grid-column: 1;
+  grid-row: 2;
+  width: 288px;
+  min-width: 288px;
+  max-width: 288px;
+}
+
+.main-content-area {
+  grid-column: 2;
+  grid-row: 2;
+  width: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .app-layout-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .sidebar-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 999;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .sidebar-area.open {
+    transform: translateX(0);
+  }
+  
+  .main-content-area {
+    grid-column: 1;
+    grid-row: 2;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -44,6 +97,76 @@
 
 /* Modern HR Dashboard Styles */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Fixed navbar layout styles */
+.fixed-navbar-layout {
+  padding-top: 120px; /* Height of the fixed navbar */
+}
+
+.main-content-scroll {
+  overflow-y: auto;
+  height: 100%;
+  min-height: calc(100vh - 120px);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.main-content-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-content-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.main-content-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.main-content-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Full height content wrapper */
+.full-height-content {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+}
+
+/* Component wrapper for full screen */
+.component-wrapper {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure content fills available space */
+.content-fill {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+/* Full screen component */
+.full-screen-component {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.full-screen-component > * {
+  flex: 1;
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+}
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

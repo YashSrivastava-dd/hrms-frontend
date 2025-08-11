@@ -567,8 +567,8 @@ const Dashboard = ({ reloadHandel }) => {
             {userDataList?.role !== "HR-Admin" && (
               <>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4">Monthly Attendance</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                  <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md lg:col-span-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                  <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md lg:col-span-2 w-full">
                     <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-4 text-gray-800">Calendar</h3>
                     {/* <div className="flex flex-wrap gap-4 mb-4 text-sm">
                       {[
@@ -586,8 +586,8 @@ const Dashboard = ({ reloadHandel }) => {
                     </div> */}
                     {attendanceLoading ? <SkeletonCard height="h-40" /> : <Calendar employeeId={employeeId} userRole={userDataList?.role} onDaySelect={handleDaySelection} />}
                   </div>
-                  <div className="lg:col-span-1">
-                    <div className="h-full">
+                  <div className="lg:col-span-1 w-full">
+                    <div className="h-full w-full">
                       <AttendanceCard 
                         attendanceData={selectedDayData || (latestData?.length > 0 ? { 
                           AttendanceStatus: 'Present',
@@ -615,22 +615,7 @@ const Dashboard = ({ reloadHandel }) => {
               <AnnouncementsSection announcements={announcementData?.data || []} />
             )}
 
-            {/* Footer - Responsive positioning */}
-            {!loading && !attendanceLoading && (
-              <div className="mt-8 sm:mt-16 pt-6 sm:pt-8 border-t border-gray-200">
-                <div className="flex flex-col items-center justify-center lg:-ml-56">
-                  <div className="text-center px-4 sm:px-0">
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">
-                      © 2025 All Rights Reserved
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Designed and Developed by{" "}
-                      <span className="font-semibold text-gray-700">D&D Healthcare</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+
           </>
         )}
       </main>

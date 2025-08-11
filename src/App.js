@@ -59,9 +59,17 @@ function App() {
       path: "/dashboard",
       element: (
         <ProtectedRoute>
-          <div className="flex flex-col min-h-screen">
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
             <Navbar onToggleSidebar={toggleSidebar} />
-            <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            </div>
           </div>
         </ProtectedRoute>
       )
@@ -70,7 +78,18 @@ function App() {
       path: "/statusManagment",
       element: (
         <ProtectedRoute>
-          <StatusManagment />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            </div>
+          </div>
         </ProtectedRoute>
       )
     },
@@ -78,7 +97,18 @@ function App() {
       path: "/profile",
       element: (
         <ProtectedRoute>
-          <Profile />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            </div>
+          </div>
         </ProtectedRoute>
       )
     },
@@ -86,7 +116,18 @@ function App() {
       path: "/payslipAndPayRole",
       element: (
         <ProtectedRoute>
-          <EmployeePayroleTable />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            </div>
+          </div>
         </ProtectedRoute>
       )
     },
@@ -94,7 +135,18 @@ function App() {
       path: "/managerApproved",
       element: (
         <ProtectedRoute>
-          <ManagerApproval />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            </div>
+          </div>
         </ProtectedRoute>
       )
     },
@@ -102,7 +154,18 @@ function App() {
       path: "/singleTematesProfile",
       element: (
         <ProtectedRoute>
-          <SingleTeamatesProfile />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            </div>
+          </div>
         </ProtectedRoute>
       )
     },
@@ -110,7 +173,18 @@ function App() {
       path: "/singleTeamateProfile/:employeeId",
       element: (
         <ProtectedRoute>
-          <SingleTeamatesProfile />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            </div>
+          </div>
         </ProtectedRoute>
       )
     }

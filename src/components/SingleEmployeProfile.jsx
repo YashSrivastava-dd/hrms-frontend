@@ -2,7 +2,7 @@ import React from 'react';
 import { IoChevronBackOutline } from "react-icons/io5";
 const SingleEmployeProfile = ({ onBack }) => {
     return (
-        <div className=" bg-gray-100 min-h-screen">
+        <div className=" bg-gray-100 full-height-content">
             <header className="flex justify-between items-center mb-6">
                 <button className="text-sm" onClick={onBack}>
                     <div className='flex gap-2 items-center'>

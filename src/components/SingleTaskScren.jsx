@@ -26,7 +26,7 @@ console.log('singleData',singleData)
             )
                 :
                 (
-                    <div className="p-6 bg-gray-50 min-h-screen">
+                    <div className="p-6 bg-gray-50 full-height-content">
                         {/* Header */}
                         <div className="flex justify-between items-center mb-6">
                             <button onClick={onClose} className="flex items-center gap-2 text-gray-700">

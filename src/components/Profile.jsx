@@ -217,8 +217,8 @@ const EmployeeProfile = () => {
   };
    
   return (
-    <div className="min-h-screen bg-white p-4">
-      <div className="w-full max-w-7xl mx-auto">
+    <div className="full-height-content bg-white p-4 flex flex-col">
+      <div className="w-full flex-1">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-lg border border-blue-200 p-6 mb-6">
           <div className="text-center">

@@ -44,6 +44,7 @@ function Navbar({ onToggleSidebar }) {
 
   const [timer, setTimer] = useState(0);
   const [intervalId, setIntervalId] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const [locationInfo, setLocationInfo] = useState({
     city: "",
@@ -111,6 +112,15 @@ function Navbar({ onToggleSidebar }) {
     dispatch(getVendorLogsAction());
     dispatch(getAnnouncementDataAction());
   }, []); // Only run once on mount
+
+  // Real-time clock update
+  useEffect(() => {
+    const clockInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(clockInterval);
+  }, []);
 
   // Handle browser back button
   useEffect(() => {
@@ -306,11 +316,11 @@ function Navbar({ onToggleSidebar }) {
   return (
     <>
       <ToastContainer />
-      <div className="bg-white shadow-md w-full">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 w-full">
       {/* Main Navbar */}
-      <div className="flex items-center justify-between p-4">
+      <div className="flex items-center justify-between p-4 bg-white">
         {/* Left Section - Menu & Logo */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 flex-1">
           <button 
             onClick={onToggleSidebar} 
             className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 md:hidden"
@@ -321,8 +331,31 @@ function Navbar({ onToggleSidebar }) {
           <img src={ddHealthcare} alt="DD Healthcare Logo" className="w-20 h-10 md:w-24 md:h-12" />
         </div>
 
-        {/* Center Section - Punch Controls (Mobile) */}
-        <div className="flex items-center space-x-2 md:hidden">
+        {/* Center Section - Real-time Clock */}
+        <div className="flex items-center justify-center flex-1">
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-lg shadow-md">
+            <div className="text-center">
+              <div className="text-lg font-bold font-mono">
+                {currentTime.toLocaleTimeString('en-US', { 
+                  hour12: false,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
+                })}
+              </div>
+              <div className="text-xs opacity-90">
+                {currentTime.toLocaleDateString('en-US', { 
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Punch Controls (Hidden on Desktop) */}
+        <div className="flex items-center space-x-2 md:hidden absolute right-4">
           {userType !== "HR-Admin" && userType !== "Super-Admin" && (
             <>
               {isPunchedOut ? (
@@ -345,7 +378,7 @@ function Navbar({ onToggleSidebar }) {
         </div>
 
         {/* Right Section - Notifications & Profile */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 flex-1 justify-end">
           {/* Punch In Button - Desktop */}
           {userType !== "HR-Admin" && userType !== "Super-Admin" && (
             <div className="hidden md:block">
@@ -615,7 +648,7 @@ function Navbar({ onToggleSidebar }) {
 
       {/* Location and Punch Time Info */}
       {userType !== "HR-Admin" && userType !== "Super-Admin" && (
-        <div className="hidden md:flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
+        <div className="hidden md:flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
           <div className="flex items-center space-x-4">
             {locationInfo.city && (
               <span className="text-sm text-gray-700">
@@ -663,7 +696,7 @@ function Navbar({ onToggleSidebar }) {
                         setCapturedImage(null);
                         setShowImageOptions(false);
                       }}
-                      className="bg-yellow-500 text-white w-full py-2 rounded hover:bg-yellow-600 transition-colors duration-200"
+                      className="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-600 transition-colors duration-200"
                     >
                       Retry Image
                     </button>

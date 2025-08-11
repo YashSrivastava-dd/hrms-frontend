@@ -97,7 +97,7 @@ const TeammatesProfile = ({selectedTag}) => {
       )}
 
       {!selectedComponent && (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-6 w-full">
           {/* Header Section */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

@@ -244,7 +244,7 @@ const TDSCalculator = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border border-blue-200 p-6">
+        <div className="full-height-content bg-white p-4">
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
