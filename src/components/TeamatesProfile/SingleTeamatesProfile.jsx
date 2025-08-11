@@ -1,7 +1,6 @@
 import { IoChevronBackOutline } from 'react-icons/io5'
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-// import { getAttendenceLogsOfEmploye } from "../store/action/userDataAction";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -11,31 +10,33 @@ import { getAttendenceLogsOfEmploye } from '../../store/action/userDataAction';
 import Calendar from '../Calendar';
 import { FaLongArrowAltLeft } from "react-icons/fa";
 import { FaLongArrowAltRight } from "react-icons/fa";
-
+import { FaCalendarAlt, FaClock, FaUserTie, FaIdCard, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
+import dayjs from 'dayjs';
 
 function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeLeaveBalance }) {
     const [search, setSearch] = useState("");
-    const [date, setDate] = useState({ startDate: null, endDate: null });
+    const [date, setDate] = useState({ 
+        startDate: dayjs().startOf('month'), 
+        endDate: dayjs().endOf('month') 
+    });
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [count, setCount] = useState(1); // Pagination count
     const [activeTab, setActiveTab] = useState("teamLogs"); // Track which tab is active
     const { data: userData } = useSelector((state) => state.userData);
     const userDataList = userData?.data?.role || [];
-    const { loading, data } = useSelector((state) => state.attendanceLogs);
+    const { loading, data, error } = useSelector((state) => state.attendanceLogs);
     const employees = data?.data || [];
     const dispatch = useDispatch();
+    
     useEffect(() => {
-        console.log('12',employeeTicket)
-        const dateFrom = date.startDate?.format("YYYY-MM-DD");
-        const dateTo = date.endDate?.format("YYYY-MM-DD");
         if (employeeTicket) {
-            const dateFrom = date.startDate?.format("YYYY-MM-DD");
-            const dateTo = date.endDate?.format("YYYY-MM-DD");
+            const dateFrom = date.startDate ? date.startDate.format("YYYY-MM-DD") : dayjs().startOf('month').format("YYYY-MM-DD");
+            const dateTo = date.endDate ? date.endDate.format("YYYY-MM-DD") : dayjs().endOf('month').format("YYYY-MM-DD");
+            
             dispatch(getAttendenceLogsOfEmploye(employeeTicket, dateFrom, dateTo, count));
         }
-        console.log('Dispatching logs fetch with:', { employeeTicket, dateFrom, dateTo, count });
-    }, [employeeTicket, date.startDate, date.endDate, count]);
+    }, [employeeTicket, date.startDate, date.endDate, count, dispatch]);
 
     const handleOpenModal = (employee) => {
         setSelectedEmployee(employee);
@@ -70,259 +71,332 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
     );
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex gap-4 items-center text-center">
-                    <button onClick={onBack}>
-                        <IoChevronBackOutline size={25} />
-                    </button>
-                    <h1 className="text-2xl font-bold">{employeeName}</h1>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+            {/* Header Section */}
+            <div className="bg-white shadow-lg border-b border-gray-200">
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <button 
+                                onClick={onBack}
+                                className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                            >
+                                <IoChevronBackOutline size={25} className="text-gray-600" />
+                            </button>
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-800">{employeeName}</h1>
+                                <p className="text-gray-600">Employee Profile & Attendance Details</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                                <span className="text-white font-bold text-lg">
+                                    {employeeName?.charAt(0).toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6">
-                <div className={`p-6 rounded-lg shadow bg-yellow-50`} role="region" aria-label='Casual Leave'>
-                    <h3 className="text-lg">Casual Leave</h3>
-                    <p className="text-2xl font-bold">{employeeLeaveBalance?.casualLeave}</p>
-                </div>
-                <div className={`p-6 rounded-lg shadow bg-blue-50`} role="region" aria-label='Casual Leave'>
-                    <h3 className="text-lg">Earned Leave</h3>
-                    <p className="text-2xl font-bold">{employeeLeaveBalance?.earnedLeave}</p>
-                </div>
-                <div className={`p-6 rounded-lg shadow bg-purple-50`} role="region" aria-label='Casual Leave'>
-                    <h3 className="text-lg">Medical Leave</h3>
-                    <p className="text-2xl font-bold">{employeeLeaveBalance?.medicalLeave}</p>
-                </div>
-                <div className={`p-6 rounded-lg shadow bg-purple-50`} role="region" aria-label='Casual Leave'>
-                    <h3 className="text-lg">CompOff</h3>
-                    <p className="text-2xl font-bold">{employeeLeaveBalance?.compOffLeave}</p>
-                </div>
-            </div>
-            <div className="py-4 flex gap-2">
-                <button
-                    className={`p-3 rounded ${activeTab === "teamLogs" ? "bg-black text-white" : "bg-gray-200 text-black"}`}
-                    onClick={() => setActiveTab("teamLogs")}
-                >
-                    Attendance Logs
-                </button>
-                <button
-                    className={`p-3 rounded ${activeTab === "attendance" ? "bg-black text-white" : "bg-gray-200 text-black"}`}
-                    onClick={() => setActiveTab("attendance")}
-                >
-                    Attendance Calendar
-                </button>
             </div>
 
-            {activeTab === "teamLogs" ? (<>
-                <div className="p-6 bg-gray-50 min-h-screen">
-                    {/* Filters Section */}
-                    <div className="flex flex-col sm:flex-row items-center justify-start mb-4 gap-4">
-                        <div className="flex gap-4 w-full sm:w-auto">
-                            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                <DatePicker
-                                    label="Start Date"
-                                    value={date.startDate}
-                                    onChange={(newDate) => setDate({ ...date, startDate: newDate })}
-                                />
-                                <DatePicker
-                                    label="End Date"
-                                    value={date.endDate}
-                                    onChange={(newDate) => setDate({ ...date, endDate: newDate })}
-                                />
-                            </LocalizationProvider>
+            <div className="max-w-7xl mx-auto px-6 py-6">
+                {/* Leave Balance Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-6 shadow-lg border border-yellow-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-yellow-800">Casual Leave</h3>
+                                <p className="text-3xl font-bold text-yellow-900">{employeeLeaveBalance?.casualLeave || 0}</p>
+                                <p className="text-sm text-yellow-700">Available</p>
+                            </div>
+                            <div className="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center">
+                                <span className="text-white text-xl">🎯</span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Table Section */}
-                    <div className="bg-white shadow-md rounded overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        {[
-                                            "Employee Name",
-                                            "Status",
-                                            "Date",
-                                            "Check In",
-                                            "Check Out",
-                                            "Total Hours",
-                                            "Days",
-                                            "Records",
-                                        ].map((header, idx) => (
-                                            <th
-                                                key={idx}
-                                                className="p-3 text-center font-semibold hidden sm:table-cell"
-                                            >
-                                                {header}
-                                            </th>
-                                        ))}
-                                        <th className="p-3 text-center font-semibold sm:hidden">
-                                            Date
-                                        </th>
-                                        <th className="p-3 text-center font-semibold sm:hidden">
-                                            Check In
-                                        </th>
-                                        <th className="p-3 text-center font-semibold sm:hidden">
-                                            Check Out
-                                        </th>
-                                        <th className="p-3 text-center font-semibold sm:hidden">
-                                            Days
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {loading
-                                        ? Array(10)
-                                            .fill(0)
-                                            .map((_, idx) => <SkeletonLoader key={idx} />)
-                                        : employees
-                                            ?.filter((employee) =>
-                                                employee.EmployeeName.toLowerCase().includes(
-                                                    search.toLowerCase()
-                                                )
-                                            )
-                                            ?.map((employee) => {
-                                                const hours = Math.floor(employee.Duration / 60);
-                                                const minutes = employee.Duration % 60;
-                                                let dayType = "Off Day";
-                                                if (
-                                                    employee.Duration >= 4 * 60 + 30 &&
-                                                    employee.Duration < 8 * 60 + 40
-                                                )
-                                                    dayType = "Half Day";
-                                                else if (employee.Duration >= 8 * 60 + 40)
-                                                    dayType = "Full Day";
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 shadow-lg border border-blue-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-blue-800">Earned Leave</h3>
+                                <p className="text-3xl font-bold text-blue-900">{employeeLeaveBalance?.earnedLeave || 0}</p>
+                                <p className="text-sm text-blue-700">Available</p>
+                            </div>
+                            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                                <span className="text-white text-xl">⭐</span>
+                            </div>
+                        </div>
+                    </div>
 
-                                                return (
-                                                    <tr
-                                                        key={employee.id}
-                                                        className="border-t hover:bg-gray-100 transition-colors duration-200"
-                                                    >
-                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
-                                                            <span className="truncate max-w-[120px]" title={employee.EmployeeName}>{employee.EmployeeName}</span>
-                                                        </td>
-                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
-                                                            {employee.Status}
-                                                        </td>
-                                                        <td className="p-3 text-center whitespace-nowrap">
-                                                            {employee.AttendanceDate?.split("T")[0]}
-                                                        </td>
-                                                        <td className="p-3 text-center whitespace-nowrap">
-                                                            {employee.InTime.split(" ")[1] === "00:00:00"
-                                                                ? "--"
-                                                                : employee.InTime.split(" ")[1]}
-                                                        </td>
-                                                        <td className="p-3 text-center whitespace-nowrap">
-                                                            {employee.OutTime.split(" ")[1] === "00:00:00"
-                                                                ? "--"
-                                                                : employee.OutTime.split(" ")[1]}
-                                                        </td>
-                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
-                                                            {hours} Hours {minutes} Minutes
-                                                        </td>
-                                                        <td
-                                                            className="p-3 text-center whitespace-nowrap"
-                                                            style={{
-                                                                color:
-                                                                    dayType === "Full Day"
-                                                                        ? "green"
-                                                                        : dayType === "Half Day"
-                                                                            ? "#FF7E01"
-                                                                            : employee.Status === "Absent"
-                                                                                ? "red"
-                                                                                : "blue",
-                                                            }}
-                                                        >
-                                                            {dayType}
-                                                        </td>
-                                                        <td className="p-3 text-center hidden sm:table-cell whitespace-nowrap">
-                                                            <button
-                                                                className={`p-2 rounded transition-colors duration-200 ${
-                                                                    employee.Duration === 0 
-                                                                        ? "bg-gray-400 text-gray-600 cursor-not-allowed" 
-                                                                        : "bg-blue-600 text-white hover:bg-blue-700"
-                                                                }`}
-                                                                onClick={() => handleOpenModal(employee)}
-                                                                disabled={employee.Duration === 0}
-                                                            >
-                                                                Punch Records
-                                                            </button>
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 shadow-lg border border-purple-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-purple-800">Medical Leave</h3>
+                                <p className="text-3xl font-bold text-purple-900">{employeeLeaveBalance?.medicalLeave || 0}</p>
+                                <p className="text-sm text-purple-700">Available</p>
+                            </div>
+                            <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                                <span className="text-white text-xl">🏥</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 shadow-lg border border-green-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-green-800">Comp Off</h3>
+                                <p className="text-3xl font-bold text-green-900">{employeeLeaveBalance?.compOffLeave || 0}</p>
+                                <p className="text-sm text-green-700">Available</p>
+                            </div>
+                            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                                <span className="text-white text-xl">🎁</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 mb-6">
+                    <div className="border-b border-gray-200">
+                        <nav className="flex space-x-8 px-6">
+                            <button
+                                onClick={() => setActiveTab("teamLogs")}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                                    activeTab === "teamLogs"
+                                        ? "border-blue-500 text-blue-600"
+                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                }`}
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <FaClock className="w-4 h-4" />
+                                    <span>Attendance Logs</span>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("calendar")}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                                    activeTab === "calendar"
+                                        ? "border-blue-500 text-blue-600"
+                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                }`}
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <FaCalendarAlt className="w-4 h-4" />
+                                    <span>Calendar View</span>
+                                </div>
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div className="p-6">
+                        {activeTab === "teamLogs" && (
+                            <div>
+                                {/* Date Range Selection */}
+                                <div className="mb-6">
+                                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                                        <div className="flex items-center space-x-4">
+                                            <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                                <DatePicker
+                                                    label="Start Date"
+                                                    value={date.startDate}
+                                                    onChange={(newValue) => setDate(prev => ({ ...prev, startDate: newValue }))}
+                                                    renderInput={(params) => <input {...params} />}
+                                                    className="w-full"
+                                                />
+                                            </LocalizationProvider>
+                                            <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                                <DatePicker
+                                                    label="End Date"
+                                                    value={date.endDate}
+                                                    onChange={(newValue) => setDate(prev => ({ ...prev, endDate: newValue }))}
+                                                    renderInput={(params) => <input {...params} />}
+                                                    className="w-full"
+                                                />
+                                            </LocalizationProvider>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Attendance Table */}
+                                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                        Date
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                        Check In
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                        Check Out
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                        Total Hours
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                        Day Type
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-semibold text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                        Status
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {loading ? (
+                                                    Array(5).fill(0).map((_, idx) => <SkeletonLoader key={idx} />)
+                                                ) : employees?.length > 0 ? (
+                                                    employees.map((employee, index) => {
+                                                        const hours = Math.floor(employee.Duration / 60);
+                                                        const minutes = employee.Duration % 60;
+                                                        let dayType = "Off Day";
+                                                        let dayTypeColor = "bg-gray-100 text-gray-800";
+                                                        
+                                                        if (employee.Duration >= 4 * 60 + 30 && employee.Duration < 8 * 60 + 40) {
+                                                            dayType = "Half Day";
+                                                            dayTypeColor = "bg-yellow-100 text-yellow-800";
+                                                        } else if (employee.Duration >= 8 * 60 + 40) {
+                                                            dayType = "Full Day";
+                                                            dayTypeColor = "bg-green-100 text-green-800";
+                                                        }
+
+                                                        return (
+                                                            <tr key={employee.id || index} className="hover:bg-gray-50 transition-colors duration-200">
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {employee.AttendanceDate?.split("T")[0] || '--'}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {employee.InTime?.split(" ")[1] === "00:00:00" ? "--" : employee.InTime?.split(" ")[1] || '--'}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {employee.OutTime?.split(" ")[1] === "00:00:00" ? "--" : employee.OutTime?.split(" ")[1] || '--'}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {employee.Duration > 0 ? `${hours} Hours ${minutes} Minutes` : '--'}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${dayTypeColor}`}>
+                                                                        {dayType}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                                        employee.Status === 'Present' 
+                                                                            ? 'bg-green-100 text-green-800'
+                                                                            : employee.Status === 'Absent'
+                                                                            ? 'bg-red-100 text-red-800'
+                                                                            : 'bg-yellow-100 text-yellow-800'
+                                                                    }`}>
+                                                                        {employee.Status || '--'}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan="6" className="px-6 py-12 text-center">
+                                                            <div className="text-gray-500">
+                                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                                    <FaClock className="w-8 h-8 text-gray-400" />
+                                                                </div>
+                                                                <h3 className="text-lg font-medium text-gray-900 mb-2">No attendance records found</h3>
+                                                                <p className="text-gray-500">Try selecting a different date range</p>
+                                                            </div>
                                                         </td>
                                                     </tr>
-                                                );
-                                            })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
 
-                    {/* Pagination */}
-                    <div className="flex items-center justify-center sm:justify-end mt-4 gap-4">
-                        <button
-                            onClick={handlePrevious}
-                            className={`px-6 py-2 rounded-lg ${count === 1
-                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                : "bg-blue-600 text-white hover:bg-blue-700"
-                                }`}
-                            disabled={count === 1}
-                        >
-                            <FaLongArrowAltLeft />
-
-                        </button>
-                        <button
-                            onClick={handleNext}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                            <FaLongArrowAltRight />
-
-                        </button>
-                    </div>
-
-                    {/* Modal */}
-                    <Modal open={modalOpen} onClose={handleCloseModal}>
-                        <Box className="bg-white rounded p-6 mx-auto my-10 max-w-xl">
-                            <h2 className="text-lg font-semibold">Punch Records Logs</h2>
-                            <div className="grid grid-cols-2 gap-4 mt-4">
-                                {selectedEmployee?.PunchRecords
-                                    ?.trim()
-                                    ?.replace(/,$/, "")
-                                    ?.split(",")
-                                    ?.map((item, index) => {
-                                        const bgColor = item.includes("in(IN 1)") ? "#DEF7EC" : "#FDE8E8";
-                                        const textColor = item.includes("in(IN 1)") ? "#014737" : "#C81E1E";
-                                        return (
-                                            <div
-                                                key={index}
-                                                style={{
-                                                    padding: "8px",
-                                                    textAlign: "center",
-                                                    backgroundColor: bgColor,
-                                                    color: textColor,
-                                                    borderRadius: "8px",
-                                                    width: "9rem",
-                                                }}
+                                {/* Pagination */}
+                                {employees?.length > 0 && (
+                                    <div className="flex items-center justify-between mt-6">
+                                        <div className="flex items-center space-x-2">
+                                            <button
+                                                onClick={handlePrevious}
+                                                disabled={count === 1}
+                                                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                                             >
-                                                {item}
-                                            </div>
-                                        );
-                                    })}
+                                                <FaLongArrowAltLeft className="w-4 h-4 mr-2" />
+                                                Previous
+                                            </button>
+                                            <span className="px-4 py-2 text-sm text-gray-700">
+                                                Page {count}
+                                            </span>
+                                            <button
+                                                onClick={handleNext}
+                                                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                                            >
+                                                Next
+                                                <FaLongArrowAltRight className="w-4 h-4 ml-2" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="mt-4 flex justify-end gap-2">
+                        )}
+
+                        {activeTab === "calendar" && (
+                            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                                <Calendar />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Employee Details Modal */}
+            <Modal
+                open={modalOpen}
+                onClose={handleCloseModal}
+                aria-labelledby="employee-details-modal"
+                aria-describedby="employee-details-description"
+            >
+                <Box className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 max-h-[90vh] overflow-y-auto">
+                    {selectedEmployee && (
+                        <div>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800">Employee Details</h2>
                                 <button
-                                    type="button"
                                     onClick={handleCloseModal}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
                                 >
-                                    Close
+                                    ✕
                                 </button>
                             </div>
-                        </Box>
-                    </Modal>
-                </div>
-            </>)
-                :
-                (<Calendar employeeId={employeeTicket} userRole={userDataList} />)}
+                            
+                            <div className="space-y-4">
+                                <div className="flex items-center space-x-3">
+                                    <FaIdCard className="w-5 h-5 text-blue-500" />
+                                    <span className="text-gray-700">ID: {selectedEmployee.employeeId}</span>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <FaUserTie className="w-5 h-5 text-green-500" />
+                                    <span className="text-gray-700">Name: {selectedEmployee.employeeName}</span>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <FaPhone className="w-5 h-5 text-purple-500" />
+                                    <span className="text-gray-700">Contact: {selectedEmployee.contactNo}</span>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <FaEnvelope className="w-5 h-5 text-orange-500" />
+                                    <span className="text-gray-700">Email: {selectedEmployee.email || 'N/A'}</span>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                    <FaMapMarkerAlt className="w-5 h-5 text-red-500" />
+                                    <span className="text-gray-700">Location: {selectedEmployee.location || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </Box>
+            </Modal>
         </div>
-    )
+    );
 }
 
-export default SingleTeamatesProfile
+export default SingleTeamatesProfile;

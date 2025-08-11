@@ -305,9 +305,8 @@ export const postApplyLeaveByEmployee =
 //
 export const getAttendenceLogsOfEmploye =
   (employeeId, dateFrom, dateToo, page) => async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
-    // const employeId=localStorage.getItem('employeId')
+    
     // If token does not exist, do nothing or handle the case
     if (!token) {
       return dispatch({
@@ -316,8 +315,13 @@ export const getAttendenceLogsOfEmploye =
       });
     }
 
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
+    // If employeeId is not provided, don't make the API call
+    if (!employeeId) {
+      return dispatch({
+        type: GET_ATTENDANCE_LOGS_OF_EMPLOYEES_FAIL,
+        payload: "Employee ID is required",
+      });
+    }
 
     try {
       dispatch({ type: GET_ATTENDANCE_LOGS_OF_EMPLOYEES_REQUEST });
@@ -329,9 +333,11 @@ export const getAttendenceLogsOfEmploye =
           "Content-Type": "application/json",
         },
       };
+      
       let newdateFrom = dateFrom ? dateFrom : "";
       let newdateTo = dateToo ? dateToo : "";
       let newPage = page ? page : "";
+      
       const { data } = await axios.get(
         `${process.env.REACT_APP_BASE_URL}/api/attendance-logs/${employeeId}?page=${newPage}&dateFrom=${newdateFrom}&dateTo=${newdateTo}`,
         config
@@ -342,6 +348,7 @@ export const getAttendenceLogsOfEmploye =
         payload: data,
       });
     } catch (error) {
+      console.error('Error fetching attendance logs:', error);
       dispatch({
         type: GET_ATTENDANCE_LOGS_OF_EMPLOYEES_FAIL,
         payload: error.response?.data?.message || "Something went wrong",

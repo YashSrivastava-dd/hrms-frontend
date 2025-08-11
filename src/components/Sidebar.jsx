@@ -16,7 +16,7 @@ import Announcement from "./Announcement";
 import EmployeePayroleTable from "./EmployeePayroleTabel";
 import EmployeeLeaveStatus from "./EmployeeLeaveStatus";
 import DeclarationForm from "./DeclarationForm";
-import TDSCalculator from "./TDSCalculator";
+import Finance from "./Finance/Finance";
 
 const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -302,12 +302,19 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               isSelected={selectedTag === "issuedDoc"}
               onClick={() => handleNavigation("issuedDoc")}
             />
+          </div>
+
+          {/* Financial Tools Section */}
+          <div className="space-y-1">
+            <div className="px-3 py-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Financial Tools</h3>
+            </div>
             
             <SidebarLink
-              label="TDS Calculator"
+              label="Finance Calculator"
               icon="🧮"
-              isSelected={selectedTag === "tdsCalculator"}
-              onClick={() => handleNavigation("tdsCalculator")}
+              isSelected={selectedTag === "finance"}
+              onClick={() => handleNavigation("finance")}
             />
           </div>
 
@@ -372,7 +379,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         {selectedTag === "hrmanual" && <ComingSoon />}
         {selectedTag === "coc" && <ComingSoon />}
         {selectedTag === "issuedDoc" && <MainDocuent />}
-        {selectedTag === "tdsCalculator" && <TDSCalculator />}
+        {selectedTag === "finance" && <Finance />}
       </div>
     </div>
   );
