@@ -613,7 +613,7 @@ function Navbar({ onToggleSidebar }) {
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
               className="bg-blue-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold hover:bg-blue-600 transition-colors duration-200"
             >
-              {userData.employeeName?.charAt(0)}
+              {userData?.employeeName?.charAt(0) || "?"}
             </button>
             
             {/* Profile Dropdown */}
@@ -621,7 +621,7 @@ function Navbar({ onToggleSidebar }) {
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 profile-dropdown">
                 <div className="py-3">
                   <div className="px-4 py-3 text-sm text-gray-800 border-b border-gray-100 font-bold bg-gray-50 rounded-t-xl">
-                    {userData.employeeName}
+                    {userData?.employeeName || "Employee"}
                   </div>
                   <div className="p-3 space-y-3">
                     <button

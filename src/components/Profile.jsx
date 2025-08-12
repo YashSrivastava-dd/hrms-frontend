@@ -275,14 +275,26 @@ const EmployeeProfile = () => {
                 
                 <div className="mt-4">
                   <h2 className="text-xl font-bold text-blue-900">
-                    {userDataList?.employeeName || "Employee Name"}
+                    {loading ? (
+                      <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+                    ) : (
+                      userDataList?.employeeName || "Employee Name"
+                    )}
                   </h2>
                   <p className="text-blue-700 text-sm">
-                    {userDataList?.employeeId || "Employee ID"}
+                    {loading ? (
+                      <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mt-1"></div>
+                    ) : (
+                      userDataList?.employeeId || "Employee ID"
+                    )}
                   </p>
                   <div className="mt-2">
                     <span className="inline-block bg-blue-300 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {userDataList?.designation || "Designation"}
+                      {loading ? (
+                        <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                      ) : (
+                        userDataList?.designation || "Designation"
+                      )}
                     </span>
                   </div>
                 </div>

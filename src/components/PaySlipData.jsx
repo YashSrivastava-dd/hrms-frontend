@@ -59,13 +59,13 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Employee Name
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.employee_name}
+                                {payslipModelData?.employee_basic_details?.employee_name || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start text-start">
                                 Employee PAN Number
                             </th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.employee_basic_details?.employee_pan}
+                                {payslipModelData?.employee_basic_details?.employee_pan || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -73,13 +73,13 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Employee Code
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                DD-{payslipModelData?.employee_basic_details?.employee_code}
+                                DD-{payslipModelData?.employee_basic_details?.employee_code || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start text-start">
                                 Employee Aadhaar Number
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.employee_aadhar}
+                                {payslipModelData?.employee_basic_details?.employee_aadhar || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -87,13 +87,13 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Designation
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.designation}
+                                {payslipModelData?.employee_basic_details?.designation || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start text-start">
                                 Bank Name
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.bank_name}
+                                {payslipModelData?.employee_basic_details?.bank_name || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -101,13 +101,13 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Date of Joining
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.date_of_joining}
+                                {payslipModelData?.employee_basic_details?.date_of_joining || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start text-start">
                                 Bank IFSC Code
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.bank_ifsc}
+                                {payslipModelData?.employee_basic_details?.bank_ifsc || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -115,13 +115,13 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Employee UAN Number
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.employee_uan}
+                                {payslipModelData?.employee_basic_details?.employee_uan || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start text-start">
                                 Bank Account Number
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.bank_account}
+                                {payslipModelData?.employee_basic_details?.bank_account || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -129,13 +129,13 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Employee ESIC Number
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.employee_esic}
+                                {payslipModelData?.employee_basic_details?.employee_esic || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start text-start">
                                 Payment Mode
                             </th>
                             <td className="border px-2 py-1 text-start text-start">
-                                {payslipModelData?.employee_basic_details?.payment_mode}
+                                {payslipModelData?.employee_basic_details?.payment_mode || "--"}
                             </td>
                         </tr>
                     </tbody>
@@ -163,31 +163,31 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                         <tr>
                             <th className="border px-2 py-1 text-start">Basic Salary</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.basic_salary}
+                                {payslipModelData?.salary_details?.basic_salary || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start">Employee Provident Fund</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.employee_pf}
+                                {payslipModelData?.salary_details?.employee_pf || "--"}
                             </td>
                         </tr>
                         <tr>
                             <th className="border px-2 py-1 text-start">House Rent Allowance</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.hra}
+                                {payslipModelData?.salary_details?.hra || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start">Employee State Insurance</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.employee_esi}
+                                {payslipModelData?.salary_details?.employee_esi || "--"}
                             </td>
                         </tr>
                         <tr>
                             <th className="border px-2 py-1 text-start">Travel Allowances</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.travel_allowances}
+                                {payslipModelData?.salary_details?.travel_allowances || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start">Tax Deducted at Source</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.tds}
+                                {payslipModelData?.salary_details?.tds || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -195,31 +195,31 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Special Allowances
                             </th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.special_allowances}
+                                {payslipModelData?.salary_details?.special_allowances || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start">Loan Advance</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.loan_advance}
+                                {payslipModelData?.salary_details?.loan_advance || "--"}
                             </td>
                         </tr>
                         <tr>
                             <th className="border px-2 py-1 text-start">Arrears</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.arrears}
+                                {payslipModelData?.salary_details?.arrears || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start">Penalty</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.penalty}
+                                {payslipModelData?.salary_details?.penalty || "--"}
                             </td>
                         </tr>
                         <tr>
                             <th className="border px-2 py-1 text-start">Bonus/Others</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.bonus_or_others}
+                                {payslipModelData?.salary_details?.bonus_or_others || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start">Transport/Others</th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.transport_or_others}
+                                {payslipModelData?.salary_details?.transport_or_others || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -227,13 +227,13 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Total A (Gross Salary)
                             </th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.total_gross_salary}
+                                {payslipModelData?.salary_details?.total_gross_salary || "--"}
                             </td>
                             <th className="border px-2 py-1 text-start">
                                 Total B (Deductions)
                             </th>
                             <td className="border px-2 py-1 text-start">
-                                {payslipModelData?.salary_details?.total_deduction}
+                                {payslipModelData?.salary_details?.total_deduction || "--"}
                             </td>
                         </tr>
                         <tr>
@@ -241,7 +241,7 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                                 Total Net Pay (A - B)
                             </th>
                             <td className="border px-2 py-1 text-start" colSpan={2}>
-                                {payslipModelData?.salary_details?.employee_name}
+                                {payslipModelData?.salary_details?.net_pay || payslipModelData?.salary_details?.employee_name || "--"}
                             </td>
                         </tr>
                     </tbody>

@@ -197,12 +197,12 @@ const EmployeePayroleTable = () => {
                 {filteredData && filteredData.length > 0 ? (
                   filteredData.map((employee, index) => (
                     <tr key={index} className="border-t hover:bg-gray-100 transition-colors duration-200">
-                      <td className="py-4 px-4 whitespace-nowrap">{employee?.employee_basic_details?.employee_code}</td>
-                      <td className="py-4 px-4 whitespace-nowrap truncate max-w-[150px]" title={employee?.employee_basic_details?.employee_name}>{employee?.employee_basic_details?.employee_name}</td>
-                      <td className="py-4 px-4 whitespace-nowrap truncate max-w-[120px]" title={employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation}>{employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation}</td>
-                      <td className="py-4 px-4 whitespace-nowrap">{employee.pay_slip_month}</td>
-                      <td className="py-4 px-4 whitespace-nowrap">{employee.leave_summary?.payable_days || employee.leave_summary?.workedDays}</td>
-                      <td className="py-4 px-4 whitespace-nowrap">{employee.leave_summary?.unpaid_days || employee.leave_summary?.absent}</td>
+                      <td className="py-4 px-4 whitespace-nowrap">{employee?.employee_basic_details?.employee_code || "--"}</td>
+                      <td className="py-4 px-4 whitespace-nowrap truncate max-w-[150px]" title={employee?.employee_basic_details?.employee_name || "Unknown Employee"}>{employee?.employee_basic_details?.employee_name || "Unknown Employee"}</td>
+                      <td className="py-4 px-4 whitespace-nowrap truncate max-w-[120px]" title={employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}>{employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}</td>
+                      <td className="py-4 px-4 whitespace-nowrap">{employee?.pay_slip_month || "--"}</td>
+                      <td className="py-4 px-4 whitespace-nowrap">{employee?.leave_summary?.payable_days || employee?.leave_summary?.workedDays || "0"}</td>
+                      <td className="py-4 px-4 whitespace-nowrap">{employee?.leave_summary?.unpaid_days || employee?.leave_summary?.absent || "0"}</td>
                       <td className="py-4 px-4 whitespace-nowrap">
                         <button
                           onClick={() => {

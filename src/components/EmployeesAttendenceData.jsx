@@ -272,7 +272,7 @@ const EmployeesAttendanceData = () => {
                     .map((_, idx) => <SkeletonLoader key={idx} />)
                   : employees
                     ?.filter((employee) =>
-                      employee.EmployeeName.toLowerCase().includes(
+                      employee?.EmployeeName?.toLowerCase().includes(
                         search.toLowerCase()
                       )
                     )
@@ -381,11 +381,11 @@ const EmployeesAttendanceData = () => {
                             <div className="flex items-center">
                               <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-3">
                                 <span className="text-blue-600 font-semibold text-xs sm:text-sm">
-                                  {employee.EmployeeName.charAt(0).toUpperCase()}
+                                  {employee?.EmployeeName?.charAt(0)?.toUpperCase() || "?"}
                                 </span>
                               </div>
                               <div>
-                                <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[150px]" title={employee.EmployeeName}>{employee.EmployeeName}</div>
+                                <div className="font-medium text-gray-900 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[150px]" title={employee?.EmployeeName || "Unknown Employee"}>{employee?.EmployeeName || "Unknown Employee"}</div>
                               </div>
                             </div>
                           </td>
@@ -394,21 +394,21 @@ const EmployeesAttendanceData = () => {
                               className="inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
                               style={statusStyle}
                             >
-                              {employee.Status}
+                              {employee?.Status || "Unknown"}
                             </span>
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <div className="text-xs sm:text-sm font-medium text-gray-900">
-                              {employee.AttendanceDate?.split("T")[0]}
+                              {employee?.AttendanceDate?.split("T")[0] || "--"}
                             </div>
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                               <span className="text-xs sm:text-sm font-medium text-gray-900">
-                                {employee.InTime.split(" ")[1] === "00:00:00"
+                                {employee?.InTime?.split(" ")[1] === "00:00:00"
                                   ? "--"
-                                  : employee.InTime.split(" ")[1]}
+                                  : employee?.InTime?.split(" ")[1] || "--"}
                               </span>
                             </div>
                           </td>
@@ -416,9 +416,9 @@ const EmployeesAttendanceData = () => {
                             <div className="flex items-center">
                               <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                               <span className="text-xs sm:text-sm font-medium text-gray-900">
-                                {employee.OutTime.split(" ")[1] === "00:00:00"
+                                {employee?.OutTime?.split(" ")[1] === "00:00:00"
                                   ? "--"
-                                  : employee.OutTime.split(" ")[1]}
+                                  : employee?.OutTime?.split(" ")[1] || "--"}
                               </span>
                             </div>
                           </td>
@@ -442,18 +442,18 @@ const EmployeesAttendanceData = () => {
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <span className="text-xs sm:text-sm text-gray-500">
-                              {employee.LeaveType || '---'}
+                              {employee?.LeaveType || '---'}
                             </span>
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <button
                               className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
-                                employee.Duration === 0 
+                                (employee?.Duration === 0 || !employee?.Duration)
                                   ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
                                   : "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
                               }`}
                               onClick={() => handleOpenModal(employee)}
-                              disabled={employee.Duration === 0}
+                              disabled={employee?.Duration === 0 || !employee?.Duration}
                             >
                               <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

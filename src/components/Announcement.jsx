@@ -213,11 +213,11 @@ function Announcement({ reloadHandel }) {
                         className="w-10 h-10 rounded-lg object-cover border border-gray-200" 
                       />
                       <div>
-                        <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm" title={item.title}>
-                          {item.title}
+                        <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm" title={item?.title || "Untitled Announcement"}>
+                          {item?.title || "Untitled Announcement"}
                         </h3>
-                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${getStatusColor(item.dateTime)}`}>
-                          {getStatusText(item.dateTime)}
+                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${getStatusColor(item?.dateTime)}`}>
+                          {getStatusText(item?.dateTime)}
                         </div>
                       </div>
                     </div>
@@ -241,9 +241,9 @@ function Announcement({ reloadHandel }) {
                   </div>
 
                   {/* Description */}
-                  {item.description && (
-                    <p className="text-gray-600 text-xs mb-3 line-clamp-2" title={item.description}>
-                      {item.description}
+                  {item?.description && (
+                    <p className="text-gray-600 text-xs mb-3 line-clamp-2" title={item?.description}>
+                      {item?.description}
                     </p>
                   )}
 
@@ -252,38 +252,38 @@ function Announcement({ reloadHandel }) {
                     <div className="flex items-center text-xs text-gray-500">
                       <Calendar className="w-3 h-3 mr-1.5" />
                       <span>
-                        {new Date(item.dateTime).toLocaleDateString('en-GB', {
+                        {item?.dateTime ? new Date(item.dateTime).toLocaleDateString('en-GB', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric'
-                        })}
+                        }) : "--"}
                       </span>
                     </div>
                     
                     <div className="flex items-center text-xs text-gray-500">
                       <Clock className="w-3 h-3 mr-1.5" />
                       <span>
-                        {new Date(item.dateTime).toLocaleTimeString('en-GB', {
+                        {item?.dateTime ? new Date(item.dateTime).toLocaleTimeString('en-GB', {
                           hour: '2-digit',
                           minute: '2-digit'
-                        })}
+                        }) : "--"}
                       </span>
                     </div>
                     
-                    {item.location && (
+                    {item?.location && (
                       <div className="flex items-center text-xs text-gray-500">
                         <MapPin className="w-3 h-3 mr-1.5" />
-                        <span>{item.location}</span>
+                        <span>{item?.location}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Download Link */}
-                  {item.imageUrl && (
+                  {item?.imageUrl && (
                     <div className="pt-2 border-t border-gray-100">
                       <a
-                        href={item.imageUrl}
-                        download={`Announcement_${item.dateTime.split("T")[0]}.jpg`}
+                        href={item?.imageUrl}
+                        download={`Announcement_${item?.dateTime?.split("T")[0] || "unknown"}.jpg`}
                         className="inline-flex items-center text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
                       >
                         <Download className="w-3 h-3 mr-1" />

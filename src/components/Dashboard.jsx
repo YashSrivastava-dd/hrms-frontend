@@ -553,11 +553,11 @@ const Dashboard = ({ reloadHandel }) => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div className="p-4 sm:p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
                       <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 text-gray-700">Total Employees</h2>
-                      <p className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-600">{attendanceLogs?.totalEmployees}</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-600">{attendanceLogs?.totalEmployees || 0}</p>
                     </div>
                     <div className="p-4 sm:p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
                       <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 text-gray-700">Present Employees</h2>
-                      <p className="text-lg sm:text-xl md:text-2xl font-semibold text-green-600">{attendanceLogs?.totalPresent}</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-semibold text-green-600">{attendanceLogs?.totalPresent || 0}</p>
                     </div>
                   </div>
                 </div>

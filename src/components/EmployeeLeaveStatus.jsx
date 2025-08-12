@@ -58,7 +58,7 @@ console.log('employeeCount',employeeCount)
   };
 
   const filteredData = employeeStatusData.filter((item) =>
-    item.employeeInfo.employeeName.toLowerCase().includes(searchTerm.toLowerCase())
+    item?.employeeInfo?.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -71,28 +71,28 @@ console.log('employeeCount',employeeCount)
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <SummaryBox
           title="Today Presents"
-          count={employeeCount?.todayPresentCount}
+          count={employeeCount?.todayPresentCount || 0}
           // percent="120%"
           ringColor="text-white"
           colorRing="blue-500"
         />
         <SummaryBox
           title="Planned Leaves"
-          count={employeeCount?.plannedLeaveCount}
+          count={employeeCount?.plannedLeaveCount || 0}
           // percent="100%"
           ringColor="text-white"
           colorRing="red-500"
         />
         <SummaryBox
           title="Unplanned Leaves"
-          count={employeeCount?.unplannedLeaveCount}
+          count={employeeCount?.unplannedLeaveCount || 0}
           // percent="49%"
           ringColor="text-white"
           colorRing="sky-400"
         />
         <SummaryBox
           title="Pending Requests"
-          count={employeeCount?.pendingReqCount}
+          count={employeeCount?.pendingReqCount || 0}
           // percent="68%"
           ringColor="text-white"
           colorRing="orange-400"
@@ -134,30 +134,30 @@ console.log('employeeCount',employeeCount)
                       alt={item.name}
                       className="w-8 h-8 rounded-full"
                     />
-                    <span className="font-medium text-gray-800 truncate max-w-[150px]" title={item.employeeInfo.employeeName}>
-                      {item.employeeInfo.employeeName}
+                    <span className="font-medium text-gray-800 truncate max-w-[150px]" title={item?.employeeInfo?.employeeName || "Unknown Employee"}>
+                      {item?.employeeInfo?.employeeName || "Unknown Employee"}
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {getLeaveTypeAbbreviation(item.leaveType)}
+                      {getLeaveTypeAbbreviation(item?.leaveType) || "N/A"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap truncate max-w-[120px]" title={item.employeeInfo.designation}>
-                    {item.employeeInfo.designation}
+                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap truncate max-w-[120px]" title={item?.employeeInfo?.designation || "No designation"}>
+                    {item?.employeeInfo?.designation || "No designation"}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{item.totalDays} Days</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{item.leaveStartDate}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{item.leaveEndDate}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{item?.totalDays || 0} Days</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{item?.leaveStartDate || "--"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{item?.leaveEndDate || "--"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span
-                      className={`text-xs px-3 py-1 rounded-full font-semibold ${statusColors[item.status]}`}
+                      className={`text-xs px-3 py-1 rounded-full font-semibold ${statusColors[item?.status] || "bg-gray-100 text-gray-600"}`}
                     >
-                      {item.status}
+                      {item?.status || "Unknown"}
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {item.status === "Approved" ? (
+                    {item?.status === "Approved" ? (
                       <MoreHorizontal className="h-4 w-4 text-gray-500" />
                     ) : (
                       <select
@@ -165,7 +165,7 @@ console.log('employeeCount',employeeCount)
                         onChange={(e) =>
                           handelChangeStatus({
                             value: e.target.value,
-                            id: item._id,
+                            id: item?._id,
                           })
                         }
                         className="border px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
@@ -191,7 +191,7 @@ console.log('employeeCount',employeeCount)
 const SummaryBox = ({ title, count, percent, ringColor, colorRing }) => (
   <div className={`border rounded-xl flex items-center p-4 gap-4 shadow-sm bg-white`}>
     <div className="flex flex-col items-start">
-      <div className="text-xl font-bold text-gray-900">{count}</div>
+      <div className="text-xl font-bold text-gray-900">{count ?? "0"}</div>
       <div
         className={`text-sm font-semibold ${
           colorRing === "blue-500"

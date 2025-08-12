@@ -25,9 +25,9 @@ const TeammatesProfile = () => {
   // Filter teammates based on the search query
   const filteredTeammates = teammateData
     ? teammateData.filter(teammate =>
-      teammate.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (`AgVa-${teammate.employeeId}`)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      teammate.designation?.toLowerCase().includes(searchQuery.toLowerCase())
+      teammate?.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (`AgVa-${teammate?.employeeId}`)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      teammate?.designation?.toLowerCase().includes(searchQuery.toLowerCase())
     )
     : [];
 
@@ -38,7 +38,7 @@ const TeammatesProfile = () => {
           onBack={() => setSelectedComponent(null)}
           employeeTicket={employeeTicket}
           employeeLeaveBalance={employeeLeaveBalance}
-          employeeName={teammateData.find(teammate => teammate.employeeId === employeeTicket)?.employeeName || "Unknown"}
+          employeeName={teammateData?.find(teammate => teammate?.employeeId === employeeTicket)?.employeeName || "Unknown"}
         />
       )}
 
@@ -77,13 +77,13 @@ const TeammatesProfile = () => {
                       key={index}
                       className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100 transition-colors duration-200`}
                     >
-                      <td className="p-4 whitespace-nowrap">AgVa-{teammate.employeeId}</td>
-                      <td className="p-4 font-medium whitespace-nowrap truncate max-w-[150px]" title={teammate.employeeName}>{teammate.employeeName}</td>
-                      <td className="p-4 whitespace-nowrap truncate max-w-[120px]" title={teammate.designation}>{teammate.designation}</td>
-                      <td className="p-4 whitespace-nowrap">{teammate.shiftTime?.startAt}</td>
-                      <td className="p-4 whitespace-nowrap">{teammate.shiftTime?.endAt}</td>
-                      <td className="p-4 whitespace-nowrap">{teammate.contactNo}</td>
-                      <td className="p-4 whitespace-nowrap">{teammate.doj}</td>
+                      <td className="p-4 whitespace-nowrap">AgVa-{teammate?.employeeId || "N/A"}</td>
+                      <td className="p-4 font-medium whitespace-nowrap truncate max-w-[150px]" title={teammate?.employeeName || "Unknown Employee"}>{teammate?.employeeName || "Unknown Employee"}</td>
+                      <td className="p-4 whitespace-nowrap truncate max-w-[120px]" title={teammate?.designation || "No designation"}>{teammate?.designation || "No designation"}</td>
+                      <td className="p-4 whitespace-nowrap">{teammate?.shiftTime?.startAt || "--"}</td>
+                      <td className="p-4 whitespace-nowrap">{teammate?.shiftTime?.endAt || "--"}</td>
+                      <td className="p-4 whitespace-nowrap">{teammate?.contactNo || "--"}</td>
+                      <td className="p-4 whitespace-nowrap">{teammate?.doj || "--"}</td>
                       <td className="p-4 whitespace-nowrap">
                         <button
                           onClick={() => {

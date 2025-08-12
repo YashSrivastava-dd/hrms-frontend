@@ -220,45 +220,45 @@ const TeammatesProfile = ({selectedTag}) => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                          AgVa-{teammate.employeeId}
+                          AgVa-{teammate?.employeeId || "N/A"}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mr-3">
                             <span className="text-white font-semibold text-sm">
-                              {teammate.employeeName?.charAt(0).toUpperCase()}
+                              {teammate?.employeeName?.charAt(0)?.toUpperCase() || "?"}
                             </span>
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900 truncate max-w-[150px]" title={teammate.employeeName}>
-                              {teammate.employeeName}
+                            <div className="font-medium text-gray-900 truncate max-w-[150px]" title={teammate?.employeeName || "Unknown Employee"}>
+                              {teammate?.employeeName || "Unknown Employee"}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 truncate max-w-[120px]" title={teammate.designation}>
-                          {teammate.designation}
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 truncate max-w-[120px]" title={teammate?.designation || "No designation"}>
+                          {teammate?.designation || "No designation"}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           <div className="flex items-center space-x-2">
                             <span className="text-green-600">●</span>
-                            <span>{teammate.shiftTime?.startAt || '--'}</span>
+                            <span>{teammate?.shiftTime?.startAt || '--'}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <span className="text-red-600">●</span>
-                            <span>{teammate.shiftTime?.endAt || '--'}</span>
+                            <span>{teammate?.shiftTime?.endAt || '--'}</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">{teammate.contactNo || '--'}</span>
+                        <span className="text-sm text-gray-900">{teammate?.contactNo || '--'}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">{teammate.doj || '--'}</span>
+                        <span className="text-sm text-gray-900">{teammate?.doj || '--'}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
