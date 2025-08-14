@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaSave, FaChevronDown, FaTimes } from 'react-icons/fa';
+import { useDispatch, useSelector } from 'react-redux';
+import { postTaxDeclarationAction } from '../store/action/userDataAction';
+import safeToast from '../utils/safeToast';
 
 const DeclarationForm = () => {
   const formRef = useRef(null);
+  const dispatch = useDispatch();
+  const { loading, error, data } = useSelector(state => state.taxDeclarationData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     // Personal Details
     employeeName: '',
@@ -19,6 +25,7 @@ const DeclarationForm = () => {
     rentStartDate: '',
     rentChanges: '',
     rentedPropertyAddress: '',
+    landlordName: '',
     landlordPAN: '',
     
     // Deductions
@@ -125,15 +132,15 @@ const DeclarationForm = () => {
           </span>
           <div className="flex items-center space-x-2">
             {formData.gender && (
-              <button
+              <span
                 onClick={(e) => {
                   e.stopPropagation();
                   clearGender();
                 }}
-                className="p-1 rounded-full hover:bg-blue-200 transition-colors duration-200"
+                className="p-1 rounded-full hover:bg-blue-200 transition-colors duration-200 cursor-pointer"
               >
                 <FaTimes className="w-3 h-3 text-blue-500" />
-              </button>
+              </span>
             )}
             <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
               showGenderDropdown ? 'rotate-180' : ''
@@ -209,15 +216,15 @@ const DeclarationForm = () => {
           </span>
           <div className="flex items-center space-x-2">
             {formData.newTaxRegime && (
-              <button
+              <span
                 onClick={(e) => {
                   e.stopPropagation();
                   clearTaxRegime();
                 }}
-                className="p-1 rounded-full hover:bg-blue-200 transition-colors duration-200"
+                className="p-1 rounded-full hover:bg-blue-200 transition-colors duration-200 cursor-pointer"
               >
                 <FaTimes className="w-3 h-3 text-blue-500" />
-              </button>
+              </span>
             )}
             <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
               showTaxRegimeDropdown ? 'rotate-180' : ''
@@ -273,10 +280,38 @@ const DeclarationForm = () => {
   };
 
 
-    const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    // Handle form submission logic here
+    
+    // Basic validation
+    if (!formData.employeeName || !formData.designation || !formData.dateOfJoining || !formData.gender) {
+      safeToast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!formData.signature || !formData.name) {
+      safeToast.error('Please complete the declaration section');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const result = await dispatch(postTaxDeclarationAction(formData));
+      
+      if (result.success) {
+        safeToast.success('Tax declaration submitted successfully!');
+        // Reset form or redirect as needed
+        console.log('Declaration submitted successfully:', result.data);
+      } else {
+        safeToast.error(result.error || 'Failed to submit declaration');
+      }
+    } catch (error) {
+      console.error('Error submitting declaration:', error);
+      safeToast.error('An error occurred while submitting the declaration');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -469,6 +504,14 @@ const DeclarationForm = () => {
                       onChange={(e) => handleInputChange('rentChanges', e.target.value)}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Changes in rent amount, if any"
+                    />
+                    
+                    <input
+                      type="text"
+                      value={formData.landlordName}
+                      onChange={(e) => handleInputChange('landlordName', e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Landlord Name"
                     />
                     
                     <input
@@ -1302,10 +1345,15 @@ const DeclarationForm = () => {
            <div className="flex justify-end pt-6 border-t border-gray-200">
              <button
                type="submit"
-               className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+               disabled={isSubmitting || loading}
+               className={`px-8 py-3 rounded-lg transition-colors flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${
+                 isSubmitting || loading
+                   ? 'bg-gray-400 cursor-not-allowed'
+                   : 'bg-blue-600 hover:bg-blue-700'
+               } text-white`}
              >
                <FaSave />
-               <span>Save Declaration</span>
+               <span>{isSubmitting || loading ? 'Submitting...' : 'Save Declaration'}</span>
              </button>
            </div>
          </>

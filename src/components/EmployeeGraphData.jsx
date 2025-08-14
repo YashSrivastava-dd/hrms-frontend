@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -44,18 +44,40 @@ function EmployeeGraphData() {
         dispatch(getGraphDataForEmployeeAction());
     }, [])
 
-    // Navigation function - Using page reload to ensure Sidebar picks up changes
+    // Navigation function - Safari-compatible version
     const navigateToScreen = (screen) => {
-        localStorage.setItem("selectedTag", screen);
-        
-        // Dispatch a custom event to notify the Sidebar component
-        const navigationEvent = new CustomEvent('navigationChange', {
-            detail: { selectedTag: screen }
-        });
-        window.dispatchEvent(navigationEvent);
-        
-        // Force a page reload to ensure the Sidebar picks up the change
-        window.location.reload();
+        try {
+            localStorage.setItem("selectedTag", screen);
+            
+            // Safari-compatible event dispatch
+            if (typeof window !== 'undefined' && window.dispatchEvent) {
+                try {
+                    const navigationEvent = new CustomEvent('navigationChange', {
+                        detail: { selectedTag: screen }
+                    });
+                    window.dispatchEvent(navigationEvent);
+                } catch (error) {
+                    console.warn('CustomEvent not supported, using fallback:', error);
+                    // Fallback for older Safari versions
+                    const event = document.createEvent('CustomEvent');
+                    event.initCustomEvent('navigationChange', true, true, { selectedTag: screen });
+                    window.dispatchEvent(event);
+                }
+            }
+            
+            // Safari-safe page reload with delay
+            setTimeout(() => {
+                try {
+                    if (typeof window !== 'undefined' && window.location) {
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    console.warn('Page reload failed:', error);
+                }
+            }, 100);
+        } catch (error) {
+            console.error('Navigation error:', error);
+        }
     };
 
     const handleDownloadReport = () => {
@@ -71,12 +93,32 @@ function EmployeeGraphData() {
         navigateToScreen('payslipAndPayRole');
     };
 
-    const barData = data?.data?.map(item => ({
-        month: item.duration,
-        presentCount: item.presentCount,
-        absentCount: item.absentCount,
-        totalCount: item.presentCount + item.absentCount,
-    })) || [];
+    const barData = useMemo(() => {
+        try {
+            if (!data?.data || !Array.isArray(data.data)) {
+                return [];
+            }
+            
+            return data.data.map(item => {
+                if (!item || typeof item !== 'object') {
+                    return null;
+                }
+                
+                const presentCount = Number(item.presentCount) || 0;
+                const absentCount = Number(item.absentCount) || 0;
+                
+                return {
+                    month: item.duration || 'Unknown',
+                    presentCount,
+                    absentCount,
+                    totalCount: presentCount + absentCount,
+                };
+            }).filter(Boolean); // Remove null entries
+        } catch (error) {
+            console.warn('Error processing bar data:', error);
+            return [];
+        }
+    }, [data]);
 
     const pieData = [
         { name: "Base Salary", value: 45, color: "#6366f1", icon: "💰" },
@@ -113,10 +155,34 @@ function EmployeeGraphData() {
         return null;
     };
 
-    // Calculate summary statistics
-    const totalPresent = barData.reduce((sum, item) => sum + item.presentCount, 0);
-    const totalAbsent = barData.reduce((sum, item) => sum + item.absentCount, 0);
-    const attendanceRate = totalPresent + totalAbsent > 0 ? ((totalPresent / (totalPresent + totalAbsent)) * 100).toFixed(1) : 0;
+    // Calculate summary statistics with safe fallbacks
+    const { totalPresent, totalAbsent, attendanceRate } = useMemo(() => {
+        try {
+            if (!Array.isArray(barData) || barData.length === 0) {
+                return { totalPresent: 0, totalAbsent: 0, attendanceRate: '0.0' };
+            }
+            
+            const present = barData.reduce((sum, item) => {
+                return sum + (Number(item?.presentCount) || 0);
+            }, 0);
+            
+            const absent = barData.reduce((sum, item) => {
+                return sum + (Number(item?.absentCount) || 0);
+            }, 0);
+            
+            const total = present + absent;
+            const rate = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
+            
+            return {
+                totalPresent: present,
+                totalAbsent: absent,
+                attendanceRate: rate
+            };
+        } catch (error) {
+            console.warn('Error calculating attendance statistics:', error);
+            return { totalPresent: 0, totalAbsent: 0, attendanceRate: '0.0' };
+        }
+    }, [barData]);
 
     return (
         <div className="space-y-6 sm:space-y-8">

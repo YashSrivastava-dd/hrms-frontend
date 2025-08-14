@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {  useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { safeGet, safeGetLocalStorage, safeSetLocalStorage } from "../utils/safariHelpers";
 
 import Dashboard from "./Dashboard";
 import Profile from "./Profile";
@@ -16,22 +17,27 @@ import Announcement from "./Announcement";
 import EmployeePayroleTable from "./EmployeePayroleTabel";
 import EmployeeLeaveStatus from "./EmployeeLeaveStatus";
 import DeclarationForm from "./DeclarationForm";
+import TaxDeclarationManager from "./TaxDeclarationManager";
 import Finance from "./Finance/Finance";
 import Footer from "./Footer";
 
 const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   const navigate = useNavigate();
-  const { data } = useSelector((state) => state.userData);
-  const userType = data?.data?.role;
+  const { data, loading, error } = useSelector((state) => state.userData);
+  
+  // Safely extract user data with fallbacks using Safari-compatible helpers
+  const userData = safeGet(data, 'data', {});
+  const userType = safeGet(userData, 'role', null);
   const [reloadHandel, setReloadHandel] = useState(false);
   const [selectedTag, setSelectedTag] = useState(
-    localStorage.getItem("selectedTag") || "dashboard"
+    safeGetLocalStorage("selectedTag", "dashboard")
   );
   
   // Draggable sidebar state
-  const [sidebarWidth, setSidebarWidth] = useState(
-    parseInt(localStorage.getItem("sidebarWidth")) || 288 // 72 * 4 = 288px (w-72)
-  );
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = safeGetLocalStorage("sidebarWidth", "288");
+    return parseInt(saved) || 288; // 72 * 4 = 288px (w-72)
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const sidebarRef = useRef(null);
@@ -39,12 +45,27 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
 
   useEffect(() => {
     // Make sure data is fetched whenever the selectedTag changes
-    localStorage.setItem("selectedTag", selectedTag);
+    safeSetLocalStorage("selectedTag", selectedTag);
   }, [selectedTag]);
+
+  // Listen for navigation changes from other components
+  useEffect(() => {
+    const handleNavigationChange = (event) => {
+      const { tag } = event.detail;
+      console.log('Sidebar: Received navigation change event:', tag);
+      setSelectedTag(tag);
+      safeSetLocalStorage("selectedTag", tag);
+    };
+
+    window.addEventListener('navigationChange', handleNavigationChange);
+    return () => {
+      window.removeEventListener('navigationChange', handleNavigationChange);
+    };
+  }, []);
 
   useEffect(() => {
     // Save sidebar width to localStorage
-    localStorage.setItem("sidebarWidth", sidebarWidth.toString());
+    safeSetLocalStorage("sidebarWidth", sidebarWidth.toString());
   }, [sidebarWidth]);
 
   // Check if mobile
@@ -99,12 +120,16 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   }, [isDragging]);
 
   const handleNavigation = (tag) => {
+    // Allow dashboard navigation even without user data (it will load the data)
+    // For other sections, we can still navigate but show loading states
+    console.log('Navigating to:', tag, 'User type:', userType);
+    
     setSelectedTag(tag);
     // Close sidebar on mobile when navigation occurs
     if (isMobile) {
       onToggleSidebar();
     }
-    localStorage.setItem("selectedTag", tag);
+    safeSetLocalStorage("selectedTag", tag);
     if (tag === 'viewByEmployee') {
       // Don't reload, just navigate to avoid page refresh
       return;
@@ -170,7 +195,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
-              <p className="text-sm text-gray-600">{userType || 'User'}</p>
+              <p className="text-sm text-gray-600">{userType || 'Loading...'}</p>
             </div>
           </div>
         </div>
@@ -200,7 +225,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
-              <p className="text-sm text-gray-600">{userType || 'User'}</p>
+              <p className="text-sm text-gray-600">{userType || 'Loading...'}</p>
             </div>
           </div>
         </div>
@@ -330,6 +355,13 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               onClick={() => handleNavigation("declarationForm")}
             />
             
+            <SidebarLink
+              label="Tax Declarations"
+              icon="📄"
+              isSelected={selectedTag === "taxDeclarations"}
+              onClick={() => handleNavigation("taxDeclarations")}
+            />
+            
                          <SidebarLink
                label="Issued Documents"
                icon="📑"
@@ -410,24 +442,55 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         }}
       >
         {/* Page Content */}
-        <div style={{ flex: '1 1 auto', padding: '1rem 1.5rem' }}>
-          {selectedTag === "dashboard" && <Dashboard reloadHandel={reloadHandel} />}
-          {selectedTag === "profile" && <Profile />}
-          {selectedTag === "allEmployees" && <EmployeeTable selectedTag={selectedTag} reloadHandel={reloadHandel}/>}
-          {selectedTag === "attendance" && <EmployeesAttendanceData />} 
-          {selectedTag === "anouncment" && <Announcement reloadHandel={reloadHandel}/>}
-          {selectedTag === "employeeLeaveStatus" && <EmployeeLeaveStatus reloadHandel={reloadHandel}/>}
-          {selectedTag === "employeeHolidays" && <EmployeeHolidays />}
-          {selectedTag === "viewByEmployee" && <TeammatesProfile selectedTag={selectedTag} />}
-          {selectedTag === "payslipAndPayRole" && <EmployeePayroleTable />}
-          {selectedTag === "declarationForm" && <DeclarationForm />}
-          {selectedTag === "leaves" && <EmployessLeave />}
-          {selectedTag === "managerApproval" && <ManagerApproval />}
-          {selectedTag === "taskRecords" && <TotalTask />}
-          {selectedTag === "hrmanual" && <ComingSoon />}
-          {selectedTag === "coc" && <ComingSoon />}
-          {selectedTag === "issuedDoc" && <MainDocuent />}
-          {selectedTag === "finance" && <Finance />}
+        <div style={{ 
+          flex: '1 1 auto', 
+          padding: selectedTag === 'taxDeclarations' ? '0' : '1rem 1.5rem' 
+        }}>
+          {error ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h2 className="text-xl font-semibold text-red-800 mb-2">Error Loading Data</h2>
+                <p className="text-red-600 mb-4">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {selectedTag === "dashboard" && <Dashboard reloadHandel={reloadHandel} />}
+              {selectedTag === "profile" && (
+                !userType ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                      <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading Profile...</h2>
+                    </div>
+                  </div>
+                ) : <Profile />
+              )}
+              {selectedTag === "allEmployees" && <EmployeeTable selectedTag={selectedTag} reloadHandel={reloadHandel}/>}
+              {selectedTag === "attendance" && <EmployeesAttendanceData />} 
+              {selectedTag === "anouncment" && <Announcement reloadHandel={reloadHandel}/>}
+              {selectedTag === "employeeLeaveStatus" && <EmployeeLeaveStatus reloadHandel={reloadHandel}/>}
+              {selectedTag === "employeeHolidays" && <EmployeeHolidays />}
+              {selectedTag === "viewByEmployee" && <TeammatesProfile selectedTag={selectedTag} />}
+              {selectedTag === "payslipAndPayRole" && <EmployeePayroleTable />}
+              {selectedTag === "declarationForm" && <DeclarationForm />}
+              {selectedTag === "taxDeclarations" && <TaxDeclarationManager />}
+              {selectedTag === "leaves" && <EmployessLeave />}
+              {selectedTag === "managerApproval" && <ManagerApproval />}
+              {selectedTag === "taskRecords" && <TotalTask />}
+              {selectedTag === "hrmanual" && <ComingSoon />}
+              {selectedTag === "coc" && <ComingSoon />}
+              {selectedTag === "issuedDoc" && <MainDocuent />}
+              {selectedTag === "finance" && <Finance />}
+            </>
+          )}
         </div>
         
         {/* Global Footer */}

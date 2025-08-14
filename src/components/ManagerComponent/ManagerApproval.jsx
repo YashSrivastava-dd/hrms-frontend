@@ -19,26 +19,61 @@ import "react-toastify/dist/ReactToastify.css";
 import { Link } from "react-router-dom";
 import { RxCross2 } from "react-icons/rx";
 import safeToast from "../../utils/safeToast";
+import { safeGet, safeIsArray } from "../../utils/safariHelpers";
 
 const ManagerApproval = () => {
   const dispatch = useDispatch();
   
-  // Redux selectors with memoization
-  const { loading, data, error: leaveError } = useSelector((state) => state.managerLeaveApprove);
-  const { data: compOff, error: compOffError } = useSelector((state) => state.compoffApprove);
-  const { data: vendorData, error: vendorError } = useSelector((state) => state.vendorLogsData);
-  const { data: dataa } = useSelector((state) => state.userData);
+  // Redux selectors with memoization and safe fallbacks
+  const { loading, data, error: leaveError } = useSelector((state) => state.managerLeaveApprove || {});
+  const { data: compOff, error: compOffError } = useSelector((state) => state.compoffApprove || {});
+  const { data: vendorData, error: vendorError } = useSelector((state) => state.vendorLogsData || {});
+  const { data: dataa } = useSelector((state) => state.userData || {});
   
-  // Memoized data extraction
-  const vendorDataa = useMemo(() => vendorData?.data || [], [vendorData?.data]);
-  const leaveReqData = useMemo(() => data?.data || [], [data?.data]);
-  const compOffData = useMemo(() => compOff?.data || [], [compOff?.data]);
-  const userDataList = useMemo(() => dataa?.data || [], [dataa?.data]);
+  // Memoized data extraction with Safari-safe helpers
+  const vendorDataa = useMemo(() => {
+    try {
+      const result = safeGet(vendorData, 'data', []);
+      return safeIsArray(result) ? result : [];
+    } catch (error) {
+      console.warn('Error accessing vendor data:', error);
+      return [];
+    }
+  }, [vendorData]);
   
-  // Memoized total records
-  const totalLeaveRecords = useMemo(() => data?.totalRecords || 0, [data?.totalRecords]);
-  const totalCompOffRecords = useMemo(() => compOff?.totalRecords || 0, [compOff?.totalRecords]);
-  const totalVendorRecords = useMemo(() => vendorData?.totalRecords || 0, [vendorData?.totalRecords]);
+  const leaveReqData = useMemo(() => {
+    try {
+      const result = safeGet(data, 'data', []);
+      return safeIsArray(result) ? result : [];
+    } catch (error) {
+      console.warn('Error accessing leave request data:', error);
+      return [];
+    }
+  }, [data]);
+  
+  const compOffData = useMemo(() => {
+    try {
+      const result = safeGet(compOff, 'data', []);
+      return safeIsArray(result) ? result : [];
+    } catch (error) {
+      console.warn('Error accessing comp-off data:', error);
+      return [];
+    }
+  }, [compOff]);
+  
+  const userDataList = useMemo(() => {
+    try {
+      return safeGet(dataa, 'data', {});
+    } catch (error) {
+      console.warn('Error accessing user data:', error);
+      return {};
+    }
+  }, [dataa]);
+  
+  // Memoized total records with Safari-safe access
+  const totalLeaveRecords = useMemo(() => safeGet(data, 'totalRecords', 0), [data]);
+  const totalCompOffRecords = useMemo(() => safeGet(compOff, 'totalRecords', 0), [compOff]);
+  const totalVendorRecords = useMemo(() => safeGet(vendorData, 'totalRecords', 0), [vendorData]);
   
   // State management
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +86,6 @@ const ManagerApproval = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [currentRejectItem, setCurrentRejectItem] = useState("");
   const [openDropdown, setOpenDropdown] = useState(null);
-  const [statusFilterDropdownOpen, setStatusFilterDropdownOpen] = useState(false);
   const [goToPage, setGoToPage] = useState("");
   const [reasonPopup, setReasonPopup] = useState({ isOpen: false, reason: "", title: "" });
   
@@ -67,11 +101,12 @@ const ManagerApproval = () => {
   // Custom Status Filter Dropdown Component
   const StatusFilterDropdown = useCallback(({ value, onChange }) => {
     const dropdownRef = useRef(null);
+    const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
       const handleClickOutside = (event) => {
         if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setStatusFilterDropdownOpen(false);
+          setIsOpen(false);
         }
       };
 
@@ -95,14 +130,14 @@ const ManagerApproval = () => {
 
     const handleOptionClick = useCallback((optionValue) => {
       onChange(optionValue);
-      setStatusFilterDropdownOpen(false);
+      setIsOpen(false);
     }, [onChange]);
 
     return (
-      <div className="relative" ref={dropdownRef} style={{ zIndex: statusFilterDropdownOpen ? 9999 : 'auto' }}>
+      <div className="relative" ref={dropdownRef} style={{ zIndex: isOpen ? 9999 : 'auto' }}>
         <button
           type="button"
-          onClick={() => setStatusFilterDropdownOpen(!statusFilterDropdownOpen)}
+          onClick={() => setIsOpen(!isOpen)}
           className="px-4 py-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 flex items-center justify-between min-w-[140px] cursor-pointer"
         >
           <span className={value === "" ? "text-gray-500" : "text-gray-900"}>
@@ -110,7 +145,7 @@ const ManagerApproval = () => {
           </span>
           <svg
             className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-              statusFilterDropdownOpen ? 'rotate-180' : ''
+              isOpen ? 'rotate-180' : ''
             }`}
             fill="none"
             stroke="currentColor"
@@ -120,7 +155,7 @@ const ManagerApproval = () => {
           </svg>
         </button>
         
-        {statusFilterDropdownOpen && (
+        {isOpen && (
           <div 
             className="absolute right-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg"
             style={{ 
@@ -338,45 +373,76 @@ const ManagerApproval = () => {
     );
   }, [openDropdown]);
 
-  // Memoized data filtering and processing
+  // Memoized data filtering and processing with error handling
   const filteredData = useMemo(() => {
-    if (activeTab === "leave") return leaveReqData;
-    if (activeTab === "revert") return leaveReqData;
-    if (activeTab === 'vendor') return vendorDataa;
-    if (activeTab === "compoff") {
-      return compOffData;
+    try {
+      if (activeTab === "leave") return Array.isArray(leaveReqData) ? leaveReqData : [];
+      if (activeTab === "revert") return Array.isArray(leaveReqData) ? leaveReqData : [];
+      if (activeTab === 'vendor') return Array.isArray(vendorDataa) ? vendorDataa : [];
+      if (activeTab === "compoff") return Array.isArray(compOffData) ? compOffData : [];
+      return [];
+    } catch (error) {
+      console.warn('Error filtering data:', error);
+      return [];
     }
-    return [];
   }, [activeTab, leaveReqData, vendorDataa, compOffData]);
 
-  // Memoized data processing
+  // Memoized data processing with error handling
   const processedData = useMemo(() => {
-    if (!filteredData || filteredData.length === 0) return [];
-    
-    let processed = filteredData;
-    
-    // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      processed = processed.filter(item =>
-        (item?.employeeInfo?.employeeName?.toLowerCase() || '').includes(searchLower) ||
-        (item?.reason?.toLowerCase() || '').includes(searchLower)
-      );
+    try {
+      if (!filteredData || !Array.isArray(filteredData) || filteredData.length === 0) return [];
+      
+      let processed = [...filteredData]; // Create a copy to avoid mutations
+      
+      // Apply search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        processed = processed.filter(item => {
+          try {
+            const employeeName = item?.employeeInfo?.employeeName;
+            const reason = item?.reason;
+            return (
+              (employeeName && typeof employeeName === 'string' && employeeName.toLowerCase().includes(searchLower)) ||
+              (reason && typeof reason === 'string' && reason.toLowerCase().includes(searchLower))
+            );
+          } catch (filterError) {
+            console.warn('Error filtering item:', filterError, item);
+            return false;
+          }
+        });
+      }
+      
+      // Apply status filter
+      if (filterStatus) {
+        processed = processed.filter(item => {
+          try {
+            return item?.status === filterStatus;
+          } catch (filterError) {
+            console.warn('Error filtering by status:', filterError, item);
+            return false;
+          }
+        });
+      }
+      
+      // Apply leave type filter
+      if (filterLeaveType) {
+        processed = processed.filter(item => {
+          try {
+            const leaveType = item?.leaveType;
+            return leaveType && typeof leaveType === 'string' && 
+                   leaveType.toLowerCase() === filterLeaveType.toLowerCase();
+          } catch (filterError) {
+            console.warn('Error filtering by leave type:', filterError, item);
+            return false;
+          }
+        });
+      }
+      
+      return processed;
+    } catch (error) {
+      console.warn('Error processing data:', error);
+      return [];
     }
-    
-    // Apply status filter
-    if (filterStatus) {
-      processed = processed.filter(item => item?.status === filterStatus);
-    }
-    
-    // Apply leave type filter
-    if (filterLeaveType) {
-      processed = processed.filter(item => 
-        item?.leaveType?.toLowerCase() === filterLeaveType.toLowerCase()
-      );
-    }
-    
-    return processed;
   }, [filteredData, searchTerm, filterStatus, filterLeaveType, activeTab]);
 
   // Memoized data checks

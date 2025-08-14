@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { FaUsers, FaUserPlus, FaUserTimes, FaBriefcase, FaClock, FaBullhorn, FaChevronDown, FaChevronUp, FaTimes, FaExpandAlt, FaCompressAlt, FaClock as FaClockIcon } from "react-icons/fa";
 import HrAdminDashboard from "./HrAdminDashboard";
+import CeoDashboard from "./CeoDashboard";
 import safeToast from "../utils/safeToast";
 
 // Memoized SkeletonCard component
@@ -470,9 +471,9 @@ const Dashboard = ({ reloadHandel }) => {
   }, []);
   
   useEffect(() => {
-    dispatch(getUserDataAction());
+    // Don't call getUserDataAction here - it's already called in App.js
     dispatch(getAnnouncementDataAction())
-  }, []);
+  }, [dispatch]);
 
   // Cleanup toasts on component unmount
   useEffect(() => {
@@ -485,11 +486,11 @@ const Dashboard = ({ reloadHandel }) => {
   return (
     <div className="w-full flex flex-col min-h-full overflow-x-hidden">
       <main className="space-y-6 flex-1">
-        {loading ? (
-          <div className="flex justify-center items-center h-screen">
+        {loading && !userDataList ? (
+          <div className="flex justify-center items-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 sm:h-24 sm:w-24 md:h-32 md:w-32 border-b-4 border-blue-500 mx-auto"></div>
-              <p className="mt-4 text-base sm:text-lg text-gray-600">Loading...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading dashboard...</p>
             </div>
           </div>
         ) : (
@@ -546,25 +547,13 @@ const Dashboard = ({ reloadHandel }) => {
                   )}
                 </div>
               </>
-            ) : userDataList?.role !== "HR-Admin" ? (
+            ) : userDataList?.role === "Super-Admin" ? (
               <>
-                <div>
-                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-6">Employee's</h1>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div className="p-4 sm:p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
-                      <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 text-gray-700">Total Employees</h2>
-                      <p className="text-lg sm:text-xl md:text-2xl font-semibold text-blue-600">{attendanceLogs?.totalEmployees || 0}</p>
-                    </div>
-                    <div className="p-4 sm:p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
-                      <h2 className="text-base sm:text-lg md:text-xl font-bold mb-2 text-gray-700">Present Employees</h2>
-                      <p className="text-lg sm:text-xl md:text-2xl font-semibold text-green-600">{attendanceLogs?.totalPresent || 0}</p>
-                    </div>
-                  </div>
-                </div>
+                <CeoDashboard />
               </>
             ) : null}
 
-            {userDataList?.role !== "HR-Admin" && (
+            {userDataList?.role !== "HR-Admin" && userDataList?.role !== "Super-Admin" && (
               <>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4">Monthly Attendance</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
@@ -611,7 +600,7 @@ const Dashboard = ({ reloadHandel }) => {
             )}
 
             {/* Announcements Section - Moved to Bottom */}
-            {userDataList?.role !== "HR-Admin" && (
+            {userDataList?.role !== "HR-Admin" && userDataList?.role !== "Super-Admin" && (
               <AnnouncementsSection announcements={announcementData?.data || []} />
             )}
 

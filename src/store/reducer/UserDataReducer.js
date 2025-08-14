@@ -32,6 +32,12 @@ import {
   GET_EMPLOYEE_LEAVE_COUNT_FAIL,
   GET_EMPLOYEE_LEAVE_COUNT_REQUEST,
   GET_EMPLOYEE_LEAVE_COUNT_SUCCESS,
+  POST_TAX_DECLARATION_REQUEST,
+  POST_TAX_DECLARATION_SUCCESS,
+  POST_TAX_DECLARATION_FAIL,
+  GET_TAX_DECLARATIONS_REQUEST,
+  GET_TAX_DECLARATIONS_SUCCESS,
+  GET_TAX_DECLARATIONS_FAIL,
   GET_EMPLOYEE_LEAVE_STATUS_FAIL,
   GET_EMPLOYEE_LEAVE_STATUS_REQUEST,
   GET_EMPLOYEE_LEAVE_STATUS_SUCCESS,
@@ -1081,6 +1087,72 @@ export const postVendorMeetingReducer = (state = initialState, action) => {
       };
 
     case POST_VENDOR_MEETING_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Tax Declaration Reducer
+export const postTaxDeclarationReducer = (
+  state = { data: null, loading: false, error: null },
+  action
+) => {
+  switch (action.type) {
+    case POST_TAX_DECLARATION_REQUEST:
+      return {
+        ...state,
+        loading: true,
+        error: null,
+      };
+
+    case POST_TAX_DECLARATION_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case POST_TAX_DECLARATION_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Get Tax Declarations Reducer
+export const getTaxDeclarationsReducer = (
+  state = { data: null, loading: false, error: null },
+  action
+) => {
+  switch (action.type) {
+    case GET_TAX_DECLARATIONS_REQUEST:
+      return {
+        ...state,
+        loading: true,
+        error: null,
+      };
+
+    case GET_TAX_DECLARATIONS_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case GET_TAX_DECLARATIONS_FAIL:
       return {
         ...state,
         loading: false,
