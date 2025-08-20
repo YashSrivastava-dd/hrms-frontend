@@ -7,6 +7,7 @@ import {
   DELETE_LEAVE_REQUEST_FAIL,
   DELETE_LEAVE_REQUEST_REQUEST,
   DELETE_LEAVE_REQUEST_SUCCESS,
+  RESET_DELETE_LEAVE_STATE,
   GET_ATTENDANCE_LOGS_OF_EMPLOYEES_FAIL,
   GET_ATTENDANCE_LOGS_OF_EMPLOYEES_REQUEST,
   GET_ATTENDANCE_LOGS_OF_EMPLOYEES_SUCCESS,
@@ -104,6 +105,7 @@ import {
   POST_REVERT_LEAVE_REQUEST,
   POST_REVERT_LEAVE_SUCCESS,
   POST_REVERT_LEAVE_FAIL,
+  RESET_REVERT_LEAVE_STATE,
   PUT_REVERT_LEAVE_BY_MANAGER_FAIL,
   PUT_REVERT_LEAVE_BY_MANAGER_SUCCESS,
   PUT_REVERT_LEAVE_BY_MANAGER_REQUEST,
@@ -131,6 +133,7 @@ import {
   POST_VENDOR_MEETING_SUCCESS,
   POST_VENDOR_MEETING_FAIL,
   POST_VENDOR_MEETING_REQUEST,
+  RESET_VENDOR_MEETING_STATE,
   GET_VENDOR_LOGS_REQUEST,
   GET_VENDOR_LOGS_SUCCESS,
   GET_VENDOR_LOGS_FAIL,
@@ -2144,7 +2147,6 @@ export const getPayrollAndPayslipAction = () => async (dispatch, getState) => {
 export const postVendorMeetingAction =
   ({ leaveType, leaveStartDate, reason, duration }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = localStorage.getItem("employeId");
     // If token does not exist, do nothing or handle the case
@@ -2154,9 +2156,6 @@ export const postVendorMeetingAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: POST_VENDOR_MEETING_REQUEST });
@@ -2188,10 +2187,24 @@ export const postVendorMeetingAction =
     }
   };
 
+// Reset vendor meeting state
+export const resetVendorMeetingAction = () => ({
+  type: RESET_VENDOR_MEETING_STATE
+});
+
+// Reset delete leave state
+export const resetDeleteLeaveAction = () => ({
+  type: RESET_DELETE_LEAVE_STATE
+});
+
+// Reset revert leave state
+export const resetRevertLeaveAction = () => ({
+  type: RESET_REVERT_LEAVE_STATE
+});
+
 export const putVendorStatusDataAction =
   ({ status, id }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId=localStorage.getItem('employeId')
     // If token does not exist, do nothing or handle the case
@@ -2201,9 +2214,6 @@ export const putVendorStatusDataAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: PUT_VENDOR_STATUS_REQUEST });

@@ -11,7 +11,7 @@ import loginImage3 from "../assets/Image/loginavatar3.jpg";
 import ddHealthcare from "../assets/Icon/ddHealthcare.png";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUserDataAction } from "../store/action/userLogin";
-import { Bounce, ToastContainer, toast } from 'react-toastify';
+import { Bounce, toast } from 'react-toastify';
 import { FaEyeSlash } from "react-icons/fa6";
 import { IoEyeSharp } from "react-icons/io5";
 const Login = () => {

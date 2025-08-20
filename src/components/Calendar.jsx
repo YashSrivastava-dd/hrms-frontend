@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { MdChevronLeft, MdChevronRight, MdToday, MdEvent } from "react-icons/md";
 import { FaChevronDown, FaTimes } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
-import { getCalenderLogsApiAction, postApplyCompOffLeaveAction, postApplyRegularizationAction, postVendorMeetingAction, postApplyLeaveByEmployeeAction, postApplyCompoffLeaveAction } from "../store/action/userDataAction";
+import { getCalenderLogsApiAction, postApplyCompOffLeaveAction, postApplyRegularizationAction, postVendorMeetingAction, postApplyLeaveByEmployeeAction, postApplyCompoffLeaveAction, resetVendorMeetingAction } from "../store/action/userDataAction";
+import { toast } from "react-toastify";
 import safeToast from "../utils/safeToast";
 
 // Constants
@@ -26,20 +27,7 @@ const LEAVE_TYPE_MAP = {
   'bereavementLeave': 'BL'
 };
 
-const TOAST_CONFIG = {
-  autoClose: 1500,
-  hideProgressBar: false,
-  closeOnClick: true,
-  pauseOnHover: true,
-  draggable: true,
-  progress: undefined,
-  theme: "colored",
- // transition: Bounce,
-  toastId: undefined, // Let react-toastify generate unique IDs
-  onClose: () => {
-    // Safe cleanup when toast closes
-  }
-};
+
 
 function Calendar({ employeeId, userRole, onDaySelect }) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -78,6 +66,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const { data: dataa } = useSelector((state) => state.userData);
   const { data: data1, error: error1 } = useSelector((state) => state.regularizeReducer);
   const { data: vendorMeetingData, error: vendorMeetingError } = useSelector((state) => state.vendorMeetingData);
+
+
 
   const dayLogs = dataaa?.data;
   const userDataList = dataa?.data || [];
@@ -159,7 +149,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     if (data?.message && !processedMessagesRef.current.has(data.message)) {
       hasProcessedMessage = true;
       processedMessagesRef.current.add(data.message);
-      safeToast.success(data.message, TOAST_CONFIG);
+                  safeToast.success(data.message);
       // Close modal and clear form data
       setModalOpen(false);
       // Clear form data inline to avoid dependency issues
@@ -184,7 +174,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     if (data1?.message && !processedMessagesRef.current.has(data1.message)) {
       hasProcessedMessage = true;
       processedMessagesRef.current.add(data1.message);
-      safeToast.success(data1.message, TOAST_CONFIG);
+                  safeToast.success(data1.message);
       // Close modal and clear form data
       setModalOpen(false);
       // Clear form data inline to avoid dependency issues
@@ -207,12 +197,16 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       return;
     }
     if (vendorMeetingData?.message && !processedMessagesRef.current.has(vendorMeetingData.message)) {
-      hasProcessedMessage = true;
       processedMessagesRef.current.add(vendorMeetingData.message);
-      safeToast.success(vendorMeetingData.message, TOAST_CONFIG);
+      
+      // Show success toast once
+      toast.success(vendorMeetingData.message);
+      
+      // Clear vendor meeting state to prevent showing toast on other pages
+      dispatch(resetVendorMeetingAction());
+      
       // Close modal and clear form data
       setModalOpen(false);
-      // Clear form data inline to avoid dependency issues
       setSelectedDay(null);
       setReason("");
       setSelectType("");
@@ -229,19 +223,25 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setShowCompOffDurationError(false);
       setShowVendorMeetingDurationError(false);
       setShowReasonError(false);
+      
+      // Refresh calendar data
+      if (employeeId) {
+        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
+      }
+      
       return;
     }
-  }, [data?.message, data1?.message, vendorMeetingData?.message]);
+  }, [data?.message, data1?.message, vendorMeetingData?.message, dispatch, employeeId, monthYear]);
 
   useEffect(() => {
     if (error1) {
-      safeToast.error(error1, TOAST_CONFIG);
+                  safeToast.error(error1);
     }
   }, [error1]);
 
   useEffect(() => {
     if (vendorMeetingError) {
-      safeToast.error(vendorMeetingError, TOAST_CONFIG);
+                  safeToast.error(vendorMeetingError);
     }
   }, [vendorMeetingError]);
 
@@ -394,8 +394,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setModalOpen(true);
     } else {
       safeToast.error(
-        "You can only apply Short Leave and Regularization for dates within the current month up to today.",
-        TOAST_CONFIG
+        "You can only apply Short Leave and Regularization for dates within the current month up to today."
       );
     }
   }, [currentYear, currentMonth, dayLogs, onDaySelect]);
@@ -410,7 +409,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setShowReasonError(false);
     
     if (!actionType) {
-      safeToast.error("Please select an action (Apply Leave or Raise Comp-Off)", TOAST_CONFIG);
+      safeToast.error("Please select an action (Apply Leave or Raise Comp-Off)");
       return;
     }
     

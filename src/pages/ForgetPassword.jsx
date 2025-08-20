@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import ddHealthcare from "../assets/Icon/ddHealthcare.png";
 import { postSendOtpWithEmailAction } from "../store/action/userDataAction";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { Bounce, toast } from "react-toastify";
 
 const ForgetPassword = () => {
     const [email, setEmail] = useState("");

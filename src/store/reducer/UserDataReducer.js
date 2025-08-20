@@ -5,6 +5,7 @@ import {
   DELETE_LEAVE_REQUEST_FAIL,
   DELETE_LEAVE_REQUEST_REQUEST,
   DELETE_LEAVE_REQUEST_SUCCESS,
+  RESET_DELETE_LEAVE_STATE,
   GET_ALL_EMPLOYEE_ATTENDANCE_FAIL,
   GET_ALL_EMPLOYEE_ATTENDANCE_REQUEST,
   GET_ALL_EMPLOYEE_ATTENDANCE_SUCCESS,
@@ -107,9 +108,11 @@ import {
   POST_REVERT_LEAVE_FAIL,
   POST_REVERT_LEAVE_REQUEST,
   POST_REVERT_LEAVE_SUCCESS,
+  RESET_REVERT_LEAVE_STATE,
   POST_VENDOR_MEETING_FAIL,
   POST_VENDOR_MEETING_REQUEST,
   POST_VENDOR_MEETING_SUCCESS,
+  RESET_VENDOR_MEETING_STATE,
   POST_OTP_VERIFICATION_FAIL,
   POST_OTP_VERIFICATION_REQUEST,
   POST_OTP_VERIFICATION_SUCCESS,
@@ -391,6 +394,14 @@ export const deleteLeaveRequestReducer = (state = initialState, action) => {
         ...state,
         loading: false,
         error: action.payload,
+      };
+
+    case RESET_DELETE_LEAVE_STATE:
+      return {
+        ...state,
+        data: null,
+        error: null,
+        loading: false,
       };
 
     default:
@@ -996,6 +1007,14 @@ export const postRevertLeaveReducer = (state = initialState, action) => {
         error: action.payload,
       };
 
+    case RESET_REVERT_LEAVE_STATE:
+      return {
+        ...state,
+        data: null,
+        error: null,
+        loading: false,
+      };
+
     default:
       return state;
   }
@@ -1091,6 +1110,14 @@ export const postVendorMeetingReducer = (state = initialState, action) => {
         ...state,
         loading: false,
         error: action.payload,
+      };
+
+    case RESET_VENDOR_MEETING_STATE:
+      return {
+        ...state,
+        data: null,
+        error: null,
+        loading: false,
       };
 
     default:

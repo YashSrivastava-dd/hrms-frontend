@@ -77,17 +77,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             
             // Use a try-catch to prevent toast errors from crashing the app
             try {
-                safeToast.error(errorMessage, {
-                    position: "top-center",
-                    autoClose: 5000,
-                    hideProgressBar: false,
-                    closeOnClick: false,
-                    pauseOnHover: true,
-                    draggable: true,
-                    progress: undefined,
-                    theme: "colored",
-                    transition: Bounce,
-                });
+                safeToast.error(errorMessage);
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }
@@ -110,17 +100,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         if (dataa && dataa?.message) {
             // Use a try-catch to prevent toast errors from crashing the app
             try {
-                safeToast.success(dataa.message, {
-                    position: "top-center",
-                    autoClose: 5000,
-                    hideProgressBar: false,
-                    closeOnClick: false,
-                    pauseOnHover: true,
-                    draggable: true,
-                    progress: undefined,
-                    theme: "colored",
-                    transition: Bounce,
-                });
+                safeToast.success(dataa.message);
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }
@@ -137,17 +117,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         if (medicalReport && medicalReport.location) {  // ✅ Ensure medicalReport is defined
             // Use a try-catch to prevent toast errors from crashing the app
             try {
-                safeToast.success('File Upload Successfully', {
-                    position: "top-center",
-                    autoClose: 5000,
-                    hideProgressBar: false,
-                    closeOnClick: false,
-                    pauseOnHover: true,
-                    draggable: true,
-                    progress: undefined,
-                    theme: "colored",
-                    transition: Bounce,
-                });
+                safeToast.success('File Upload Successfully');
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }

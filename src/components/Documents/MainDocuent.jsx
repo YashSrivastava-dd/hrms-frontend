@@ -72,7 +72,6 @@ const MainDocument = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4">
-      <ToastContainer />
       {selectedComponent === "private" && (
         <PrivateIssueDocuments onBack={() => setSelectedComponent(null)} />
       )}

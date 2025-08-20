@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { deleteLeaveRequestAction, getCompoffDataAction, getEmployeLeaveStatusAction, getUserDataAction, getVendorSingleLogsAction, postrevertLeaveRequest } from "../store/action/userDataAction";
+import { deleteLeaveRequestAction, getCompoffDataAction, getEmployeLeaveStatusAction, getUserDataAction, getVendorSingleLogsAction, postrevertLeaveRequest, resetDeleteLeaveAction, resetRevertLeaveAction } from "../store/action/userDataAction";
 import AddEmployee from "./AddEmployee";
 import { Link } from "react-router-dom";
 import { RxCross2 } from "react-icons/rx";
@@ -12,7 +12,6 @@ const EmployessLeave = () => {
     const { data } = useSelector((state) => state.employeeLeaveStatus);
     const { data: dataa1 } = useSelector((state) => state.compoffData);
     const { data: vendorData } = useSelector((state) => state.singleVendorLogsData);
-    console.log('vendorData', vendorData);
     const { data: dataa } = useSelector((state) => state.deleteLeaveByEmoployee);
     const { data: revertLeaveData, error: revertLeaveError } = useSelector((state) => state.revertLeaveReducer);
     const { data: userDataRaw } = useSelector((state) => state.userData);
@@ -25,6 +24,9 @@ const EmployessLeave = () => {
     const [selectedTab, setSelectedTab] = useState('leave'); // Track the selected tab
     const [currentPage, setCurrentPage] = useState(1); // Start on page 1
     const [itemsPerPage, setItemsPerPage] = useState(10); // Show 10 items per page
+    
+    // Track processed messages to prevent duplicate toasts
+    const processedMessagesRef = useRef(new Set());
 
     const filteredLeaveData = leaveData?.filter(leave => {
         if (filterStatus === 'All') return true;
@@ -70,53 +72,41 @@ const EmployessLeave = () => {
     const [openUndoModel, setOpenUndoModel] = useState(false);
     const [userId, setUserId] = useState('');
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
-    const [hasShownDeleteToast, setHasShownDeleteToast] = useState(false);
 
     const closeModal = () => setOpenUndoModel(false);
     const handelOpenModel = () => setOpenUndoModel(true);
 
     useEffect(() => {
-        if (dataa && !hasShownDeleteToast) {
-            setHasShownDeleteToast(true);
-            safeToast.success(dataa?.message || "Data deleted successfully", {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
+        if (dataa?.message && !processedMessagesRef.current.has(dataa.message)) {
+            processedMessagesRef.current.add(dataa.message);
+            
+            // Show success toast once
+            safeToast.success(dataa.message || "Data deleted successfully");
+            
+            // Clear delete state to prevent showing toast on other pages
+            dispatch(resetDeleteLeaveAction());
             
             // Refresh data after successful delete operation
             setTimeout(() => {
                 dispatch(getEmployeLeaveStatusAction(employeeId));
                 dispatch(getCompoffDataAction());
                 dispatch(getVendorSingleLogsAction());
-                // Reset the flag after data refresh
-                setTimeout(() => setHasShownDeleteToast(false), 1000);
             }, 1000);
             
             return;
         }
-    }, [dataa, dispatch, employeeId, hasShownDeleteToast]);
+    }, [dataa, dispatch, employeeId]);
 
     // Handle revert leave success response
     useEffect(() => {
-        if (revertLeaveData) {
-            safeToast.success(revertLeaveData?.message || "Revert request submitted successfully!", {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
+        if (revertLeaveData?.message && !processedMessagesRef.current.has(revertLeaveData.message)) {
+            processedMessagesRef.current.add(revertLeaveData.message);
+            
+            // Show success toast once
+            safeToast.success(revertLeaveData.message || "Revert request submitted successfully!");
+            
+            // Clear revert leave state to prevent showing toast on other pages
+            dispatch(resetRevertLeaveAction());
             
             // Clear the form
             setLeaveDays('');
@@ -135,17 +125,7 @@ const EmployessLeave = () => {
     // Handle revert leave error response
     useEffect(() => {
         if (revertLeaveError) {
-            safeToast.error(revertLeaveError || "Failed to submit revert request", {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
+            safeToast.error(revertLeaveError || "Failed to submit revert request");
         }
     }, [revertLeaveError]);
 
@@ -161,31 +141,13 @@ const EmployessLeave = () => {
         return () => {
             // Dismiss all toasts when component unmounts to prevent runtime errors
             safeToast.dismiss();
-            setHasShownDeleteToast(false);
         };
     }, []);
-
-    // Reset toast flag when data changes
-    useEffect(() => {
-        if (dataa) {
-            setHasShownDeleteToast(false);
-        }
-    }, [dataa]);
 
     // Handle delete error response
     useEffect(() => {
         if (deleteError) {
-            safeToast.error(deleteError || "Failed to delete request", {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
+            safeToast.error(deleteError || "Failed to delete request");
         }
     }, [deleteError]);
 
@@ -195,17 +157,7 @@ const EmployessLeave = () => {
             await dispatch(deleteLeaveRequestAction({ id: leaveId }));
         } catch (error) {
             console.error('Error deleting leave request:', error);
-            safeToast.error("An error occurred while deleting the request", {
-                position: "top-center",
-                autoClose: 5000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "colored",
-                transition: Bounce,
-            });
+            safeToast.error("An error occurred while deleting the request");
         }
     };
 

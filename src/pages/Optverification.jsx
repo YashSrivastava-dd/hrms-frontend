@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { postOTPVerificationAction, postSendOtpWithEmailAction } from "../store/action/userDataAction";
 import { useDispatch, useSelector } from "react-redux";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { Bounce, toast } from "react-toastify";
 
 const OtpVerification = () => {
   const [otp, setOtp] = useState(new Array(4).fill("")); // State for 6-digit OTP

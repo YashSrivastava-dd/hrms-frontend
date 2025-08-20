@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import { postConfirmPasswordAction } from "../store/action/userDataAction";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { Bounce, toast } from "react-toastify";
 
 const ConfirmPassword = () => {
     const [password, setPassword] = useState({
