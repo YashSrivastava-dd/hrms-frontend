@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { getUserDataAction } from "./store/action/userDataAction";
+import CentralizedToast from "./components/common/CentralizedToast";
 
 // Pages and Components
 import Login from "./pages/Login";
@@ -387,6 +388,7 @@ function App() {
             {/* Fallback route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <CentralizedToast />
         </div>
       </Router>
     </ErrorBoundary>

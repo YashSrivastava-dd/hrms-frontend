@@ -24,7 +24,7 @@ import {
   putVendorStatusDataAction,
   getAnnouncementDataAction
 } from "../store/action/userDataAction";
-import { ToastContainer } from "react-toastify";
+
 import "react-toastify/dist/ReactToastify.css";
 import safeToast from "../utils/safeToast";
 
@@ -315,7 +315,6 @@ function Navbar({ onToggleSidebar }) {
 
   return (
     <>
-      <ToastContainer />
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 w-full">
       {/* Main Navbar */}
       <div className="flex items-center justify-between p-4 bg-white">

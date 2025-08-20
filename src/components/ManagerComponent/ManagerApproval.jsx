@@ -14,7 +14,6 @@ import {
   putVendorStatusDataAction,
   postApplyCompOffLeaveAction,
 } from "../../store/action/userDataAction";
-import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Link } from "react-router-dom";
 import { RxCross2 } from "react-icons/rx";
@@ -1196,7 +1195,6 @@ const ManagerApproval = () => {
   return (
     <>
       <div className="bg-gray-50 min-h-screen">
-        <ToastContainer />
 
         {/* Tabs */}
         {userDataList && userDataList?.role !== "HR-Admin" ?

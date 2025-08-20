@@ -122,7 +122,6 @@ const Login = () => {
 
   return (
     <>
-      <ToastContainer />
       <div className="flex min-h-screen bg-gray-100">
 
         {/* Left Section with Carousel */}

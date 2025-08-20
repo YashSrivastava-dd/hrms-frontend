@@ -3,7 +3,7 @@ import { LiaDotCircleSolid } from "react-icons/lia";
 import { useDispatch, useSelector } from "react-redux";
 import { getEmployeLeaveStatusAction } from "../store/action/userDataAction";
 import { useNavigate } from "react-router-dom";
-import { Bounce, ToastContainer, toast } from 'react-toastify';
+import { Bounce, toast } from 'react-toastify';
 
 const StatusManagment = () => {
   const employeeId = localStorage.getItem("employeId");
@@ -56,7 +56,6 @@ const StatusManagment = () => {
 
   return (
     <div>
-      <ToastContainer />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
         {pendingLeaves.length > 0 ? (
           pendingLeaves.slice(0, 3).map((item, index) => (

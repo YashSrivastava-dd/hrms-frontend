@@ -1,76 +1,143 @@
 import { toast } from "react-toastify";
 
-// Safe toast utility function to prevent runtime errors
+// Toast ID tracking to prevent duplicates
+const activeToastIds = new Set();
+const toastQueue = new Map();
+
+// Centralized toast configuration
+const DEFAULT_CONFIG = {
+  position: "top-center",
+  autoClose: 5000,
+  hideProgressBar: false,
+  closeOnClick: true,
+  pauseOnHover: true,
+  draggable: true,
+  progress: undefined,
+  theme: "colored",
+  preventDuplicates: true,
+  closeButton: true,
+  newestOnTop: true,
+  rtl: false,
+  limit: 3, // Limit concurrent toasts
+};
+
+// Enhanced safe toast utility with duplicate prevention
 const safeToast = {
   success: (message, config = {}) => {
     try {
-      toast.success(message, {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        ...config
+      // Check if similar toast already exists
+      const toastKey = `success-${message}`;
+      if (toastQueue.has(toastKey)) {
+        return toastQueue.get(toastKey);
+      }
+
+      const toastId = toast.success(message, {
+        ...DEFAULT_CONFIG,
+        ...config,
+        toastId: config.toastId || toastKey,
+        onClose: () => {
+          activeToastIds.delete(toastId);
+          toastQueue.delete(toastKey);
+        },
       });
+      
+      if (toastId) {
+        activeToastIds.add(toastId);
+        toastQueue.set(toastKey, toastId);
+      }
+      
+      return toastId;
     } catch (error) {
       console.warn('Safe toast success error:', error);
+      return null;
     }
   },
   
   error: (message, config = {}) => {
     try {
-      toast.error(message, {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        ...config
+      // Check if similar toast already exists
+      const toastKey = `error-${message}`;
+      if (toastQueue.has(toastKey)) {
+        return toastQueue.get(toastKey);
+      }
+
+      const toastId = toast.error(message, {
+        ...DEFAULT_CONFIG,
+        ...config,
+        toastId: config.toastId || toastKey,
+        onClose: () => {
+          activeToastIds.delete(toastId);
+          toastQueue.delete(toastKey);
+        },
       });
+      
+      if (toastId) {
+        activeToastIds.add(toastId);
+        toastQueue.set(toastKey, toastId);
+      }
+      
+      return toastId;
     } catch (error) {
       console.warn('Safe toast error:', error);
+      return null;
     }
   },
   
   warning: (message, config = {}) => {
     try {
-      toast.warning(message, {
-        position: "top-center",
-        autoClose: 4000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        ...config
+      const toastKey = `warning-${message}`;
+      if (toastQueue.has(toastKey)) {
+        return toastQueue.get(toastKey);
+      }
+
+      const toastId = toast.warning(message, {
+        ...DEFAULT_CONFIG,
+        ...config,
+        toastId: config.toastId || toastKey,
+        onClose: () => {
+          activeToastIds.delete(toastId);
+          toastQueue.delete(toastKey);
+        },
       });
+      
+      if (toastId) {
+        activeToastIds.add(toastId);
+        toastQueue.set(toastKey, toastId);
+      }
+      
+      return toastId;
     } catch (error) {
       console.warn('Safe toast warning error:', error);
+      return null;
     }
   },
   
   info: (message, config = {}) => {
     try {
-      toast.info(message, {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-        ...config
+      const toastKey = `info-${message}`;
+      if (toastQueue.has(toastKey)) {
+        return toastQueue.get(toastKey);
+      }
+
+      const toastId = toast.info(message, {
+        ...DEFAULT_CONFIG,
+        ...config,
+        toastId: config.toastId || toastKey,
+        onClose: () => {
+          activeToastIds.delete(toastId);
+          toastQueue.delete(toastKey);
+        },
       });
+      
+      if (toastId) {
+        activeToastIds.add(toastId);
+        toastQueue.set(toastKey, toastId);
+      }
+      
+      return toastId;
     } catch (error) {
       console.warn('Safe toast info error:', error);
+      return null;
     }
   },
   
@@ -78,8 +145,25 @@ const safeToast = {
     try {
       if (toastId) {
         toast.dismiss(toastId);
+        activeToastIds.delete(toastId);
+        // Remove from queue
+        for (const [key, id] of toastQueue.entries()) {
+          if (id === toastId) {
+            toastQueue.delete(key);
+            break;
+          }
+        }
       } else {
-        toast.dismiss();
+        // Dismiss all active toasts
+        activeToastIds.forEach(id => {
+          try {
+            toast.dismiss(id);
+          } catch (e) {
+            console.warn('Error dismissing toast:', e);
+          }
+        });
+        activeToastIds.clear();
+        toastQueue.clear();
       }
     } catch (error) {
       console.warn('Safe toast dismiss error:', error);
@@ -88,18 +172,58 @@ const safeToast = {
   
   loading: (message, config = {}) => {
     try {
-      return toast.loading(message, {
-        position: "top-center",
+      const toastId = toast.loading(message, {
+        ...DEFAULT_CONFIG,
+        ...config,
         closeOnClick: false,
-        pauseOnHover: true,
         draggable: false,
-        theme: "colored",
-        ...config
+        autoClose: false,
+        toastId: config.toastId || `loading-${Date.now()}`,
+        onClose: () => {
+          activeToastIds.delete(toastId);
+        },
       });
+      
+      if (toastId) {
+        activeToastIds.add(toastId);
+      }
+      
+      return toastId;
     } catch (error) {
       console.warn('Safe toast loading error:', error);
       return null;
     }
+  },
+
+  // Clear all toasts safely
+  clear: () => {
+    try {
+      toast.clearWaitingQueue();
+      toast.dismiss();
+      activeToastIds.clear();
+      toastQueue.clear();
+    } catch (error) {
+      console.warn('Safe toast clear error:', error);
+    }
+  },
+
+  // Update existing toast
+  update: (toastId, options) => {
+    try {
+      if (toastId && activeToastIds.has(toastId)) {
+        toast.update(toastId, options);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn('Safe toast update error:', error);
+      return false;
+    }
+  },
+
+  // Check if toast is active
+  isActive: (toastId) => {
+    return activeToastIds.has(toastId);
   }
 };
 

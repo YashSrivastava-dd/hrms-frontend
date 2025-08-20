@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { deleteLeaveRequestAction, getCompoffDataAction, getEmployeLeaveStatusAction, getUserDataAction, getVendorSingleLogsAction, postrevertLeaveRequest } from "../store/action/userDataAction";
 import AddEmployee from "./AddEmployee";
 import { Link } from "react-router-dom";
-import { Bounce, ToastContainer } from 'react-toastify';
 import { RxCross2 } from "react-icons/rx";
 import safeToast from "../utils/safeToast";
 
@@ -17,6 +16,7 @@ const EmployessLeave = () => {
     const { data: dataa } = useSelector((state) => state.deleteLeaveByEmoployee);
     const { data: revertLeaveData, error: revertLeaveError } = useSelector((state) => state.revertLeaveReducer);
     const { data: userDataRaw } = useSelector((state) => state.userData);
+    const { error: deleteError } = useSelector((state) => state.deleteLeaveByEmoployee);
     const userData = userDataRaw?.data || {};
     const userType = userData?.role;
     const [selectDays, setLeaveDays] = useState('');
@@ -70,13 +70,15 @@ const EmployessLeave = () => {
     const [openUndoModel, setOpenUndoModel] = useState(false);
     const [userId, setUserId] = useState('');
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+    const [hasShownDeleteToast, setHasShownDeleteToast] = useState(false);
 
     const closeModal = () => setOpenUndoModel(false);
     const handelOpenModel = () => setOpenUndoModel(true);
 
     useEffect(() => {
-        if (dataa) {
-            safeToast.success(dataa?.message, {
+        if (dataa && !hasShownDeleteToast) {
+            setHasShownDeleteToast(true);
+            safeToast.success(dataa?.message || "Data deleted successfully", {
                 position: "top-center",
                 autoClose: 5000,
                 hideProgressBar: false,
@@ -93,11 +95,13 @@ const EmployessLeave = () => {
                 dispatch(getEmployeLeaveStatusAction(employeeId));
                 dispatch(getCompoffDataAction());
                 dispatch(getVendorSingleLogsAction());
+                // Reset the flag after data refresh
+                setTimeout(() => setHasShownDeleteToast(false), 1000);
             }, 1000);
             
             return;
         }
-    }, [dataa, dispatch, employeeId]);
+    }, [dataa, dispatch, employeeId, hasShownDeleteToast]);
 
     // Handle revert leave success response
     useEffect(() => {
@@ -157,8 +161,53 @@ const EmployessLeave = () => {
         return () => {
             // Dismiss all toasts when component unmounts to prevent runtime errors
             safeToast.dismiss();
+            setHasShownDeleteToast(false);
         };
     }, []);
+
+    // Reset toast flag when data changes
+    useEffect(() => {
+        if (dataa) {
+            setHasShownDeleteToast(false);
+        }
+    }, [dataa]);
+
+    // Handle delete error response
+    useEffect(() => {
+        if (deleteError) {
+            safeToast.error(deleteError || "Failed to delete request", {
+                position: "top-center",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored",
+                transition: Bounce,
+            });
+        }
+    }, [deleteError]);
+
+    // Function to safely delete leave request
+    const handleDeleteLeave = async (leaveId) => {
+        try {
+            await dispatch(deleteLeaveRequestAction({ id: leaveId }));
+        } catch (error) {
+            console.error('Error deleting leave request:', error);
+            safeToast.error("An error occurred while deleting the request", {
+                position: "top-center",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored",
+                transition: Bounce,
+            });
+        }
+    };
 
     // Handle clicking outside dropdown to close it
     useEffect(() => {
@@ -366,7 +415,7 @@ const EmployessLeave = () => {
                     {leave.status === 'Pending' ? (
                         <button
                             className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-50 text-red-700 text-xs font-medium rounded-md hover:bg-red-100 transition-colors"
-                            onClick={() => dispatch(deleteLeaveRequestAction({ id: leave?._id }))}
+                            onClick={() => handleDeleteLeave(leave?._id)}
                         >
                             Delete
                         </button>
@@ -515,9 +564,9 @@ const EmployessLeave = () => {
                     <div className="font-medium text-gray-900 text-xs sm:text-sm">{item?.employeeInfo?.employeeName}</div>
                     <div className="text-xs text-gray-500 hidden sm:block">{item?.employeeInfo?.contactNo || '---'}</div>
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.dateTime?.split(' ')[0] || '---'}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item.dateTime?.split(' ')[0] || '---'}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{item.totalDays}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item?.leaveStartDate || item?.dateTime?.split(' ')[0] || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{item?.leaveEndDate || item?.leaveStartDate || item?.dateTime?.split(' ')[0] || '---'}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{formatDays(item.totalDays)}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
                     <span className={`inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLeaveTypeStyle(item.leaveType)}`} title={item?.leaveType}>
                         {getLeaveTypeAbbreviation(item.leaveType)}
@@ -568,7 +617,6 @@ const EmployessLeave = () => {
 
     return (
         <div className="p-3 sm:p-6 bg-gray-50 full-height-content flex flex-col">
-            <ToastContainer />
             
             {/* Header */}
             <div className="flex justify-between items-center mb-4 sm:mb-6">

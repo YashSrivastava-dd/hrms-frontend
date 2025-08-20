@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { MdChevronLeft, MdChevronRight, MdToday, MdEvent } from "react-icons/md";
 import { FaChevronDown, FaTimes } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
-import { getCalenderLogsApiAction, postApplyCompOffLeaveAction, postApplyRegularizationAction, postVendorMeetingAction } from "../store/action/userDataAction";
-import { Bounce, ToastContainer, toast } from "react-toastify";
+import { getCalenderLogsApiAction, postApplyCompOffLeaveAction, postApplyRegularizationAction, postVendorMeetingAction, postApplyLeaveByEmployeeAction, postApplyCompoffLeaveAction } from "../store/action/userDataAction";
 import safeToast from "../utils/safeToast";
 
 // Constants
@@ -35,7 +34,7 @@ const TOAST_CONFIG = {
   draggable: true,
   progress: undefined,
   theme: "colored",
-  transition: Bounce,
+ // transition: Bounce,
   toastId: undefined, // Let react-toastify generate unique IDs
   onClose: () => {
     // Safe cleanup when toast closes
@@ -1018,7 +1017,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
   return (
     <div className="space-y-6">
-      <ToastContainer />
       
       {/* Calendar Header with Stats */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">

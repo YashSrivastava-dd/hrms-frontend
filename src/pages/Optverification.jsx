@@ -93,7 +93,6 @@ console.log('dataa',dataa)
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <ToastContainer />
       <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-6">

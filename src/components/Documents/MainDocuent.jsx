@@ -5,7 +5,7 @@ import PublicDocument from "./PublicDocument";
 import { getUserDataAction, postUploadEmployeeDocumentsAction } from "../../store/action/userDataAction";
 import { useDispatch, useSelector } from "react-redux";
 import { IoAdd } from "react-icons/io5";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 
 const MainDocument = () => {
   const [selectedComponent, setSelectedComponent] = useState(null);

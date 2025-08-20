@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { postApplyLeaveByEmployee, postMedicalFileAction, getAttendenceLogsOfEmploye } from "../store/action/userDataAction";
-import { Bounce, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { RxCross2 } from "react-icons/rx";
 import { useNavigate } from "react-router-dom";
@@ -886,7 +885,6 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     return (
         <div>
-            <ToastContainer />
             {/* Button to Open Modal */}
             <button
                 onClick={openModal}
