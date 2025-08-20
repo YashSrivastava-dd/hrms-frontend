@@ -216,13 +216,13 @@ const EmployeeHolidays = () => {
         {/* Date Badge */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white font-bold ${iconStyle}`}>
+            <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center text-black font-bold ${iconStyle}`}>
               <span className="text-xs">{monthName}</span>
               <span className="text-lg">{dayOfMonth}</span>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">{dayName}</p>
-              <p className="text-xs text-gray-500">{holidayDate.getFullYear()}</p>
+              <p className="text-sm font-medium text-black">{dayName}</p>
+              <p className="text-xs text-black font-semibold">{holidayDate.getFullYear()}</p>
             </div>
           </div>
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
@@ -233,10 +233,10 @@ const EmployeeHolidays = () => {
         </div>
 
         {/* Holiday Name */}
-        <h3 className="text-lg font-bold text-gray-900 mb-2">{holiday.holidayName}</h3>
+        <h3 className="text-lg font-bold text-black mb-2">{holiday.holidayName}</h3>
         
         {/* Additional Info */}
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <div className="flex items-center space-x-2 text-sm text-black font-medium">
           <FaCalendarAlt className="text-purple-500" />
           <span>{holiday.holidayDate}</span>
         </div>
@@ -279,18 +279,18 @@ const EmployeeHolidays = () => {
       <tr className={`border-b hover:bg-gray-50 transition-colors duration-200 ${rowStyle}`}>
         <td className="px-4 py-3">
           <div className="flex items-center space-x-3">
-            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center text-white font-bold text-xs ${iconStyle}`}>
+            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center text-black font-bold text-xs ${iconStyle}`}>
               <span>{holidayDate.toLocaleString('default', { month: 'short' })}</span>
               <span>{holidayDate.getDate()}</span>
             </div>
             <div>
-              <p className="font-semibold text-gray-900">{holiday.holidayDate}</p>
-              <p className="text-sm text-gray-500">{dayName}</p>
+              <p className="font-semibold text-black">{holiday.holidayDate}</p>
+              <p className="text-sm text-black font-medium">{dayName}</p>
             </div>
           </div>
         </td>
         <td className="px-4 py-3">
-          <h3 className="font-semibold text-gray-900">{holiday.holidayName}</h3>
+          <h3 className="font-semibold text-black">{holiday.holidayName}</h3>
         </td>
         <td className="px-4 py-3">
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>

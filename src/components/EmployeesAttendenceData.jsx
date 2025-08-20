@@ -32,11 +32,51 @@ const EmployeesAttendanceData = () => {
   const { data: allAttendancedata } = useSelector((state) => state.allEmployeeAttencance);
   const allEmployees = data?.data? data?.data:allAttendancedata?.data || [];
   
-  // Client-side pagination to show only 10 items
+  // Filter data for current month first, then sort
+  const currentMonthEmployees = React.useMemo(() => {
+    if (!allEmployees || allEmployees.length === 0) return [];
+    
+    const currentMonthNum = currentMonth.month(); // 0-11
+    const currentYearNum = currentMonth.year();
+    
+    return allEmployees.filter(employee => {
+      if (!employee.AttendanceDate) return false;
+      
+      const attendanceDate = new Date(employee.AttendanceDate);
+      const employeeMonth = attendanceDate.getMonth();
+      const employeeYear = attendanceDate.getFullYear();
+      
+      return employeeMonth === currentMonthNum && employeeYear === currentYearNum;
+    });
+  }, [allEmployees, currentMonth]);
+  
+  // Sort the current month data
+  const sortedEmployees = React.useMemo(() => {
+    if (!currentMonthEmployees || currentMonthEmployees.length === 0) return [];
+    
+    return [...currentMonthEmployees].sort((a, b) => {
+      const dateA = new Date(a.AttendanceDate);
+      const dateB = new Date(b.AttendanceDate);
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+  }, [currentMonthEmployees, sortOrder]);
+
+  // Apply search filter to the current month sorted dataset
+  const filteredAndSortedEmployees = React.useMemo(() => {
+    if (!sortedEmployees || sortedEmployees.length === 0) return [];
+    
+    return sortedEmployees.filter((employee) =>
+      employee?.EmployeeName?.toLowerCase().includes(
+        search.toLowerCase()
+      )
+    );
+  }, [sortedEmployees, search]);
+  
+  // Client-side pagination to show only 10 items from filtered and sorted current month data
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const employees = allEmployees.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(allEmployees.length / itemsPerPage);
+  const employees = filteredAndSortedEmployees.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(filteredAndSortedEmployees.length / itemsPerPage);
   console.log('allAttendancedata', allAttendancedata)
 
   const employeeId = localStorage.getItem("employeId");
@@ -59,6 +99,11 @@ const EmployeesAttendanceData = () => {
     }
 
   }, [employeeId, date, count, dispatch]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const handleOpenModal = (employee) => {
     setSelectedEmployee(employee);
@@ -85,6 +130,7 @@ const EmployeesAttendanceData = () => {
   // Sort function to toggle between ascending and descending order
   const handleSort = () => {
     setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc');
+    setCurrentPage(1); // Reset to first page when sorting changes
   };
 
   // Calendar functions
@@ -211,7 +257,7 @@ const EmployeesAttendanceData = () => {
             <button
               onClick={handleSort}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2"
-              title={`Sort by date: ${sortOrder === 'asc' ? 'Oldest first (1-30)' : 'Newest first (30-1)'}`}
+              title={`Sort current month by date: ${sortOrder === 'asc' ? 'Oldest first (1-31)' : 'Newest first (31-1)'}`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
@@ -271,22 +317,12 @@ const EmployeesAttendanceData = () => {
                     .fill(0)
                     .map((_, idx) => <SkeletonLoader key={idx} />)
                   : employees
-                    ?.filter((employee) =>
-                      employee?.EmployeeName?.toLowerCase().includes(
-                        search.toLowerCase()
-                      )
-                    )
-                    ?.sort((a, b) => {
-                      const dateA = new Date(a.AttendanceDate);
-                      const dateB = new Date(b.AttendanceDate);
-                      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-                    })
                     ?.map((employee, index) => {
                       const hours = Math.floor(employee.Duration / 60);
                       const minutes = employee.Duration % 60;
                       // Helper function to get day type and colors with inline styles
                       const getDayTypeStyle = (duration, status) => {
-                        if (duration >= 8 * 60 + 30) {
+                        if (duration >= 8 * 60 + 20) {
                           return {
                             type: "Full Day",
                             style: {
@@ -294,7 +330,7 @@ const EmployeesAttendanceData = () => {
                               color: "#15803d"
                             }
                           };
-                        } else if (duration >= 4 * 60 + 30 && duration < 8 * 60 + 30) {
+                        } else if (duration >= 4 * 60 && duration < 8 * 60 + 20) {
                           return {
                             type: "Half Day",
                             style: {
@@ -473,7 +509,7 @@ const EmployeesAttendanceData = () => {
         {/* Pagination */}
         <div className="flex items-center justify-center sm:justify-end mt-4 gap-4">
           <div className="text-sm text-gray-600">
-            Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)} of {allEmployees.length} items
+            Showing {startIndex + 1}-{Math.min(endIndex, filteredAndSortedEmployees.length)} of {filteredAndSortedEmployees.length} items
           </div>
           {currentPage === 1 ? "" :
           <button

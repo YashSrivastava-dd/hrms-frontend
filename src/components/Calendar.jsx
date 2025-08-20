@@ -56,14 +56,19 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const [clickedDay, setClickedDay] = useState(null);
   const [showAbbreviations, setShowAbbreviations] = useState(false);
   const [compOffDayType, setCompOffDayType] = useState(""); // For comp-off day type selection
+  const [vendorMeetingDuration, setVendorMeetingDuration] = useState(""); // For vendor meeting duration selection
   const [isLeaveTypeDropdownOpen, setIsLeaveTypeDropdownOpen] = useState(false);
   const [isCompOffDurationDropdownOpen, setIsCompOffDurationDropdownOpen] = useState(false);
+  const [isVendorMeetingDurationDropdownOpen, setIsVendorMeetingDurationDropdownOpen] = useState(false);
   const leaveTypeDropdownRef = useRef(null);
   const compOffDurationDropdownRef = useRef(null);
+  const vendorMeetingDurationDropdownRef = useRef(null);
+  const processedMessagesRef = useRef(new Set());
   
   // Validation states
   const [showLeaveTypeError, setShowLeaveTypeError] = useState(false);
   const [showCompOffDurationError, setShowCompOffDurationError] = useState(false);
+  const [showVendorMeetingDurationError, setShowVendorMeetingDurationError] = useState(false);
   const [showReasonError, setShowReasonError] = useState(false);
 
   const dispatch = useDispatch();
@@ -113,7 +118,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     if (employeeId) {
       dispatch(getCalenderLogsApiAction(monthYear, employeeId));
     }
-  }, [monthYear, employeeId, dispatch]);
+  }, [monthYear, employeeId]);
 
   // Cleanup toasts on component unmount
   useEffect(() => {
@@ -129,6 +134,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       // Check if click is outside the dropdown container
       const leaveTypeContainer = event.target.closest('.leave-type-dropdown');
       const compOffContainer = event.target.closest('.comp-off-duration-dropdown');
+      const vendorMeetingDurationContainer = event.target.closest('.vendor-meeting-duration-dropdown');
       
       if (isLeaveTypeDropdownOpen && !leaveTypeContainer) {
         setIsLeaveTypeDropdownOpen(false);
@@ -136,16 +142,24 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       if (isCompOffDurationDropdownOpen && !compOffContainer) {
         setIsCompOffDurationDropdownOpen(false);
       }
+      if (isVendorMeetingDurationDropdownOpen && !vendorMeetingDurationContainer) {
+        setIsVendorMeetingDurationDropdownOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isLeaveTypeDropdownOpen, isCompOffDurationDropdownOpen]);
+  }, [isLeaveTypeDropdownOpen, isCompOffDurationDropdownOpen, isVendorMeetingDurationDropdownOpen]);
 
+  // Handle success messages with cleanup to prevent infinite loops
   useEffect(() => {
-    if (data?.message) {
+    let hasProcessedMessage = false;
+    
+    if (data?.message && !processedMessagesRef.current.has(data.message)) {
+      hasProcessedMessage = true;
+      processedMessagesRef.current.add(data.message);
       safeToast.success(data.message, TOAST_CONFIG);
       // Close modal and clear form data
       setModalOpen(false);
@@ -158,18 +172,19 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setSelectDuration(null);
       setClickedDay(null);
       setCompOffDayType("");
+      setVendorMeetingDuration("");
       setIsLeaveTypeDropdownOpen(false);
       setIsCompOffDurationDropdownOpen(false);
+      setIsVendorMeetingDurationDropdownOpen(false);
       setShowLeaveTypeError(false);
       setShowCompOffDurationError(false);
+      setShowVendorMeetingDurationError(false);
       setShowReasonError(false);
-      // Refresh calendar data for the current month
-      if (employeeId) {
-        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
-      }
       return;
     }
-    if (data1?.message) {
+    if (data1?.message && !processedMessagesRef.current.has(data1.message)) {
+      hasProcessedMessage = true;
+      processedMessagesRef.current.add(data1.message);
       safeToast.success(data1.message, TOAST_CONFIG);
       // Close modal and clear form data
       setModalOpen(false);
@@ -182,18 +197,19 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setSelectDuration(null);
       setClickedDay(null);
       setCompOffDayType("");
+      setVendorMeetingDuration("");
       setIsLeaveTypeDropdownOpen(false);
       setIsCompOffDurationDropdownOpen(false);
+      setIsVendorMeetingDurationDropdownOpen(false);
       setShowLeaveTypeError(false);
       setShowCompOffDurationError(false);
+      setShowVendorMeetingDurationError(false);
       setShowReasonError(false);
-      // Refresh calendar data for the current month
-      if (employeeId) {
-        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
-      }
       return;
     }
-    if (vendorMeetingData?.message) {
+    if (vendorMeetingData?.message && !processedMessagesRef.current.has(vendorMeetingData.message)) {
+      hasProcessedMessage = true;
+      processedMessagesRef.current.add(vendorMeetingData.message);
       safeToast.success(vendorMeetingData.message, TOAST_CONFIG);
       // Close modal and clear form data
       setModalOpen(false);
@@ -206,18 +222,17 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setSelectDuration(null);
       setClickedDay(null);
       setCompOffDayType("");
+      setVendorMeetingDuration("");
       setIsLeaveTypeDropdownOpen(false);
       setIsCompOffDurationDropdownOpen(false);
+      setIsVendorMeetingDurationDropdownOpen(false);
       setShowLeaveTypeError(false);
       setShowCompOffDurationError(false);
+      setShowVendorMeetingDurationError(false);
       setShowReasonError(false);
-      // Refresh calendar data for the current month
-      if (employeeId) {
-        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
-      }
       return;
     }
-  }, [data?.message, data1?.message, vendorMeetingData?.message, employeeId, monthYear, dispatch]);
+  }, [data?.message, data1?.message, vendorMeetingData?.message]);
 
   useEffect(() => {
     if (error1) {
@@ -262,6 +277,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     
     // Check if this is the clicked day
     const isClickedDay = clickedDay === day;
+    
+    // Check if this date is selectable (current month and not in the future)
+    const today = new Date();
+    const selectedDate = new Date(currentYear, currentMonth, day);
+    const isSelectable = selectedDate.getMonth() === today.getMonth() &&
+                        selectedDate.getFullYear() === today.getFullYear() &&
+                        selectedDate <= today;
     
     if (isToday(day)) {
       return isClickedDay 
@@ -308,8 +330,15 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       baseClass += " ring-2 ring-purple-500 ring-offset-2 shadow-lg";
     }
 
+    // Add visual indicator for selectable dates (current month dates)
+    if (isSelectable) {
+      baseClass += " cursor-pointer hover:shadow-md transition-shadow duration-200";
+    } else {
+      baseClass += " cursor-not-allowed opacity-60";
+    }
+
     return baseClass;
-  }, [getDayType, isToday, clickedDay]);
+  }, [getDayType, isToday, clickedDay, currentYear, currentMonth]);
 
   const getLeaveTypeDisplay = useCallback((leaveType) => {
     return LEAVE_TYPE_MAP[leaveType] || leaveType;
@@ -348,11 +377,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       selectedDate.getFullYear() === today.getFullYear() &&
       selectedDate <= today;
 
-    const isValidPreviousMonth = 
-      selectedDate.getFullYear() === today.getFullYear() &&
-      selectedDate.getMonth() === today.getMonth() - 1 &&
-      new Date(currentYear, currentMonth, 1) - selectedDate <= 7 * 24 * 60 * 60 * 1000;
-
     // Get the selected day's data from calendar logs
     const formattedDate = `${day} ${MONTHS[currentMonth]} ${currentYear}`;
     const selectedDayData = dayLogs?.find((log) => log.AttendanceDate === formattedDate);
@@ -365,12 +389,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     // Set the clicked day for visual feedback
     setClickedDay(day);
 
-    if (isValidCurrentMonth || isValidPreviousMonth) {
+    // Allow selection for current month dates (for Short Leave and Regularization)
+    if (isValidCurrentMonth) {
       setSelectedDay(day);
       setModalOpen(true);
     } else {
       safeToast.error(
-        "You can only select short leave for today or regularization for dates within the current month up to today.",
+        "You can only apply Short Leave and Regularization for dates within the current month up to today.",
         TOAST_CONFIG
       );
     }
@@ -382,6 +407,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     // Reset all validation errors first
     setShowLeaveTypeError(false);
     setShowCompOffDurationError(false);
+    setShowVendorMeetingDurationError(false);
     setShowReasonError(false);
     
     if (!actionType) {
@@ -392,6 +418,12 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     // Validate leave type only when submitting leave
     if (actionType === 'leave' && !selectType) {
       setShowLeaveTypeError(true);
+      return;
+    }
+    
+    // Validate vendor meeting duration when submitting vendor meeting leave
+    if (actionType === 'leave' && selectType === 'vendor-meeting' && !vendorMeetingDuration) {
+      setShowVendorMeetingDurationError(true);
       return;
     }
     
@@ -429,7 +461,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           leaveType: selectType, 
           leaveStartDate: formattedDate, 
           reason, 
-          duration: "1" 
+          duration: vendorMeetingDuration === 'halfDay' ? "0.5" : "1" 
         }));
       } else {
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
@@ -437,7 +469,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
     
     // Don't close modal here - it will be closed by the success effect
-  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType]);
+  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, vendorMeetingDuration]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -449,10 +481,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setSelectDuration(null);
     setClickedDay(null);
     setCompOffDayType("");
+    setVendorMeetingDuration("");
     setIsLeaveTypeDropdownOpen(false);
     setIsCompOffDurationDropdownOpen(false);
+    setIsVendorMeetingDurationDropdownOpen(false);
     setShowLeaveTypeError(false);
     setShowCompOffDurationError(false);
+    setShowVendorMeetingDurationError(false);
     setShowReasonError(false);
   }, []);
 
@@ -468,18 +503,33 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
   const handleCompOffDurationSelect = useCallback((duration) => {
     setCompOffDayType(duration);
+    setShowCompOffDurationError(false);
     setIsCompOffDurationDropdownOpen(false);
-    setShowCompOffDurationError(false); // Clear validation error when selection is made
+  }, []);
+
+  const handleVendorMeetingDurationSelect = useCallback((duration) => {
+    setVendorMeetingDuration(duration);
+    setShowVendorMeetingDurationError(false);
+    setIsVendorMeetingDurationDropdownOpen(false);
   }, []);
 
   const handleDropdownToggle = useCallback((dropdownType, e) => {
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
+    
     if (dropdownType === 'leaveType') {
-      setIsLeaveTypeDropdownOpen(!isLeaveTypeDropdownOpen);
+      setIsLeaveTypeDropdownOpen(prev => !prev);
+      setIsCompOffDurationDropdownOpen(false);
+      setIsVendorMeetingDurationDropdownOpen(false);
     } else if (dropdownType === 'compOffDuration') {
-      setIsCompOffDurationDropdownOpen(!isCompOffDurationDropdownOpen);
+      setIsCompOffDurationDropdownOpen(prev => !prev);
+      setIsLeaveTypeDropdownOpen(false);
+      setIsVendorMeetingDurationDropdownOpen(false);
+    } else if (dropdownType === 'vendorMeetingDuration') {
+      setIsVendorMeetingDurationDropdownOpen(prev => !prev);
+      setIsLeaveTypeDropdownOpen(false);
+      setIsCompOffDurationDropdownOpen(false);
     }
-  }, [isLeaveTypeDropdownOpen, isCompOffDurationDropdownOpen]);
+  }, []);
 
   const handleReasonChange = useCallback((e) => {
     setReason(e.target.value);
@@ -546,6 +596,381 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }, [formatTime, cleanPunchRecords]);
 
+  // Calculate effective hours considering leave types and special cases
+  const calculateEffectiveHours = useCallback((dayData) => {
+    if (!dayData) return "00:00";
+    
+    const { AttendanceStatus, Status, isLeaveTaken, leaveType, PunchRecords, InTime, OutTime, Duration } = dayData;
+    
+    // If Duration field is available and valid, use it (this might be the source of "8h3mins")
+    if (Duration && Duration !== "" && Duration !== "00:00") {
+      let durationResult;
+      
+      // Check if Duration is already in "HH:MM" format (like "08:03")
+      if (typeof Duration === 'string' && Duration.includes(':')) {
+        // Duration is already in correct format, use it directly
+        durationResult = Duration;
+      } else {
+        // Duration is in minutes, convert to HH:MM format
+        const hours = Math.floor(Duration / 60);
+        const minutes = Duration % 60;
+        durationResult = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      }
+      
+      return durationResult;
+    }
+    
+    // Debug logging for regularization days only
+    if (leaveType === "regularized" || leaveType === "RL" || 
+        (Status === "Present" && AttendanceStatus === "Absent") ||
+        (isLeaveTaken === true && AttendanceStatus === "Absent") ||
+        dayData?.RegularizationStatus === "Approved" ||
+        dayData?.IsRegularized === true ||
+        dayData?.RegularizationType === "RL") {
+      // Regularization day detected - will use Duration field or fallback logic
+    }
+    
+    // 1. Full Day attendance - use actual punch records or 8 hours
+    if (AttendanceStatus === "Full Day") {
+      if (PunchRecords) {
+        return calculateTotalHours(PunchRecords);
+      } else if (InTime && OutTime) {
+        // Calculate from InTime and OutTime if no punch records
+        const inTime = formatTime(InTime);
+        const outTime = formatTime(OutTime);
+        if (inTime !== '--:--' && outTime !== '--:--') {
+          const inMinutes = parseInt(inTime.split(':')[0]) * 60 + parseInt(inTime.split(':')[1]);
+          const outMinutes = parseInt(outTime.split(':')[0]) * 60 + parseInt(outTime.split(':')[1]);
+          const totalMinutes = outMinutes - inMinutes;
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+      }
+      // Default to 8 hours for full day
+      return "08:00";
+    }
+    
+    // 2. Half Day attendance - use actual punch records or 4 hours
+    if (AttendanceStatus === "Half Day") {
+      if (PunchRecords) {
+        return calculateTotalHours(PunchRecords);
+      } else if (InTime && OutTime) {
+        const inTime = formatTime(InTime);
+        const outTime = formatTime(OutTime);
+        if (inTime !== '--:--' && outTime !== '--:--') {
+          const inMinutes = parseInt(inTime.split(':')[0]) * 60 + parseInt(inTime.split(':')[1]);
+          const outMinutes = parseInt(outTime.split(':')[0]) * 60 + parseInt(outTime.split(':')[1]);
+          const totalMinutes = outMinutes - inMinutes;
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+      }
+      // Default to 4 hours for half day
+      return "04:00";
+    }
+    
+    // 3. Regularization (RL) - calculate from actual punch records or use standard hours
+    if (leaveType === "regularized" || leaveType === "RL" || 
+        (Status === "Present" && AttendanceStatus === "Absent") || // Present status with absent attendance
+        (isLeaveTaken === true && AttendanceStatus === "Absent") || // Leave taken but marked as absent (likely regularization)
+        dayData?.RegularizationStatus === "Approved" || // Check if regularization status is approved
+        dayData?.IsRegularized === true || // Check if isRegularized flag is true
+        dayData?.RegularizationType === "RL") { // Check if regularization type is RL
+      
+      // First try to get actual hours from punch records
+      if (PunchRecords) {
+        const hours = calculateTotalHours(PunchRecords);
+        if (hours !== "00:00") {
+          return hours;
+        }
+      }
+      
+      // If no punch records, try to calculate from InTime and OutTime
+      if (InTime && OutTime) {
+        const inTime = formatTime(InTime);
+        const outTime = formatTime(OutTime);
+        if (inTime !== '--:--' && outTime !== '--:--') {
+          const inMinutes = parseInt(inTime.split(':')[0]) * 60 + parseInt(inTime.split(':')[1]);
+          const outMinutes = parseInt(outTime.split(':')[0]) * 60 + parseInt(outTime.split(':')[1]);
+          const totalMinutes = outMinutes - inMinutes;
+          
+          // Validate the calculated hours (should be reasonable working hours)
+          if (totalMinutes >= 0 && totalMinutes <= 24 * 60) {
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+          }
+        }
+      }
+      
+      // If still no valid hours, assume it was a full working day
+      return "08:00";
+    }
+    
+    // 4. Vendor Meeting (VM) - typically counted as full working day
+    if (leaveType === "vendor-meeting" || leaveType === "VM") {
+      return "08:00";
+    }
+    
+    // 5. Short Leave (SL) - calculate actual hours worked + short leave hours
+    if (leaveType === "shortLeave" || leaveType === "SL") {
+      if (PunchRecords) {
+        const actualHours = calculateTotalHours(PunchRecords);
+        if (actualHours !== "00:00") {
+          // Add short leave hours (typically 2-4 hours depending on company policy)
+          const [hours, minutes] = actualHours.split(':').map(Number);
+          const totalMinutes = hours * 60 + minutes + 240; // Add 4 hours for short leave
+          const totalHours = Math.floor(totalMinutes / 60);
+          const totalMinutesRemaining = totalMinutes % 60;
+          return `${totalHours.toString().padStart(2, '0')}:${totalMinutesRemaining.toString().padStart(2, '0')}`;
+        }
+      }
+      // If no punch records, assume 6 hours (full day minus short leave)
+      return "06:00";
+    }
+    
+    // 6. Comp-Off Leave - typically counted as full working day
+    if (leaveType === "compOffLeave" || leaveType === "C-Off") {
+      return "08:00";
+    }
+    
+    // 7. Other approved leaves - calculate based on leave type
+    if (isLeaveTaken === true && AttendanceStatus !== "Absent") {
+      if (leaveType === "medicalLeave" || leaveType === "ML") {
+        // Medical leave is typically full day
+        return "08:00";
+      } else if (leaveType === "casualLeave" || leaveType === "CL") {
+        // Casual leave can be half or full day
+        return "08:00";
+      } else if (leaveType === "earnedLeave" || leaveType === "EL") {
+        // Earned leave is typically full day
+        return "08:00";
+      } else {
+        // Default for other leave types
+        return "08:00";
+      }
+    }
+    
+    // 8. Present status - use actual punch records
+    if (Status === "Present") {
+      if (PunchRecords) {
+        return calculateTotalHours(PunchRecords);
+      } else if (InTime && OutTime) {
+        const inTime = formatTime(InTime);
+        const outTime = formatTime(OutTime);
+        if (inTime !== '--:--' && outTime !== '--:--') {
+          const inMinutes = parseInt(inTime.split(':')[0]) * 60 + parseInt(inTime.split(':')[1]);
+          const outMinutes = parseInt(outTime.split(':')[0]) * 60 + parseInt(outTime.split(':')[1]);
+          const totalMinutes = outMinutes - inMinutes;
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+      }
+      // Default to 8 hours for present status
+      return "08:00";
+    }
+    
+    // 9. Fallback - try to calculate from available data
+    if (PunchRecords) {
+      return calculateTotalHours(PunchRecords);
+    } else if (InTime && OutTime) {
+      const inTime = formatTime(InTime);
+      const outTime = formatTime(OutTime);
+      if (inTime !== '--:--' && outTime !== '--:--') {
+        const inMinutes = parseInt(inTime.split(':')[0]) * 60 + parseInt(inTime.split(':')[1]);
+        const outMinutes = parseInt(outTime.split(':')[0]) * 60 + parseInt(outTime.split(':')[1]);
+        const totalMinutes = outMinutes - inMinutes;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    // Default case - no hours
+    return "00:00";
+  }, [calculateTotalHours, formatTime]);
+
+  // Calculate working days for the current month including regularization
+  const calculateWorkingDays = useCallback(() => {
+    if (!dayLogs || dayLogs.length === 0) return 0;
+    
+    const currentMonthLogs = dayLogs.filter(log => {
+      // Filter logs for current month
+      const logDate = new Date(log.AttendanceDate);
+      return logDate.getMonth() === currentMonth && logDate.getFullYear() === currentYear;
+    });
+    
+    let workingDays = 0;
+    let debugInfo = []; // For debugging purposes
+    
+    for (let i = 0; i < currentMonthLogs.length; i++) {
+      const log = currentMonthLogs[i];
+      const { AttendanceStatus, Status, isLeaveTaken, leaveType } = log;
+      const date = log.AttendanceDate;
+      
+      // Debug: Log what we're processing
+      debugInfo.push({
+        date,
+        AttendanceStatus,
+        Status,
+        isLeaveTaken,
+        leaveType,
+        counted: false
+      });
+      
+      // Count as working day if ANY of these conditions are met:
+      
+      // 1. Full Day or Half Day attendance (definitely working)
+      if (AttendanceStatus === "Full Day" || AttendanceStatus === "Half Day") {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Full/Half Day";
+        continue;
+      }
+      
+      // 2. Regularization applied (RL) - this is a working day
+      if (leaveType === "regularized" || leaveType === "RL" ||
+          (Status === "Present" && AttendanceStatus === "Absent") ||
+          (isLeaveTaken === true && AttendanceStatus === "Absent") ||
+          log?.RegularizationStatus === "Approved" ||
+          log?.IsRegularized === true ||
+          log?.RegularizationType === "RL") {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Regularization";
+        continue;
+      }
+      
+      // 3. Vendor Meeting (VM) - this is a working day
+      if (leaveType === "vendor-meeting" || leaveType === "VM") {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Vendor Meeting";
+        continue;
+      }
+      
+      // 4. Short Leave (SL) - this is a working day (partial)
+      if (leaveType === "shortLeave" || leaveType === "SL") {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Short Leave";
+        continue;
+      }
+      
+      // 5. Comp-Off Leave - this is a working day
+      if (leaveType === "compOffLeave" || leaveType === "C-Off") {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Comp-Off";
+        continue;
+      }
+      
+      // 6. Present status (regardless of attendance status)
+      if (Status === "Present") {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Status Present";
+        continue;
+      }
+      
+      // 7. Leave taken but not marked as absent (approved leaves)
+      if (isLeaveTaken === true && AttendanceStatus !== "Absent") {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Approved Leave";
+        continue;
+      }
+      
+      // 8. Other approved leave types (medical, casual, earned, etc.)
+      if (leaveType && leaveType !== "regularized" && leaveType !== "RL" && 
+          leaveType !== "vendor-meeting" && leaveType !== "VM" && 
+          leaveType !== "shortLeave" && leaveType !== "SL" && 
+          leaveType !== "compOffLeave" && leaveType !== "C-Off") {
+        // Check if this is an approved leave type
+        if (isLeaveTaken === true || Status === "Present") {
+          workingDays++;
+          debugInfo[debugInfo.length - 1].counted = true;
+          debugInfo[debugInfo.length - 1].reason = `Other Leave: ${leaveType}`;
+          continue;
+        }
+      }
+      
+      // 9. Special case: If status shows "Present" in any form
+      if (Status && Status.toLowerCase().includes("present")) {
+        workingDays++;
+        debugInfo[debugInfo.length - 1].counted = true;
+        debugInfo[debugInfo.length - 1].reason = "Status Present (variation)";
+        continue;
+      }
+    }
+    
+    // Debug logging (remove in production)
+    console.log("Working Days Calculation Debug:", {
+      totalLogs: currentMonthLogs.length,
+      workingDays,
+      debugInfo
+    });
+    
+    return workingDays;
+  }, [dayLogs, currentMonth, currentYear]);
+
+  // Get detailed working days breakdown for debugging
+  const getWorkingDaysBreakdown = useCallback(() => {
+    if (!dayLogs || dayLogs.length === 0) return { total: 0, breakdown: [] };
+    
+    const currentMonthLogs = dayLogs.filter(log => {
+      const logDate = new Date(log.AttendanceDate);
+      return logDate.getMonth() === currentMonth && logDate.getFullYear() === currentYear;
+    });
+    
+    const breakdown = {
+      fullDay: 0,
+      halfDay: 0,
+      regularization: 0,
+      vendorMeeting: 0,
+      shortLeave: 0,
+      compOff: 0,
+      otherLeaves: 0,
+      presentStatus: 0,
+      total: 0
+    };
+    
+    currentMonthLogs.forEach(log => {
+      const { AttendanceStatus, Status, isLeaveTaken, leaveType } = log;
+      
+      if (AttendanceStatus === "Full Day") {
+        breakdown.fullDay++;
+        breakdown.total++;
+      } else if (AttendanceStatus === "Half Day") {
+        breakdown.halfDay++;
+        breakdown.total++;
+      } else if (leaveType === "regularized" || leaveType === "RL") {
+        breakdown.regularization++;
+        breakdown.total++;
+      } else if (leaveType === "vendor-meeting" || leaveType === "VM") {
+        breakdown.vendorMeeting++;
+        breakdown.total++;
+      } else if (leaveType === "shortLeave" || leaveType === "SL") {
+        breakdown.shortLeave++;
+        breakdown.total++;
+      } else if (leaveType === "compOffLeave" || leaveType === "C-Off") {
+        breakdown.compOff++;
+        breakdown.total++;
+      } else if (Status === "Present" || (isLeaveTaken === true && AttendanceStatus !== "Absent")) {
+        breakdown.otherLeaves++;
+        breakdown.total++;
+      } else if (Status && Status.toLowerCase().includes("present")) {
+        breakdown.presentStatus++;
+        breakdown.total++;
+      }
+    });
+    
+    return breakdown;
+  }, [dayLogs, currentMonth, currentYear]);
+
   // Get attendance summary for selected day
   const getAttendanceSummary = useCallback(() => {
     if (!selectedDay) return null;
@@ -555,14 +980,41 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     
     if (!dayData) return null;
     
+    const effectiveHours = calculateEffectiveHours(dayData);
+    
     return {
       date: formattedDate,
-      totalHours: calculateTotalHours(dayData?.PunchRecords) || "00:00",
+      totalHours: effectiveHours,
       firstIn: dayData?.InTime ? formatTime(dayData.InTime) : "00:00",
       lastOut: dayData?.OutTime ? formatTime(dayData.OutTime) : "00:00",
       status: dayData?.AttendanceStatus || "Absent"
     };
-  }, [selectedDay, currentMonth, currentYear, dayLogs, calculateTotalHours, formatTime]);
+  }, [selectedDay, currentMonth, currentYear, dayLogs, calculateEffectiveHours, formatTime]);
+
+  // Calculate total effective hours for the current month
+  const calculateTotalEffectiveHours = useCallback(() => {
+    if (!dayLogs || dayLogs.length === 0) return "00:00";
+    
+    const currentMonthLogs = dayLogs.filter(log => {
+      const logDate = new Date(log.AttendanceDate);
+      return logDate.getMonth() === currentMonth && logDate.getFullYear() === currentYear;
+    });
+    
+    let totalMinutes = 0;
+    
+    currentMonthLogs.forEach(log => {
+      const effectiveHours = calculateEffectiveHours(log);
+      if (effectiveHours !== "00:00") {
+        const [hours, minutes] = effectiveHours.split(':').map(Number);
+        totalMinutes += hours * 60 + minutes;
+      }
+    });
+    
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    return `${totalHours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}`;
+  }, [dayLogs, currentMonth, currentYear, calculateEffectiveHours]);
 
   return (
     <div className="space-y-6">
@@ -581,10 +1033,53 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 relative group">
               <MdToday className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
               <span className="text-gray-700">Working Days:</span>
-              <span className="font-semibold text-gray-900">{dataaa?.data2?.totalWorkingDays || 0}</span>
+              <span className="font-semibold text-gray-900">{calculateWorkingDays()}</span>
+              
+              {/* Working Days Breakdown Tooltip */}
+              <div className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
+                <div className="p-3">
+                  <h4 className="text-xs font-semibold text-gray-800 mb-2">Working Days Breakdown</h4>
+                  {(() => {
+                    const breakdown = getWorkingDaysBreakdown();
+                    return (
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="font-medium text-gray-700">Attendance:</p>
+                            <p>• Full Day: {breakdown.fullDay}</p>
+                            <p>• Half Day: {breakdown.halfDay}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-700">Leaves:</p>
+                            <p>• Regularization: {breakdown.regularization}</p>
+                            <p>• Vendor Meeting: {breakdown.vendorMeeting}</p>
+                            <p>• Short Leave: {breakdown.shortLeave}</p>
+                            <p>• Comp-Off: {breakdown.compOff}</p>
+                            <p>• Other: {breakdown.otherLeaves}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <p className="text-xs text-gray-500 font-medium">
+                            Total Working Days: {breakdown.total}
+                          </p>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Effective Hours Note:</span><br/>
+                            • Regularization: Uses actual hours or 8h default<br/>
+                            • Vendor Meeting: Counted as 8h<br/>
+                            • Short Leave: Actual hours + leave hours<br/>
+                            • Comp-Off: Counted as 8h
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -641,6 +1136,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
               const dayClass = getDayClass(day);
               const leaveTypeDisplay = leaveType ? getLeaveTypeDisplay(leaveType) : "";
 
+              // Check if this date is selectable (current month and not in the future)
+              const today = new Date();
+              const selectedDate = new Date(currentYear, currentMonth, day);
+              const isSelectable = selectedDate.getMonth() === today.getMonth() &&
+                                  selectedDate.getFullYear() === today.getFullYear() &&
+                                  selectedDate <= today;
+
               return userRole === "Super-Admin" ? (
                 <div
                   key={`day-${index}`}
@@ -651,9 +1153,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
               ) : (
                 <button
                   key={`day-${index}`}
-                  onClick={() => handleDayClick(day)}
-                  className={`min-h-[50px] sm:min-h-[80px] p-1 flex flex-col items-center justify-center text-xs sm:text-base font-medium transition-all duration-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${dayClass}`}
-                  aria-label={`Select ${day} ${MONTHS[currentMonth]} ${currentYear}`}
+                  onClick={isSelectable ? () => handleDayClick(day) : undefined}
+                  disabled={!isSelectable}
+                  className={`min-h-[50px] sm:min-h-[80px] p-1 flex flex-col items-center justify-center text-xs sm:text-base font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${dayClass}`}
+                  aria-label={isSelectable ? `Select ${day} ${MONTHS[currentMonth]} ${currentYear}` : `${day} ${MONTHS[currentMonth]} ${currentYear} - Not selectable`}
                 >
                   <span className="text-center font-semibold">{day}</span>
                   {leaveTypeDisplay && (
@@ -721,6 +1224,30 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                         <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white border-2 border-purple-500 ring-2 ring-purple-500 ring-offset-1 rounded flex-shrink-0"></div>
                           <span className="text-xs text-gray-700">Selected</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Date Selection Rules */}
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 pb-1 border-b border-gray-100">
+                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-indigo-500 rounded-full"></div>
+                        <h5 className="text-xs font-semibold text-gray-800 uppercase tracking-wide">Date Selection Rules</h5>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-100 border-2 border-green-300 rounded flex-shrink-0"></div>
+                            <span className="text-xs text-gray-700">Selectable Dates</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Current month dates up to today</p>
+                        </div>
+                        <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gray-100 border border-gray-300 rounded flex-shrink-0 opacity-60"></div>
+                            <span className="text-xs text-gray-500">Non-Selectable Dates</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Future dates and previous months</p>
                         </div>
                       </div>
                     </div>
@@ -802,6 +1329,23 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 </button>
               </div>
               
+              {/* Date Selection Rules Info */}
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-xs text-blue-800">
+                    <p className="font-medium mb-1">New Date Selection Rules:</p>
+                    <ul className="space-y-1 text-blue-700">
+                      <li>• <strong>Short Leave:</strong> Can be applied for any date in the current month</li>
+                      <li>• <strong>Regularization:</strong> Can be applied for any date in the current month</li>
+                      <li>• <strong>Other Leave Types:</strong> Follow existing rules</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
               {/* Action Buttons */}
               <div className="flex gap-2 sm:gap-3 mt-4">
                 <button
@@ -849,7 +1393,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                      <p className="text-xs text-blue-600 font-medium mb-1">Total Hours</p>
+                      <p className="text-xs text-blue-600 font-medium mb-1">Effective Hours</p>
                       <p className="text-sm font-semibold text-blue-800">{getAttendanceSummary().totalHours}</p>
                     </div>
                     <div className="bg-green-50 rounded-lg p-3 border border-green-100">
@@ -914,7 +1458,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Short Leave</span>
-                                <p className="text-xs opacity-75">For short duration absences</p>
+                                <p className="text-xs opacity-75">For early departure - can apply for current month dates</p>
                               </div>
                             </div>
                           </button>
@@ -933,7 +1477,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Vendor Meeting</span>
-                                <p className="text-xs opacity-75">For external vendor meetings</p>
+                                <p className="text-xs opacity-75">For external vendor meetings - select duration</p>
                               </div>
                             </div>
                           </button>
@@ -952,7 +1496,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Regularization</span>
-                                <p className="text-xs opacity-75">For attendance regularization</p>
+                                <p className="text-xs opacity-75">For attendance regularization - can apply for current month dates</p>
                               </div>
                             </div>
                           </button>
@@ -1065,13 +1609,96 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 </div>
               )}
 
+              {/* Vendor Meeting Duration Selection */}
+              {actionType === 'leave' && selectType === 'vendor-meeting' && (
+                <div className="vendor-meeting-duration-dropdown">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Duration<span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <button
+                      onClick={(e) => handleDropdownToggle('vendorMeetingDuration', e)}
+                      className={`flex items-center justify-between w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white hover:border-gray-300 ${
+                        showVendorMeetingDurationError 
+                          ? 'border-red-300 bg-red-50 text-red-700' 
+                          : vendorMeetingDuration 
+                          ? 'border-blue-300 bg-blue-50 text-blue-700' 
+                          : 'border-gray-200 text-gray-700'
+                      }`}
+                    >
+                      <span className="text-gray-700">
+                        {vendorMeetingDuration === 'halfDay' ? 'Half Day' : 
+                         vendorMeetingDuration === 'fullDay' ? 'Full Day' : 
+                         'Select Duration'}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
+                          isVendorMeetingDurationDropdownOpen ? 'rotate-180' : ''
+                        } ${vendorMeetingDuration ? 'text-blue-500' : 'text-gray-400'}`} />
+                      </div>
+                    </button>
+
+                    {isVendorMeetingDurationDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 vendor-meeting-duration-dropdown transition-all duration-200 ease-in-out">
+                        <div className="p-2">
+                          <button
+                            onClick={() => handleVendorMeetingDurationSelect('halfDay')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
+                              vendorMeetingDuration === 'halfDay'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                vendorMeetingDuration === 'halfDay' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">Half Day</span>
+                                <p className="text-xs opacity-75">4 hours duration</p>
+                              </div>
+                            </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => handleVendorMeetingDurationSelect('fullDay')}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
+                              vendorMeetingDuration === 'fullDay'
+                                ? 'bg-blue-500 text-white shadow-lg'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-4 h-4 rounded-full border-2 ${
+                                vendorMeetingDuration === 'fullDay' ? 'border-white bg-white' : 'border-gray-300'
+                              }`}></div>
+                              <div>
+                                <span className="font-medium">Full Day</span>
+                                <p className="text-xs opacity-75">8 hours duration</p>
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {showVendorMeetingDurationError && (
+                    <p className="mt-1 text-sm text-red-600">Please select a duration</p>
+                  )}
+                </div>
+              )}
+
               {/* Reason Field */}
               <div>
                 <label
                   htmlFor="reason"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  {actionType === "compOff" ? "Reason for Comp-Off" : "Enter your reason"}<span className="text-red-500">*</span>
+                  {actionType === "compOff" ? "Reason for Comp-Off" : 
+                   selectType === "shortLeave" ? "Reason for Short Leave" :
+                   selectType === "vendor-meeting" ? "Reason for Vendor Meeting" :
+                   selectType === "regularized" ? "Reason for Regularization" :
+                   "Enter your reason"}<span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="reason"
@@ -1079,7 +1706,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   rows="3"
                   value={reason}
                   onChange={handleReasonChange}
-                  placeholder={actionType === "compOff" ? "Provide your reason for comp-off..." : "Provide your reason for leave/comp-off..."}
+                  placeholder={actionType === "compOff" ? "Provide your reason for comp-off..." : 
+                              selectType === "shortLeave" ? "Provide your reason for short leave..." :
+                              selectType === "vendor-meeting" ? "Provide your reason for vendor meeting..." :
+                              selectType === "regularized" ? "Provide your reason for regularization..." :
+                              "Provide your reason for leave/comp-off..."}
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300 ${
                     showReasonError 
                       ? 'border-red-300 bg-red-50 text-red-700' 

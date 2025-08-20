@@ -290,7 +290,7 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
                                                         Check Out
                                                     </th>
                                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                                                        Total Hours
+                                                        Effective Hours
                                                     </th>
                                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                                         Day Type
@@ -310,10 +310,10 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
                                                         let dayType = "Off Day";
                                                         let dayTypeColor = "bg-gray-100 text-gray-800";
                                                         
-                                                        if (employee.Duration >= 4 * 60 + 30 && employee.Duration < 8 * 60 + 40) {
+                                                        if (employee.Duration >= 4 * 60 && employee.Duration < 8 * 60 + 20) {
                                                             dayType = "Half Day";
                                                             dayTypeColor = "bg-yellow-100 text-yellow-800";
-                                                        } else if (employee.Duration >= 8 * 60 + 40) {
+                                                        } else if (employee.Duration >= 8 * 60 + 20) {
                                                             dayType = "Full Day";
                                                             dayTypeColor = "bg-green-100 text-green-800";
                                                         }

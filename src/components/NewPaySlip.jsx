@@ -1,10 +1,25 @@
 import React from "react";
+import html2pdf from 'html2pdf.js';
 import logo from "../../src/assets/Icon/ddHealthcare.png"
 
 const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
     const generatePDF = () => {
-        const element = document.getElementById("invoice");
-        html2pdf().from(element).save();
+        try {
+            const element = document.getElementById("invoice");
+            if (!element) {
+                console.error("Invoice element not found");
+                return;
+            }
+            
+            if (typeof html2pdf === 'undefined') {
+                console.error("html2pdf library not loaded");
+                return;
+            }
+            
+            html2pdf().from(element).save();
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+        }
     };
     return (
         <>

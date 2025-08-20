@@ -328,7 +328,7 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
               <FaClockIcon className="w-4 h-4 text-blue-500" />
               <span>{totalHours}</span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Total Hours</p>
+            <p className="text-xs text-gray-500 mt-1">Effective Hours</p>
           </div>
         </div>
 
