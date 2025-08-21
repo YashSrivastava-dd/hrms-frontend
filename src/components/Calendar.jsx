@@ -271,6 +271,64 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     };
   }, [dayLogs, currentMonth, currentYear]);
 
+  // Format time helper function
+  const formatTime = useCallback((timeString) => {
+    if (!timeString) return '--:--';
+    // Extract time from format like "09:13 (IN 1)" or "18:31 (OUT 1)"
+    const timeMatch = timeString.match(/(\d{2}:\d{2})/);
+    return timeMatch ? timeMatch[1] : timeString;
+  }, []);
+
+  // Deduplicate and clean punch records
+  const cleanPunchRecords = useCallback((punchRecords) => {
+    if (!punchRecords) return [];
+    
+    // Split and clean punch records
+    const punches = punchRecords
+      .split(",")
+      .map(p => p.trim())
+      .filter(p => p.length > 0); // Remove empty entries
+    
+    // Remove duplicates while preserving order
+    const uniquePunches = [];
+    const seen = new Set();
+    
+    punches.forEach(punch => {
+      // Normalize the punch record for comparison
+      const normalized = punch.replace(/\s+/g, ' ').trim();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        uniquePunches.push(punch);
+      }
+    });
+    
+    return uniquePunches;
+  }, []);
+
+  // Check if regularization is allowed based on punch-in time
+  const isRegularizationAllowed = useCallback((dayData) => {
+    if (!dayData || !dayData.PunchRecords) return false;
+    
+    const punches = cleanPunchRecords(dayData.PunchRecords);
+    const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
+    
+    if (inTimes.length === 0) return false;
+    
+    // Get the first punch-in time
+    const firstInTime = inTimes[0];
+    if (!firstInTime || firstInTime === '--:--') return false;
+    
+    // Parse the time to minutes for comparison
+    const [hours, minutes] = firstInTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    
+    // Check if time is between 9:15 (555 minutes) and 9:31 (571 minutes)
+    const minTime = 9 * 60 + 15; // 9:15 in minutes
+    const maxTime = 9 * 60 + 31; // 9:31 in minutes
+    
+    return totalMinutes >= minTime && totalMinutes <= maxTime;
+  }, [cleanPunchRecords, formatTime]);
+
   const getDayClass = useCallback((day) => {
     if (!day) return "bg-transparent";
     
@@ -287,7 +345,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     if (isToday(day)) {
       return isClickedDay 
         ? "bg-blue-600 text-white shadow-lg ring-2 ring-blue-400 ring-4" 
-        : "bg-blue-500 text-white shadow-lg ring-2 ring-blue-300";
+        : "bg-blue-500 text-white shadow-white shadow-lg ring-2 ring-blue-300";
     }
 
     const { AttendanceStatus, inTimeData, isLeaveTaken, Status } = getDayType(day);
@@ -302,7 +360,15 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
     // Absent cases
     else if (AttendanceStatus === "Absent" && (Status === 'Present' || Status === 'Absent')) {
-      baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
+      // Check if this day is eligible for regularization
+      const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
+      const isRegularizationEligible = dayData && isRegularizationAllowed(dayData);
+      
+      if (isRegularizationEligible) {
+        baseClass = "bg-orange-100 text-orange-800 border-2 border-orange-400 hover:bg-orange-200";
+      } else {
+        baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
+      }
     }
     else if (AttendanceStatus === "Absent" || Status === 'WeeklyOff') {
       baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
@@ -337,7 +403,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
 
     return baseClass;
-  }, [getDayType, isToday, clickedDay, currentYear, currentMonth]);
+  }, [getDayType, isToday, clickedDay, currentYear, currentMonth, dayLogs, isRegularizationAllowed]);
 
   const getLeaveTypeDisplay = useCallback((leaveType) => {
     return LEAVE_TYPE_MAP[leaveType] || leaveType;
@@ -370,11 +436,25 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     const today = new Date();
     const selectedDate = new Date(currentYear, currentMonth, day);
 
-    // Check if date is valid for selection
-    const isValidCurrentMonth = 
-      selectedDate.getMonth() === today.getMonth() &&
-      selectedDate.getFullYear() === today.getFullYear() &&
-      selectedDate <= today;
+    // Check if date is valid for selection - current month + next 5 days
+    const isValidDate = 
+      (selectedDate.getMonth() === today.getMonth() && 
+       selectedDate.getFullYear() === today.getFullYear()) ||
+      (selectedDate.getMonth() === (today.getMonth() + 1) % 12 && 
+       selectedDate.getFullYear() === (today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear()) &&
+       selectedDate.getDate() <= 5);
+
+    // Debug logging
+    console.log('Date validation:', {
+      selectedDate: selectedDate.toISOString().split('T')[0],
+      today: today.toISOString().split('T')[0],
+      isValidDate,
+      selectedMonth: selectedDate.getMonth(),
+      todayMonth: today.getMonth(),
+      selectedYear: selectedDate.getFullYear(),
+      todayYear: today.getFullYear(),
+      selectedDay: selectedDate.getDate()
+    });
 
     // Get the selected day's data from calendar logs
     const formattedDate = `${day} ${MONTHS[currentMonth]} ${currentYear}`;
@@ -388,16 +468,27 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     // Set the clicked day for visual feedback
     setClickedDay(day);
 
-    // Allow selection for current month dates (for Short Leave and Regularization)
-    if (isValidCurrentMonth) {
+    // Allow selection for current month + next 5 days (for Short Leave and Regularization)
+    if (isValidDate) {
+      // For regularization, check if the user's punch-in time allows it
+      if (selectedDayData && selectedDayData.AttendanceStatus === "Absent") {
+        // Check if regularization is allowed based on punch-in time
+        if (!isRegularizationAllowed(selectedDayData)) {
+          safeToast.error(
+            "Regularization is only allowed if you punched in between 9:15 AM and 9:31 AM. Please check your punch-in time."
+          );
+          return;
+        }
+      }
+      
       setSelectedDay(day);
       setModalOpen(true);
     } else {
       safeToast.error(
-        "You can only apply Short Leave and Regularization for dates within the current month up to today."
+        "You can only apply Short Leave and Regularization for dates within the current month plus the next 5 days."
       );
     }
-  }, [currentYear, currentMonth, dayLogs, onDaySelect]);
+  }, [currentYear, currentMonth, dayLogs, onDaySelect, isRegularizationAllowed]);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
@@ -461,13 +552,23 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           reason, 
           duration: vendorMeetingDuration === 'halfDay' ? "0.5" : "1" 
         }));
+      } else if (selectType === 'regularized') {
+        // For regularization, check if the user's punch-in time allows it
+        const selectedDayData = dayLogs?.find((log) => log.AttendanceDate === selectedDate);
+        if (selectedDayData && !isRegularizationAllowed(selectedDayData)) {
+          safeToast.error(
+            "Regularization is only allowed if you punched in between 9:15 AM and 9:31 AM. Please check your punch-in time."
+          );
+          return;
+        }
+        dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
       } else {
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
       }
     }
     
     // Don't close modal here - it will be closed by the success effect
-  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, vendorMeetingDuration]);
+  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, vendorMeetingDuration, isRegularizationAllowed]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -532,40 +633,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const handleReasonChange = useCallback((e) => {
     setReason(e.target.value);
     setShowReasonError(false); // Clear validation error when user starts typing
-  }, []);
-
-  // Format time helper function
-  const formatTime = useCallback((timeString) => {
-    if (!timeString) return '--:--';
-    // Extract time from format like "09:13 (IN 1)" or "18:31 (OUT 1)"
-    const timeMatch = timeString.match(/(\d{2}:\d{2})/);
-    return timeMatch ? timeMatch[1] : timeString;
-  }, []);
-
-  // Deduplicate and clean punch records
-  const cleanPunchRecords = useCallback((punchRecords) => {
-    if (!punchRecords) return [];
-    
-    // Split and clean punch records
-    const punches = punchRecords
-      .split(",")
-      .map(p => p.trim())
-      .filter(p => p.length > 0); // Remove empty entries
-    
-    // Remove duplicates while preserving order
-    const uniquePunches = [];
-    const seen = new Set();
-    
-    punches.forEach(punch => {
-      // Normalize the punch record for comparison
-      const normalized = punch.replace(/\s+/g, ' ').trim();
-      if (!seen.has(normalized)) {
-        seen.add(normalized);
-        uniquePunches.push(punch);
-      }
-    });
-    
-    return uniquePunches;
   }, []);
 
   // Calculate total hours from punch records
@@ -1072,6 +1139,14 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                             • Comp-Off: Counted as 8h
                           </p>
                         </div>
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Regularization Rules:</span><br/>
+                            • Can apply for current month + next 5 days<br/>
+                            • Only allowed if punched in between 9:15-9:31 AM<br/>
+                            • Days with orange border are eligible for regularization
+                          </p>
+                        </div>
                       </div>
                     );
                   })()}
@@ -1154,6 +1229,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   disabled={!isSelectable}
                   className={`min-h-[50px] sm:min-h-[80px] p-1 flex flex-col items-center justify-center text-xs sm:text-base font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${dayClass}`}
                   aria-label={isSelectable ? `Select ${day} ${MONTHS[currentMonth]} ${currentYear}` : `${day} ${MONTHS[currentMonth]} ${currentYear} - Not selectable`}
+                  title={(() => {
+                    const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
+                    if (dayData && dayData.AttendanceStatus === "Absent" && isRegularizationAllowed(dayData)) {
+                      return `Regularization Eligible - Punched in between 9:15-9:31 AM`;
+                    }
+                    return `${day} ${MONTHS[currentMonth]} ${currentYear}`;
+                  })()}
                 >
                   <span className="text-center font-semibold">{day}</span>
                   {leaveTypeDisplay && (
@@ -1161,6 +1243,18 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                       {leaveTypeDisplay}
                     </span>
                   )}
+                  {/* Show regularization eligibility indicator */}
+                  {(() => {
+                    const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
+                    if (dayData && dayData.AttendanceStatus === "Absent" && isRegularizationAllowed(dayData)) {
+                      return (
+                        <span className="text-xs font-bold mt-0.5 sm:mt-1 px-1 py-0.5 bg-orange-200 text-orange-800 rounded border border-orange-300">
+                          RL
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </button>
               );
             })}
@@ -1207,6 +1301,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           <span className="text-xs text-gray-700">Absent</span>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-orange-100 border-2 border-orange-400 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Absent (Regularization Eligible)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-100 border-2 border-blue-300 rounded flex-shrink-0"></div>
                           <span className="text-xs text-gray-700">Holiday</span>
                         </div>
@@ -1237,7 +1335,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                             <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-100 border-2 border-green-300 rounded flex-shrink-0"></div>
                             <span className="text-xs text-gray-700">Selectable Dates</span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">Current month dates up to today</p>
+                          <p className="text-xs text-gray-500 mt-1">Current month dates + next 5 days</p>
                         </div>
                         <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="flex items-center gap-2">
@@ -1245,6 +1343,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                             <span className="text-xs text-gray-500">Non-Selectable Dates</span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">Future dates and previous months</p>
+                        </div>
+                        <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-orange-100 border-2 border-orange-400 rounded flex-shrink-0"></div>
+                            <span className="text-xs text-gray-700">Regularization Time Restriction</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Only allowed if punched in between 9:15-9:31 AM</p>
                         </div>
                       </div>
                     </div>
@@ -1333,10 +1438,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="text-xs text-blue-800">
-                    <p className="font-medium mb-1">New Date Selection Rules:</p>
+                    <p className="font-medium mb-1">Updated Date Selection Rules:</p>
                     <ul className="space-y-1 text-blue-700">
-                      <li>• <strong>Short Leave:</strong> Can be applied for any date in the current month</li>
-                      <li>• <strong>Regularization:</strong> Can be applied for any date in the current month</li>
+                      <li>• <strong>Short Leave:</strong> Can be applied for current month + next 5 days</li>
+                      <li>• <strong>Regularization:</strong> Can be applied for current month + next 5 days</li>
                       <li>• <strong>Other Leave Types:</strong> Follow existing rules</li>
                     </ul>
                   </div>
@@ -1455,7 +1560,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Short Leave</span>
-                                <p className="text-xs opacity-75">For early departure - can apply for current month dates</p>
+                                <p className="text-xs opacity-75">For early departure - can apply for current month + next 5 days</p>
                               </div>
                             </div>
                           </button>
@@ -1493,7 +1598,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Regularization</span>
-                                <p className="text-xs opacity-75">For attendance regularization - can apply for current month dates</p>
+                                <p className="text-xs opacity-75">For attendance regularization - can apply for current month + next 5 days, only if punched in between 9:15-9:31 AM</p>
                               </div>
                             </div>
                           </button>
