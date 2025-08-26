@@ -21,9 +21,9 @@ const SkeletonCard = React.memo(({ height = "h-20", width = "w-full" }) => (
 ));
 
 const LeaveCard = React.memo(({ title, value, bgColor, textColor, borderColor }) => (
-  <div className={`p-4 sm:p-6 rounded-lg bg-gray-50 border-2 ${borderColor} hover:shadow-md transition-all duration-200`} role="region" aria-label={`${title} Leave`}>
-    <p className={`text-2xl sm:text-3xl md:text-4xl font-bold ${textColor} mb-2`}>{value}</p>
-    <h3 className="text-sm sm:text-base font-medium text-gray-700">{title}</h3>
+  <div className={`p-3 sm:p-4 md:p-6 rounded-lg bg-gray-50 border-2 ${borderColor} hover:shadow-md transition-all duration-200`} role="region" aria-label={`${title} Leave`}>
+    <p className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold ${textColor} mb-1 sm:mb-2`}>{value}</p>
+    <h3 className="text-xs sm:text-sm md:text-base font-medium text-gray-700">{title}</h3>
   </div>
 ));
 
@@ -56,14 +56,14 @@ const AnnouncementsSection = ({ announcements }) => {
 
   if (!displayAnnouncements || displayAnnouncements.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-blue-100 rounded-lg">
             <FaBullhorn className="w-5 h-5 text-blue-600" />
           </div>
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Announcements</h3>
         </div>
-        <div className="text-center py-8">
+        <div className="text-center py-6 sm:py-8">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <FaBullhorn className="w-8 h-8 text-gray-400" />
           </div>
@@ -78,8 +78,8 @@ const AnnouncementsSection = ({ announcements }) => {
   const hasMoreAnnouncements = displayAnnouncements.length > 3;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg">
             <FaBullhorn className="w-5 h-5 text-blue-600" />
@@ -102,104 +102,59 @@ const AnnouncementsSection = ({ announcements }) => {
             ) : (
               <>
                 <FaChevronDown className="w-4 h-4" />
-                Show All ({displayAnnouncements.length})
+                Show More
               </>
             )}
           </button>
         )}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4 w-full">
         {displayedAnnouncements.map((announcement, index) => (
           <div
-            key={index}
-            className={`border border-gray-200 rounded-lg transition-all duration-200 ${
-              expandedAnnouncement === index ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'
-            }`}
+            key={announcement._id || index}
+            className="border-0 sm:border border-gray-200 rounded-none sm:rounded-lg p-3 sm:p-4 hover:shadow-sm transition-shadow duration-200"
           >
-            <div
-              className="p-4 cursor-pointer"
-              onClick={() => toggleAnnouncement(index)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1 line-clamp-2">
-                    {announcement.description}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <h4 className="text-sm sm:text-base font-semibold text-gray-900 truncate">
+                    {announcement.title || 'No Title'}
                   </h4>
-                  <p className="text-sm text-gray-500">
+                  <span className="text-xs text-gray-500 whitespace-nowrap">
                     {formatDate(announcement.dateTime)}
-                  </p>
+                  </span>
                 </div>
-                <div className="ml-4 flex items-center gap-2">
-                  {announcement.imageUrl && (
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                      <img 
-                        src={announcement.imageUrl} 
-                        alt="Announcement" 
-                        className="w-6 h-6 rounded object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
-                  <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200">
-                    {expandedAnnouncement === index ? (
-                      <FaChevronUp className="w-4 h-4" />
-                    ) : (
-                      <FaChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Expanded Content */}
-            {expandedAnnouncement === index && (
-              <div className="px-4 pb-4 border-t border-gray-100 bg-gray-50 rounded-b-lg">
-                <div className="pt-4">
-                  <div className="space-y-3">
-                    {announcement.title && (
-                      <div>
-                        <h5 className="text-sm font-medium text-gray-700 mb-1">Title</h5>
-                        <p className="text-sm text-gray-900">{announcement.title}</p>
-                      </div>
-                    )}
-                    <div>
-                      <h5 className="text-sm font-medium text-gray-700 mb-1">Description</h5>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{announcement.description}</p>
-                    </div>
-                    {announcement.location && (
-                      <div>
-                        <h5 className="text-sm font-medium text-gray-700 mb-1">Location</h5>
-                        <p className="text-sm text-gray-900">{announcement.location}</p>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-xs text-gray-500">
-                        Published: {formatDate(announcement.dateTime)}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleAnnouncement(index);
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        Close
-                      </button>
-                    </div>
+                <p className="text-sm text-gray-600 line-clamp-2">
+                  {announcement.description || 'No description available'}
+                </p>
+                {expandedAnnouncement === index && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {announcement.description || 'No description available'}
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
-            )}
+              <button
+                onClick={() => toggleAnnouncement(index)}
+                className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                aria-label={expandedAnnouncement === index ? "Collapse announcement" : "Expand announcement"}
+              >
+                {expandedAnnouncement === index ? (
+                  <FaChevronUp className="w-4 h-4" />
+                ) : (
+                  <FaChevronDown className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
       {/* View All Modal */}
       {showAllAnnouncements && hasMoreAnnouncements && (
-        <div className="mt-6 pt-4 border-t border-gray-200">
+        <div className="mt-4 sm:mt-6 pt-4 border-t border-gray-200">
           <button
             onClick={toggleShowAll}
             className="w-full py-3 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
@@ -289,7 +244,7 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 animate-pulse">
+      <div className="bg-white rounded-none sm:rounded-lg shadow-sm border-0 sm:border border-gray-200 p-3 sm:p-4 animate-pulse">
         <div className="flex justify-between items-center mb-3">
           <div className="h-4 bg-gray-200 rounded w-24"></div>
           <div className="h-4 bg-gray-200 rounded w-16"></div>
@@ -302,7 +257,7 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
 
   if (!attendanceData) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-none sm:rounded-lg shadow-sm border-0 sm:border border-gray-200 p-3 sm:p-4">
         <div className="text-center py-6">
           <FaClockIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-500">No attendance data available</p>
@@ -315,9 +270,9 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
   const punchRecords = cleanPunchRecords(attendanceData.PunchRecords);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-none sm:rounded-lg shadow-sm border-0 sm:border border-gray-200 overflow-hidden">
       {/* Header - Always visible */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="text-sm font-semibold text-gray-900 mb-1">Attendance Summary</h3>
@@ -332,95 +287,80 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
           </div>
         </div>
 
-                 {/* Status and Times */}
-         <div className="grid grid-cols-3 gap-3 mb-3">
-           <div className="bg-blue-50 rounded-lg p-3">
-             <p className="text-xs text-blue-600 font-medium mb-1">Status</p>
-             <p className="text-sm font-semibold text-blue-800">
-               {attendanceData.AttendanceStatus || 'Not Available'}
-             </p>
-           </div>
-           <div className="bg-green-50 rounded-lg p-3">
-             <p className="text-xs text-green-600 font-medium mb-1">First In</p>
-             <p className="text-sm font-semibold text-green-800">
-               {attendanceData.InTime ? formatTime(attendanceData.InTime) : '--:--'}
-             </p>
-           </div>
-           <div className="bg-red-50 rounded-lg p-3">
-             <p className="text-xs text-red-600 font-medium mb-1">Last Out</p>
-             <p className="text-sm font-semibold text-red-800">
-               {attendanceData.OutTime ? formatTime(attendanceData.OutTime) : '--:--'}
-             </p>
-           </div>
-         </div>
+        {/* Status and Times */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+          <div className="bg-blue-50 rounded-lg p-2 sm:p-3">
+            <p className="text-xs text-blue-600 font-medium mb-1">Status</p>
+            <p className="text-sm font-semibold text-blue-800">
+              {attendanceData.AttendanceStatus || 'Not Available'}
+            </p>
+          </div>
+          <div className="bg-green-50 rounded-lg p-2 sm:p-3">
+            <p className="text-xs text-green-600 font-medium mb-1">First In</p>
+            <p className="text-sm font-semibold text-green-800">
+              {attendanceData.InTime ? formatTime(attendanceData.InTime) : '--:--'}
+            </p>
+          </div>
+          <div className="bg-red-50 rounded-lg p-2 sm:p-3">
+            <p className="text-xs text-red-600 font-medium mb-1">Last Out</p>
+            <p className="text-sm font-semibold text-red-800">
+              {attendanceData.OutTime ? formatTime(attendanceData.OutTime) : '--:--'}
+            </p>
+          </div>
+        </div>
 
         {/* Expandable Punch Records */}
-        {punchRecords.length > 0 && (
-          <div className="border-t border-gray-100 pt-3">
-            <button
-              onClick={toggleExpanded}
-              className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-xl p-3 transition-all duration-200"
-            >
-              <span className="flex items-center gap-2">
-                <FaClockIcon className="w-4 h-4 text-blue-500" />
-                Punch Records ({punchRecords.length})
-              </span>
-              {isExpanded ? (
-                <FaCompressAlt className="w-4 h-4 text-blue-500" />
-              ) : (
-                <FaExpandAlt className="w-4 h-4 text-blue-500" />
-              )}
-            </button>
+        <div className="border-t border-gray-100 pt-3">
+          <button
+            onClick={toggleExpanded}
+            className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
+          >
+            <span>Punch Records ({punchRecords.length})</span>
+            {isExpanded ? (
+              <FaChevronUp className="w-4 h-4 text-gray-500" />
+            ) : (
+              <FaChevronDown className="w-4 h-4 text-gray-500" />
+            )}
+          </button>
 
-            {/* Dropdown Content */}
-            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-            }`}>
-              <div className="mt-3 max-h-64 overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                 {punchRecords.map((punch, index) => {
-                   const punchType = getPunchType(punch);
-                   const time = formatTime(punch);
-                   const isIn = punchType === "IN";
-                   
-                   return (
-                     <div
-                       key={index}
-                       className={`flex items-center justify-between p-4 rounded-xl border-2 shadow-sm ${
-                         isIn 
-                           ? 'bg-green-50 border-green-200 hover:bg-green-100' 
-                           : 'bg-red-50 border-red-200 hover:bg-red-100'
-                       } transition-colors duration-200`}
-                     >
-                       <div className="flex items-center gap-3">
-                         <div className={`w-3 h-3 rounded-full ${
-                           isIn ? 'bg-green-500' : 'bg-red-500'
-                         }`}></div>
-                         <div>
-                           <p className={`text-sm font-semibold ${
-                             isIn ? 'text-green-700' : 'text-red-700'
-                           }`}>
-                             {isIn ? 'Check In' : 'Check Out'}
-                           </p>
-                           <p className="text-xs text-gray-500 font-medium">
-                             Record #{index + 1}
-                           </p>
-                         </div>
-                       </div>
-                       <div className="text-right">
-                         <p className="text-lg font-bold text-gray-900">{time}</p>
-                         <p className={`text-xs font-semibold ${
-                           isIn ? 'text-green-600' : 'text-red-600'
-                         }`}>
-                           {punchType}
-                         </p>
-                       </div>
-                     </div>
-                   );
-                 })}
-               </div>
-             </div>
-          </div>
-        )}
+          {isExpanded && (
+            <div className="mt-3 space-y-2">
+              {punchRecords.map((record, index) => {
+                const time = formatTime(record);
+                const isIn = record.includes("(IN");
+                const punchType = getPunchType(record);
+                
+                return (
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        isIn ? 'bg-green-500' : 'bg-red-500'
+                      }`}></div>
+                      <div>
+                        <p className={`text-xs font-medium ${
+                          isIn ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {isIn ? 'Check In' : 'Check Out'}
+                        </p>
+                        <p className="text-xs text-gray-500 font-medium">
+                          Record #{index + 1}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">{time}</p>
+                      <p className={`text-xs font-semibold ${
+                        isIn ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {punchType}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -485,7 +425,7 @@ const Dashboard = ({ reloadHandel }) => {
 
   return (
     <div className="w-full flex flex-col min-h-full overflow-x-hidden">
-      <main className="space-y-6 flex-1">
+      <main className="space-y-4 sm:space-y-6 flex-1 px-0 sm:px-4 lg:px-6 w-full">
         {loading && !userDataList ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
@@ -497,8 +437,8 @@ const Dashboard = ({ reloadHandel }) => {
           <>
             {userDataList?.role !== "Super-Admin" && userDataList?.role !== "HR-Admin" ? (
               <>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-6">
+                <div className="bg-white rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 p-4 sm:p-6">
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-green-100 rounded-lg">
                         <FaBriefcase className="w-5 h-5 text-green-600" />
@@ -514,11 +454,11 @@ const Dashboard = ({ reloadHandel }) => {
                   </div>
                   
                   {loading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                       {Array.from({ length: 4 }).map((_, index) => <SkeletonCard key={index} />)}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                       <LeaveCard 
                         title="Casual" 
                         value={userDataList?.leaveBalance?.casualLeave || 0} 
@@ -555,14 +495,14 @@ const Dashboard = ({ reloadHandel }) => {
 
             {userDataList?.role !== "HR-Admin" && userDataList?.role !== "Super-Admin" && (
               <>
-                <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4">Monthly Attendance</h3>
+                <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4 px-0">Monthly Attendance</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-                  <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md lg:col-span-2 w-full">
+                 <div className="bg-white p-4 sm:p-6 rounded-none sm:rounded-lg shadow-md lg:col-span-2 w-full">
                     <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-4 text-gray-800">Calendar</h3>
                     {/* <div className="flex flex-wrap gap-4 mb-4 text-sm">
                       {[
                         ['bg-lime-400', 'Full Day'],
-                        ['bg-amber-300', 'Half Day'],
+                        ['bg-amber-300', 'Half Day'],F
                         ['bg-red-400', 'Absent'],
                         ['bg-blue-400', 'Holiday'],
                         ['bg-black', 'Leave Applied']

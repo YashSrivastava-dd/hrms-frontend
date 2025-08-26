@@ -317,9 +317,9 @@ function Navbar({ onToggleSidebar }) {
     <>
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 w-full">
       {/* Main Navbar */}
-      <div className="flex items-center justify-between p-4 bg-white">
+      <div className="flex items-center justify-between p-4 bg-white relative">
         {/* Left Section - Menu & Logo */}
-        <div className="flex items-center space-x-3 flex-1">
+        <div className="flex items-center space-x-3 flex-shrink-0">
           <button 
             onClick={onToggleSidebar} 
             className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 md:hidden"
@@ -330,11 +330,11 @@ function Navbar({ onToggleSidebar }) {
           <img src={ddHealthcare} alt="DD Healthcare Logo" className="w-20 h-10 md:w-24 md:h-12" />
         </div>
 
-        {/* Center Section - Real-time Clock */}
-        <div className="flex items-center justify-center flex-1">
-          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-lg shadow-md">
-            <div className="text-center">
-              <div className="text-lg font-bold font-mono">
+        {/* Center Section - Real-time Clock - Hidden on Mobile */}
+        <div className="hidden md:flex items-center justify-end flex-1 min-w-0 px-4">
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-2 rounded-lg shadow-md min-w-0 max-w-xs">
+            <div className="text-center min-w-0">
+              <div className="text-base font-bold font-mono break-words leading-tight">
                 {currentTime.toLocaleTimeString('en-US', { 
                   hour12: false,
                   hour: '2-digit',
@@ -342,7 +342,7 @@ function Navbar({ onToggleSidebar }) {
                   second: '2-digit'
                 })}
               </div>
-              <div className="text-xs opacity-90">
+              <div className="text-xs opacity-90 break-words leading-tight mt-0.5">
                 {currentTime.toLocaleDateString('en-US', { 
                   weekday: 'short',
                   month: 'short',
@@ -353,31 +353,29 @@ function Navbar({ onToggleSidebar }) {
           </div>
         </div>
 
-        {/* Mobile Punch Controls (Hidden on Desktop) */}
-        <div className="flex items-center space-x-2 md:hidden absolute right-4">
+        {/* Right Section - Notifications & Profile */}
+        <div className="flex items-center space-x-3 flex-1 justify-end">
+          {/* Mobile Punch Controls - Positioned on the right */}
           {userType !== "HR-Admin" && userType !== "Super-Admin" && (
-            <>
+            <div className="flex md:hidden items-center space-x-1 sm:space-x-2">
               {isPunchedOut ? (
                 <button
-                  className="px-3 py-2 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors duration-200"
+                  className="px-2 sm:px-3 py-2 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors duration-200"
                   onClick={handlePunchOut}
                 >
                   <FaRegClock className="text-white" />
                 </button>
               ) : !isPunchedIn ? (
                 <button
-                  className="px-3 py-2 bg-yellow-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-yellow-600 transition-colors duration-200"
+                  className="px-2 sm:px-3 py-2 bg-yellow-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-yellow-600 transition-colors duration-200"
                   onClick={() => setIsCameraOpen(true)}
                 >
                   <FaRegClock size={16} className="text-white" />
                 </button>
               ) : null}
-            </>
+            </div>
           )}
-        </div>
 
-        {/* Right Section - Notifications & Profile */}
-        <div className="flex items-center space-x-3 flex-1 justify-end">
           {/* Punch In Button - Desktop */}
           {userType !== "HR-Admin" && userType !== "Super-Admin" && (
             <div className="hidden md:block">

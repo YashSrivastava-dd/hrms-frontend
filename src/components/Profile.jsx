@@ -35,9 +35,9 @@ const EmployeeProfile = () => {
   );
 
   const renderDetail = (label, value, icon = null) => (
-    <div className="flex items-start space-x-3 p-4 bg-blue-100/60 rounded-lg hover:bg-blue-100 transition-colors duration-200">
+    <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 border border-gray-100">
       {icon && (
-        <div className="flex-shrink-0 w-8 h-8 bg-blue-200 rounded-lg flex items-center justify-center">
+        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
           {icon}
         </div>
       )}
@@ -75,15 +75,15 @@ const EmployeeProfile = () => {
         return (
           <div className="space-y-6">
             {/* Professional Information */}
-            <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-100 to-indigo-100 px-6 py-4 border-b border-blue-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-300 rounded-lg flex items-center justify-center">
-                    <CgProfile className="text-blue-700 text-xl" />
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <CgProfile className="text-blue-600 text-xl" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-blue-900">Professional Information</h3>
-                    <p className="text-blue-700 text-sm">Education and experience details</p>
+                    <h3 className="text-lg font-semibold text-gray-900">Professional Information</h3>
+                    <p className="text-gray-600 text-sm">Education and experience details</p>
                   </div>
                 </div>
               </div>
@@ -102,15 +102,15 @@ const EmployeeProfile = () => {
             </div>
 
             {/* Home Address */}
-            <div className="bg-white rounded-xl shadow-sm border border-green-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-green-100 to-emerald-100 px-6 py-4 border-b border-green-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-300 rounded-lg flex items-center justify-center">
-                    <AiOutlineHome className="text-green-700 text-xl" />
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <AiOutlineHome className="text-blue-600 text-xl" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-green-900">Home Address</h3>
-                    <p className="text-green-700 text-sm">Permanent address information</p>
+                    <h3 className="text-lg font-semibold text-gray-900">Home Address</h3>
+                    <p className="text-gray-600 text-sm">Permanent address information</p>
                   </div>
                 </div>
               </div>
@@ -119,25 +119,25 @@ const EmployeeProfile = () => {
                   {loading
                     ? Array(4).fill(0).map((_, i) => <SkeletonRow key={i} />)
                     : [
-                        renderDetail("Address", userDataList?.permanentAddress, <MdOutlineLocationOn className="text-green-600" />),
-                        renderDetail("Address (cont.)", "-", <MdOutlineLocationOn className="text-green-600" />),
-                        renderDetail("City", "Noida Gautam Buddha Nagar", <MdOutlineLocationOn className="text-green-600" />),
-                        renderDetail("Postal Code", "201301", <MdOutlineLocationOn className="text-green-600" />),
+                        renderDetail("Address", userDataList?.permanentAddress, <MdOutlineLocationOn className="text-blue-600" />),
+                        renderDetail("Address (cont.)", "-", <MdOutlineLocationOn className="text-blue-600" />),
+                        renderDetail("City", "Noida Gautam Buddha Nagar", <MdOutlineLocationOn className="text-blue-600" />),
+                        renderDetail("Postal Code", "201301", <MdOutlineLocationOn className="text-blue-600" />),
                       ]}
                 </div>
               </div>
             </div>
 
             {/* Tax Information */}
-            <div className="bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-100 to-pink-100 px-6 py-4 border-b border-purple-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-purple-300 rounded-lg flex items-center justify-center">
-                    <TbTax className="text-purple-700 text-xl" />
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <TbTax className="text-blue-600 text-xl" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-purple-900">Tax Information</h3>
-                    <p className="text-purple-700 text-sm">Tax and identification details</p>
+                    <h3 className="text-lg font-semibold text-gray-900">Tax Information</h3>
+                    <p className="text-gray-600 text-sm">Tax and identification details</p>
                   </div>
                 </div>
               </div>
@@ -146,8 +146,8 @@ const EmployeeProfile = () => {
                   {loading
                     ? Array(2).fill(0).map((_, i) => <SkeletonRow key={i} />)
                     : [
-                        renderDetail("PAN Number", userDataList?.pancardNo, <FaRegIdCard className="text-purple-600" />),
-                        renderDetail("Aadhaar Number", userDataList?.aadhaarNumber, <FaRegIdCard className="text-purple-600" />),
+                        renderDetail("PAN Number", userDataList?.pancardNo, <FaRegIdCard className="text-blue-600" />),
+                        renderDetail("Aadhaar Number", userDataList?.aadhaarNumber, <FaRegIdCard className="text-blue-600" />),
                       ]}
                 </div>
               </div>
@@ -157,15 +157,15 @@ const EmployeeProfile = () => {
 
       case "job":
         return (
-          <div className="bg-white rounded-xl shadow-sm border border-orange-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-orange-100 to-amber-100 px-6 py-4 border-b border-orange-200">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-orange-300 rounded-lg flex items-center justify-center">
-                  <MdOutlineWork className="text-orange-700 text-xl" />
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <MdOutlineWork className="text-blue-600 text-xl" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-orange-900">Job Information</h3>
-                  <p className="text-orange-700 text-sm">Employment and role details</p>
+                  <h3 className="text-lg font-semibold text-gray-900">Job Information</h3>
+                  <p className="text-gray-600 text-sm">Employment and role details</p>
                 </div>
               </div>
             </div>
@@ -174,10 +174,10 @@ const EmployeeProfile = () => {
                 {loading
                   ? Array(4).fill(0).map((_, i) => <SkeletonRow key={i} />)
                   : [
-                      renderDetail("Department", userDataList?.departmentId || "NA", <MdOutlineWork className="text-orange-600" />),
-                      renderDetail("Designation", userDataList?.designation || "NA", <TbBriefcase className="text-orange-600" />),
-                      renderDetail("Date of Joining", userDataList?.doj || "NA", <FaRegCalendarAlt className="text-orange-600" />),
-                      renderDetail("Manager", userDataList?.managerId || "NA", <AiOutlineUser className="text-orange-600" />),
+                      renderDetail("Department", userDataList?.departmentId || "NA", <MdOutlineWork className="text-blue-600" />),
+                      renderDetail("Designation", userDataList?.designation || "NA", <TbBriefcase className="text-blue-600" />),
+                      renderDetail("Date of Joining", userDataList?.doj || "NA", <FaRegCalendarAlt className="text-blue-600" />),
+                      renderDetail("Manager", userDataList?.managerId || "NA", <AiOutlineUser className="text-blue-600" />),
                     ]}
               </div>
             </div>
@@ -186,15 +186,15 @@ const EmployeeProfile = () => {
 
       case "salary":
         return (
-          <div className="bg-white rounded-xl shadow-sm border border-teal-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-teal-100 to-cyan-100 px-6 py-4 border-b border-teal-200">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-teal-300 rounded-lg flex items-center justify-center">
-                  <span className="text-teal-700 text-xl font-bold">₹</span>
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <span className="text-blue-600 text-xl font-bold">₹</span>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-teal-900">Salary Information</h3>
-                  <p className="text-teal-700 text-sm">Compensation and benefits details</p>
+                  <h3 className="text-lg font-semibold text-gray-900">Salary Information</h3>
+                  <p className="text-gray-600 text-sm">Compensation and benefits details</p>
                 </div>
               </div>
             </div>
@@ -203,10 +203,10 @@ const EmployeeProfile = () => {
                 {loading
                   ? Array(4).fill(0).map((_, i) => <SkeletonRow key={i} />)
                   : [
-                      renderDetail("Basic Salary", formatBasicSalary(userDataList?.salary?.basic), <span className="text-teal-600 text-lg">₹</span>),
-                      renderDetail("HRA", formatBasicSalary(userDataList?.salary?.hra), <span className="text-teal-600 text-lg">₹</span>),
-                      renderDetail("Allowances", formatBasicSalary(userDataList?.salary?.allowances), <span className="text-teal-600 text-lg">₹</span>),
-                      renderDetail("Total Salary", formatBasicSalary(userDataList?.salary?.total), <span className="text-teal-600 text-lg">₹</span>),
+                      renderDetail("Basic Salary", formatBasicSalary(userDataList?.salary?.basic), <span className="text-blue-600 text-lg">₹</span>),
+                      renderDetail("HRA", formatBasicSalary(userDataList?.salary?.hra), <span className="text-blue-600 text-lg">₹</span>),
+                      renderDetail("Allowances", formatBasicSalary(userDataList?.salary?.allowances), <span className="text-blue-600 text-lg">₹</span>),
+                      renderDetail("Total Salary", formatBasicSalary(userDataList?.salary?.total), <span className="text-blue-600 text-lg">₹</span>),
                     ]}
               </div>
             </div>
@@ -218,18 +218,18 @@ const EmployeeProfile = () => {
   };
    
   return (
-    <div className="full-height-content bg-white p-4 flex flex-col">
+    <div className="full-height-content bg-gray-50 p-4 flex flex-col">
       <div className="w-full flex-1">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-lg border border-blue-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="text-center">
             <div className="flex items-center justify-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                <AiOutlineUser className="text-white text-2xl" />
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
+                <AiOutlineUser className="text-blue-600 text-2xl" />
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Employee Profile</h1>
-                <p className="text-gray-700">Manage your personal and professional information</p>
+                <p className="text-gray-600">Manage your personal and professional information</p>
               </div>
             </div>
           </div>
@@ -238,9 +238,9 @@ const EmployeeProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Panel - Profile Card */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               {/* Profile Header */}
-              <div className="bg-gradient-to-br from-blue-100 to-indigo-100 p-6 text-center border-b border-blue-200">
+              <div className="bg-gray-50 p-6 text-center border-b border-gray-200">
                 <div className="relative inline-block">
                   <div
                     className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-lg group cursor-pointer mx-auto"
@@ -275,14 +275,14 @@ const EmployeeProfile = () => {
                 </div>
                 
                 <div className="mt-4">
-                  <h2 className="text-xl font-bold text-blue-900">
+                  <h2 className="text-xl font-bold text-gray-900">
                     {loading ? (
                       <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
                     ) : (
                       userDataList?.employeeName || "Employee Name"
                     )}
                   </h2>
-                  <p className="text-blue-700 text-sm">
+                  <p className="text-gray-600 text-sm">
                     {loading ? (
                       <div className="h-4 bg-gray-200 rounded w-24 animate-pulse mt-1"></div>
                     ) : (
@@ -290,7 +290,7 @@ const EmployeeProfile = () => {
                     )}
                   </p>
                   <div className="mt-2">
-                    <span className="inline-block bg-blue-300 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                    <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                       {loading ? (
                         <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
                       ) : (
@@ -326,7 +326,7 @@ const EmployeeProfile = () => {
           {/* Right Panel - Content */}
           <div className="lg:col-span-2">
             {/* Tab Navigation */}
-            <div className="bg-white rounded-xl shadow-lg border border-blue-200 p-4 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
               <div className="flex flex-wrap gap-2">
                 {[
                   { id: "personal", label: "Personal Information", icon: <CgProfile className="w-4 h-4" /> },
@@ -338,8 +338,8 @@ const EmployeeProfile = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       activeTab === tab.id
-                        ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg"
-                        : "text-gray-700 hover:bg-blue-100 hover:text-blue-800"
+                        ? "bg-blue-500 text-white shadow-sm"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-800"
                     }`}
                   >
                     {tab.icon}

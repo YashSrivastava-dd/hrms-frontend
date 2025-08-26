@@ -326,7 +326,7 @@ const AddEmployeeModal = ({ isOpen, onClose }) => {
                                     type="text"
                                     value={formData.salary}
                                     onChange={(e) => handleChange("salary", e.target.value)}
-                                    placeholder="$120,000/year"
+                                    placeholder="₹12,00,000/year"
                                     className="input"
                                 />
                             </div>

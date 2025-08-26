@@ -463,7 +463,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         {/* Page Content */}
         <div style={{ 
           flex: '1 1 auto', 
-          padding: selectedTag === 'taxDeclarations' ? '0' : '1rem 1.5rem' 
+          padding: selectedTag === 'taxDeclarations' ? '0' : isMobile ? '0' : '1rem 1.5rem' 
         }}>
           {error ? (
             <div className="flex items-center justify-center h-64">

@@ -608,9 +608,14 @@ function CeoDashboard() {
                             {announcementData?.data?.slice(0, 5)?.map((announcement, index) => (
                                 <div key={index} className="border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg">
                                     <h4 className="font-medium text-gray-900 text-sm">
-                                        {announcement.title || announcement.description}
+                                        {announcement.title || 'Untitled Announcement'}
                                     </h4>
-                                    <p className="text-xs text-gray-600 mt-1">
+                                    {announcement.description && (
+                                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                            {announcement.description}
+                                        </p>
+                                    )}
+                                    <p className="text-xs text-gray-500 mt-2">
                                         {new Date(announcement.dateTime).toLocaleDateString('en-US', {
                                             month: 'short',
                                             day: 'numeric',
