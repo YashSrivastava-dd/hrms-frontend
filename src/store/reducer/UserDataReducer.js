@@ -102,6 +102,7 @@ import {
   POST_LEAVE_APPLY_BY_EMPLOYEE_FAIL,
   POST_LEAVE_APPLY_BY_EMPLOYEE_REQUEST,
   POST_LEAVE_APPLY_BY_EMPLOYEE_SUCCESS,
+  RESET_LEAVE_APPLY_BY_EMPLOYEE_STATE,
   POST_MEDICAL_FILE_FAIL,
   POST_MEDICAL_FILE_REQUEST,
   POST_MEDICAL_FILE_SUCCESS,
@@ -370,6 +371,14 @@ export const postLeaveApplyByEmployeReducer = (state = initialState, action) => 
         ...state,
         loading: false,
         error: action.payload,
+      };
+
+    case RESET_LEAVE_APPLY_BY_EMPLOYEE_STATE:
+      return {
+        ...state,
+        data: null,
+        error: null,
+        loading: false,
       };
 
     default:

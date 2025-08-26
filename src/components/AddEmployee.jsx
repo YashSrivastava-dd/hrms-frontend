@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { postApplyLeaveByEmployee, postMedicalFileAction, getAttendenceLogsOfEmploye } from "../store/action/userDataAction";
+import { postApplyLeaveByEmployee, postMedicalFileAction, getAttendenceLogsOfEmploye, postVendorMeetingAction, resetLeaveApplyByEmployeeAction } from "../store/action/userDataAction";
 import 'react-toastify/dist/ReactToastify.css';
 import { RxCross2 } from "react-icons/rx";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +20,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     const { data } = useSelector((state) => state.userData);
     const { loading: uploadLoading, data: medicalReport } = useSelector((state) => state.medicalFileReducer);
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const { data: dataa, error } = useSelector((state) => state.leaveApplyByEmployee)
+    const { data: vendorMeetingData, loading: vendorMeetingLoading, error: vendorMeetingError } = useSelector((state) => state.vendorMeetingData)
     const { data: attendanceData, loading: attendanceLoading } = useSelector((state) => state.attendanceLogs);
 
     // Reset function to clear all form data - defined before useEffect hooks
@@ -33,6 +35,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             reason: "",
             totalDays: 0,
             compOffDayType: "",
+            vendorMeetingDuration: "",
         });
         setLeaveTypeError(null);
         setTotalDayError(null);
@@ -43,6 +46,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             medical: null,
             casual: null,
             earned: null,
+            vendor: null,
+            paternity: null,
+            maternity: null,
         });
         setFile(null);
         setCalendarOpen(false);
@@ -59,10 +65,17 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     // Cleanup toasts on component unmount
     useEffect(() => {
         return () => {
-            // Dismiss all toasts when component unmounts to prevent runtime errors
-            safeToast.dismiss();
+            try {
+                // Dismiss all toasts when component unmounts to prevent runtime errors
+                safeToast.dismiss();
+                // Reset leave application state when component unmounts
+                dispatch(resetLeaveApplyByEmployeeAction());
+            } catch (cleanupError) {
+                // Silently handle cleanup errors to prevent tab switching issues
+                console.warn('Cleanup error during component unmount:', cleanupError);
+            }
         };
-    }, []);
+    }, [dispatch]);
 
     useEffect(() => {
         if (error && typeof error === 'string' && error.length > 0) {
@@ -122,7 +135,35 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 console.error('Toast error:', toastError);
             }
         }
-    }, [medicalReport]);
+    }, [medicalReport])
+
+    // Handle vendor meeting success
+    useEffect(() => {
+        if (vendorMeetingData && vendorMeetingData?.message) {
+            try {
+                safeToast.success(vendorMeetingData.message);
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+            
+            // Reset form after successful submission
+            setTimeout(() => {
+                resetForm();
+                setIsOpen(false);
+            }, 1000);
+        }
+    }, [vendorMeetingData])
+
+    // Handle vendor meeting error
+    useEffect(() => {
+        if (vendorMeetingError && typeof vendorMeetingError === 'string' && vendorMeetingError.length > 0) {
+            try {
+                safeToast.error(vendorMeetingError);
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+        }
+    }, [vendorMeetingError]);
 
     // Handle dropdown click outside
     useEffect(() => {
@@ -150,6 +191,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         medical: null,
         casual: null,
         earned: null,
+        vendor: null,
+        paternity: null,
+        maternity: null,
     })
 
     const [leaveData, setLeaveData] = useState({
@@ -160,6 +204,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         reason: "",
         totalDays: 0, // New field for total days
         compOffDayType: "", // New field for comp-off day type
+        vendorMeetingDuration: "", // New field for vendor meeting duration
     });
 
     // Date range picker state
@@ -188,10 +233,43 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         }
     };
     const closeModal = () => {
-        setIsOpen(false);
-        resetForm(); // Reset form when modal is closed
+        try {
+            setIsOpen(false);
+            resetForm(); // Reset form when modal is closed
+            // Reset leave application state when modal is closed
+            dispatch(resetLeaveApplyByEmployeeAction());
+        } catch (closeError) {
+            // Handle errors during modal close to prevent tab switching issues
+            console.warn('Error during modal close:', closeError);
+            setIsOpen(false); // Ensure modal is closed even if there's an error
+        }
     };
-    const dispatch = useDispatch();
+
+    // Function to map frontend leave types to API expected format
+    const getApiLeaveType = (frontendLeaveType) => {
+        const leaveTypeMapping = {
+            'casualLeave': 'casual-leave',
+            'medicalLeave': 'medical-leave',
+            'earnedLeave': 'earned-leave',
+            'paternityLeave': 'paternity-leave',
+            'maternityLeave': 'maternity-leave',
+            'compOffLeave': 'comp-off-leave',
+            'optionalLeave': 'optional-leave',
+            'vendorLeave': 'vendor-leave',
+            'vendorMeeting': 'vendor-meeting'
+        };
+        return leaveTypeMapping[frontendLeaveType] || frontendLeaveType;
+    };
+
+    // Function to map frontend duration values to API expected format
+    const getApiDuration = (frontendDuration) => {
+        const durationMapping = {
+            'firstHalf': 'first-half',
+            'secondHalf': 'second-half',
+            'fullDay': 'full-day'
+        };
+        return durationMapping[frontendDuration] || frontendDuration;
+    };
 
     const [file, setFile] = useState(null);
     const handelChangeFile = (e) => {
@@ -225,16 +303,12 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         if (leaveData?.leaveType === '' || leaveData?.startDate === '') {
             setLeaveError((prevErrors) => ({
                 ...prevErrors,
-                medical: '', // Update the `medical` field
-            }));
-            return;
-        }
-
-
-        if (leaveData?.leaveType === '' || leaveData?.startDate === '') {
-            setLeaveError((prevErrors) => ({
-                ...prevErrors,
-                medical: '', // Update the `medical` field
+                medical: '',
+                casual: '',
+                earned: '',
+                vendor: '',
+                paternity: '',
+                maternity: '',
             }));
             return;
         }
@@ -311,6 +385,163 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
             case "optionalLeave":
                 break;
+                
+            case "vendorLeave":
+                // Vendor leave validation
+                if (leaveData.selectTime === 'firstHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'secondHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'fullDay') {
+                    setLeaveData({ ...leaveData, totalDays: 1 });
+                    return;
+                }
+                
+                // Vendor leave can be applied for dates between yesterday and the last 30 days
+                if (!(startDate <= yesterday && startDate >= thirtyDaysAgo)) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        vendor: 'Vendor leave can only be applied for dates between yesterday and the last 30 days.',
+                    }));
+                    return;
+                }
+                
+                if (leaveData.totalDays < 1 || leaveData.totalDays > 7) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        vendor: 'Vendor leave must be applied for a minimum of 1 day and a maximum of 7 days.',
+                    }));
+                    return;
+                }
+                
+                // Clear errors if validation passes
+                setLeaveError((prevErrors) => ({
+                    ...prevErrors,
+                    vendor: null,
+                }));
+                break;
+                
+            case "paternityLeave":
+                // Paternity leave validation
+                if (leaveData.selectTime === 'firstHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'secondHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'fullDay') {
+                    setLeaveData({ ...leaveData, totalDays: 1 });
+                    return;
+                }
+                
+                // Paternity leave can be applied for dates between yesterday and the last 30 days
+                if (!(startDate <= yesterday && startDate >= thirtyDaysAgo)) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        paternity: 'Paternity leave can only be applied for dates between yesterday and the last 30 days.',
+                    }));
+                    return;
+                }
+                
+                if (leaveData.totalDays < 1 || leaveData.totalDays > 7) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        paternity: 'Paternity leave must be applied for a minimum of 1 day and a maximum of 7 days.',
+                    }));
+                    return;
+                }
+                
+                // Clear errors if validation passes
+                setLeaveError((prevErrors) => ({
+                    ...prevErrors,
+                    paternity: null,
+                }));
+                break;
+                
+            case "maternityLeave":
+                // Maternity leave validation
+                if (leaveData.selectTime === 'firstHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'secondHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'fullDay') {
+                    setLeaveData({ ...leaveData, totalDays: 1 });
+                    return;
+                }
+                
+                // Maternity leave can be applied for dates between yesterday and the last 30 days
+                if (!(startDate <= yesterday && startDate >= thirtyDaysAgo)) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        maternity: 'Maternity leave can only be applied for dates between yesterday and the last 30 days.',
+                    }));
+                    return;
+                }
+                
+                if (leaveData.totalDays < 1 || leaveData.totalDays > 7) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        maternity: 'Maternity leave must be applied for a minimum of 1 day and a maximum of 7 days.',
+                    }));
+                    return;
+                }
+                
+                // Clear errors if validation passes
+                setLeaveError((prevErrors) => ({
+                    ...prevErrors,
+                    maternity: null,
+                }));
+                break;
+                
+            case "vendorMeeting":
+                // Vendor meeting validation
+                if (leaveData.vendorMeetingDuration === 'firstHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.vendorMeetingDuration === 'secondHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.vendorMeetingDuration === 'fullDay') {
+                    setLeaveData({ ...leaveData, totalDays: 1 });
+                    return;
+                }
+                
+                // Vendor meeting can be applied for dates between yesterday and the last 30 days
+                if (!(startDate <= yesterday && startDate >= thirtyDaysAgo)) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        vendor: 'Vendor meeting can only be applied for dates between yesterday and the last 30 days.',
+                    }));
+                    return;
+                }
+                
+                if (leaveData.totalDays < 0.5 || leaveData.totalDays > 7) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        vendor: 'Vendor meeting must be applied for a minimum of 0.5 days and a maximum of 7 days.',
+                    }));
+                    return;
+                }
+                
+                // Clear errors if validation passes
+                setLeaveError((prevErrors) => ({
+                    ...prevErrors,
+                    vendor: null,
+                }));
+                break;
+                
             case "earnedLeave":
                 // const maxEarnedLeaveDate = new Date(currentDate);
                 // maxEarnedLeaveDate.setDate(currentDate.getDate() + 31); // 14 days after today
@@ -406,8 +637,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 break;
 
             default:
-                alert('Invalid leave type selected.');
-                return;
+                // No specific validation needed for other leave types
+                break;
         }
     }, [leaveData.totalDays, leaveData.leaveType, leaveData.selectTime]);
 
@@ -449,6 +680,15 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             setLeaveTypeError('')
             setTotalDayError('')
             setReasonError('')
+            setLeaveError((prevErrors) => ({
+                ...prevErrors,
+                medical: '',
+                casual: '',
+                earned: '',
+                vendor: '',
+                paternity: '',
+                maternity: '',
+            }))
             if (name === "startDate" || name === "endDate") {
                 const startDate = updatedData.startDate ? new Date(updatedData.startDate + 'T00:00:00') : null;
                 const endDate = updatedData.endDate ? new Date(updatedData.endDate + 'T00:00:00') : null;
@@ -561,8 +801,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             return;
         }
 
+        // Validate vendor meeting duration selection
+        if (leaveData.leaveType === 'vendorMeeting' && !leaveData.vendorMeetingDuration) {
+            setCompOffDayTypeError('Please select a duration (First Half, Second Half, or Full Day).');
+            return;
+        }
+
         if (leaveData.totalDays < 0.5) {
-            setTotalDayError('You must apply for at least 1 day of leave.');
+            setTotalDayError('You must apply for at least 0.5 days of leave.');
             return;
         }
 
@@ -576,66 +822,86 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             return;
         }
 
-        // Check leave balance before submitting
-        const requestedDays = parseFloat(leaveData.totalDays);
-        const availableBalance = parseFloat(leaveBalance?.[leaveData.leaveType] || 0);
-        
-        if (requestedDays > availableBalance) {
-            try {
-                safeToast.error(`Insufficient leave balance. You have ${availableBalance} days available but requesting ${requestedDays} days.`);
-            } catch (toastError) {
-                console.error('Toast error:', toastError);
+        // Check leave balance before submitting (skip for vendor meeting and vendor leave as they don't consume leave balance)
+        if (leaveData.leaveType !== 'vendorMeeting' && leaveData.leaveType !== 'vendorLeave') {
+            const requestedDays = parseFloat(leaveData.totalDays);
+            const availableBalance = parseFloat(leaveBalance?.[leaveData.leaveType] || 0);
+            
+            if (requestedDays > availableBalance) {
+                try {
+                    safeToast.error(`Insufficient leave balance. You have ${availableBalance} days available but requesting ${requestedDays} days.`);
+                } catch (toastError) {
+                    console.error('Toast error:', toastError);
+                }
+                return;
             }
-            return;
-        }
 
-        // Additional balance check for specific leave types
-        if (leaveData.leaveType === 'earnedLeave' && availableBalance <= 0) {
-            try {
-                safeToast.error('You have no earned leave balance available.');
-            } catch (toastError) {
-                console.error('Toast error:', toastError);
+            // Additional balance check for specific leave types
+            if (leaveData.leaveType === 'earnedLeave' && availableBalance <= 0) {
+                try {
+                    safeToast.error('You have no earned leave balance available.');
+                } catch (toastError) {
+                    console.error('Toast error:', toastError);
+                }
+                return;
             }
-            return;
-        }
 
-        if (leaveData.leaveType === 'casualLeave' && availableBalance <= 0) {
-            try {
-                safeToast.error('You have no casual leave balance available.');
-            } catch (toastError) {
-                console.error('Toast error:', toastError);
+            if (leaveData.leaveType === 'casualLeave' && availableBalance <= 0) {
+                try {
+                    safeToast.error('You have no casual leave balance available.');
+                } catch (toastError) {
+                    console.error('Toast error:', toastError);
+                }
+                return;
             }
-            return;
-        }
 
-        if (leaveData.leaveType === 'compOffLeave' && availableBalance <= 0) {
-            try {
-                safeToast.error('You have no comp-off leave balance available.');
-            } catch (toastError) {
-                console.error('Toast error:', toastError);
+            if (leaveData.leaveType === 'compOffLeave' && availableBalance <= 0) {
+                try {
+                    safeToast.error('You have no comp-off leave balance available.');
+                } catch (toastError) {
+                    console.error('Toast error:', toastError);
+                }
+                return;
             }
-            return;
         }
 
         setLeaveError({
             medical: null,
             casual: null,
             earned: null,
+            vendor: null,
+            paternity: null,
+            maternity: null,
         });
 
-        dispatch(
-            postApplyLeaveByEmployee({
-                leaveType: leaveData?.leaveType,
-                leaveStartDate: leaveData?.startDate,
-                leaveEndDate: leaveData?.endDate,
-                totalDays: leaveData?.totalDays,
-                reason: leaveData?.reason,
-                approvedBy: managerId,
-                employeId: employeeId,
-                shift: leaveData?.selectTime,
-                location: medicalReport?.location,
-            })
-        );
+        // For vendor meeting, use the vendor meeting API
+        if (leaveData.leaveType === 'vendorMeeting') {
+            // Import the vendor meeting action at the top of the file
+            // This will need to be added to the imports
+            dispatch(postVendorMeetingAction({
+                leaveType: 'vendor-meeting', // Map to API expected format
+                leaveStartDate: leaveData.startDate,
+                reason: leaveData.reason,
+                duration: getApiDuration(leaveData.vendorMeetingDuration)
+            }));
+        } else {
+            // Map frontend leave types to API expected format
+            const apiLeaveType = getApiLeaveType(leaveData.leaveType);
+            
+            dispatch(
+                postApplyLeaveByEmployee({
+                    leaveType: apiLeaveType,
+                    leaveStartDate: leaveData?.startDate,
+                    leaveEndDate: leaveData?.endDate,
+                    totalDays: leaveData?.totalDays,
+                    reason: leaveData?.reason,
+                    approvedBy: managerId,
+                    employeId: employeeId,
+                    shift: getApiDuration(leaveData?.selectTime),
+                    location: medicalReport?.location,
+                })
+            );
+        }
 
     };
     const handelUploadPrescription = () => {
@@ -1016,6 +1282,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                  leaveData.leaveType === "maternityLeave" ? "Maternity Leave" :
                                                  leaveData.leaveType === "compOffLeave" ? "Comp Off" :
                                                  leaveData.leaveType === "optionalLeave" ? "Optional Leave" :
+                                                 leaveData.leaveType === "vendorMeeting" ? "Vendor Meeting" :
                                                  leaveData.leaveType) : 
                                                 "Choose your leave type"
                                             }
@@ -1219,6 +1486,18 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                         <div className="font-medium text-gray-900">Optional Leave</div>
                                                         <div className="text-xs text-gray-500">No balance limit</div>
                                                     </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLeaveData({ ...leaveData, leaveType: "vendorMeeting" });
+                                                            setIsLeaveTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
+                                                    >
+                                                        <div className="font-medium text-gray-900">Vendor Meeting</div>
+                                                        <div className="text-xs text-gray-500">External vendor meetings</div>
+                                                    </button>
                                         </>
                                     )}
                                         </div>
@@ -1271,6 +1550,47 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                     totalDays = 1;
                                                 }
                                                 setLeaveData({ ...leaveData, compOffDayType: value, totalDays });
+                                            }}
+                                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
+                                        >
+                                            <option value="">Select Duration</option>
+                                            <option value="firstHalf">First Half</option>
+                                            <option value="secondHalf">Second Half</option>
+                                            <option value="fullDay">Full Day</option>
+                                        </select>
+                                        {/* Custom dropdown arrow */}
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    {compOffDayTypeError && (
+                                        <p className="text-red-600 mt-2 text-sm">{compOffDayTypeError}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Vendor Meeting Duration Selection */}
+                            {leaveData.leaveType === "vendorMeeting" && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Select Duration<span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            id="vendorMeetingDuration"
+                                            name="vendorMeetingDuration"
+                                            value={leaveData.vendorMeetingDuration}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                let totalDays = 0;
+                                                if (value === "firstHalf" || value === "secondHalf") {
+                                                    totalDays = 0.5;
+                                                } else if (value === "fullDay") {
+                                                    totalDays = 1;
+                                                }
+                                                setLeaveData({ ...leaveData, vendorMeetingDuration: value, totalDays });
                                             }}
                                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
                                         >
@@ -1350,7 +1670,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     htmlFor="reason"
                                     className="block text-sm font-medium text-gray-700"
                                 >
-                                    {leaveData.leaveType === "compOffLeave" ? "Reason for Comp-Off" : "Reason for Leave"}
+                                    {leaveData.leaveType === "compOffLeave" ? "Reason for Comp-Off" : 
+                                     leaveData.leaveType === "vendorMeeting" ? "Reason for Vendor Meeting" :
+                                     "Reason for Leave"}
                                 </label>
                                 <textarea
                                     id="reason"
@@ -1358,7 +1680,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     rows="4"
                                     value={leaveData.reason}
                                     onChange={handleInputChange}
-                                    placeholder={leaveData.leaveType === "compOffLeave" ? "Provide your reason for comp-off..." : "Provide your reason for leave..."}
+                                    placeholder={leaveData.leaveType === "compOffLeave" ? "Provide your reason for comp-off..." : 
+                                               leaveData.leaveType === "vendorMeeting" ? "Provide your reason for vendor meeting..." :
+                                               "Provide your reason for leave..."}
                                     className="w-full mt-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none hover:border-gray-300"
                                 ></textarea>
                             </div>

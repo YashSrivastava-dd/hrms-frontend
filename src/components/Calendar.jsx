@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { MdChevronLeft, MdChevronRight, MdToday, MdEvent } from "react-icons/md";
 import { FaChevronDown, FaTimes } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
-import { getCalenderLogsApiAction, postApplyCompOffLeaveAction, postApplyRegularizationAction, postVendorMeetingAction, postApplyLeaveByEmployeeAction, postApplyCompoffLeaveAction, resetVendorMeetingAction } from "../store/action/userDataAction";
+import { getCalenderLogsApiAction, postApplyCompOffLeaveAction } from "../store/action/userDataAction";
 import { toast } from "react-toastify";
 import safeToast from "../utils/safeToast";
 
@@ -14,48 +14,26 @@ const MONTHS = [
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const LEAVE_TYPE_MAP = {
-  'shortLeave': 'SL',
-  'medicalLeave': 'ML',
-  'casualLeave': 'CL',
-  'earnedLeave': 'EL',
-  'compOffLeave': 'C-Off',
-  'optionalLeave': 'OL',
-  'vendor-meeting': 'Vendor-M',
-  'regularized': 'RL',
-  'uninformedLeave': 'UL',
-  'bereavementLeave': 'BL'
-};
+
 
 
 
 function Calendar({ employeeId, userRole, onDaySelect }) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [selectDuration, setSelectDuration] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [reason, setReason] = useState("");
-  const [selectType, setSelectType] = useState("");
-  const [actionType, setActionType] = useState(""); // 'leave' or 'compOff'
-  const [leaveType, setLeaveType] = useState(""); // For leave type selection
-  const [hide, setunhide] = useState(0);
+  const [actionType, setActionType] = useState("compOff"); // Only comp-off now
   const [clickedDay, setClickedDay] = useState(null);
-  const [showAbbreviations, setShowAbbreviations] = useState(false);
+
   const [compOffDayType, setCompOffDayType] = useState(""); // For comp-off day type selection
-  const [vendorMeetingDuration, setVendorMeetingDuration] = useState(""); // For vendor meeting duration selection
-  const [isLeaveTypeDropdownOpen, setIsLeaveTypeDropdownOpen] = useState(false);
   const [isCompOffDurationDropdownOpen, setIsCompOffDurationDropdownOpen] = useState(false);
-  const [isVendorMeetingDurationDropdownOpen, setIsVendorMeetingDurationDropdownOpen] = useState(false);
-  const leaveTypeDropdownRef = useRef(null);
   const compOffDurationDropdownRef = useRef(null);
-  const vendorMeetingDurationDropdownRef = useRef(null);
   const processedMessagesRef = useRef(new Set());
   
   // Validation states
-  const [showLeaveTypeError, setShowLeaveTypeError] = useState(false);
   const [showCompOffDurationError, setShowCompOffDurationError] = useState(false);
-  const [showVendorMeetingDurationError, setShowVendorMeetingDurationError] = useState(false);
   const [showReasonError, setShowReasonError] = useState(false);
 
   const dispatch = useDispatch();
@@ -65,7 +43,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const { data, error } = useSelector((state) => state.compoffReducer);
   const { data: dataa } = useSelector((state) => state.userData);
   const { data: data1, error: error1 } = useSelector((state) => state.regularizeReducer);
-  const { data: vendorMeetingData, error: vendorMeetingError } = useSelector((state) => state.vendorMeetingData);
 
 
 
@@ -121,18 +98,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       // Check if click is outside the dropdown container
-      const leaveTypeContainer = event.target.closest('.leave-type-dropdown');
       const compOffContainer = event.target.closest('.comp-off-duration-dropdown');
-      const vendorMeetingDurationContainer = event.target.closest('.vendor-meeting-duration-dropdown');
       
-      if (isLeaveTypeDropdownOpen && !leaveTypeContainer) {
-        setIsLeaveTypeDropdownOpen(false);
-      }
       if (isCompOffDurationDropdownOpen && !compOffContainer) {
         setIsCompOffDurationDropdownOpen(false);
-      }
-      if (isVendorMeetingDurationDropdownOpen && !vendorMeetingDurationContainer) {
-        setIsVendorMeetingDurationDropdownOpen(false);
       }
     };
 
@@ -140,51 +109,9 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isLeaveTypeDropdownOpen, isCompOffDurationDropdownOpen, isVendorMeetingDurationDropdownOpen]);
+  }, [isCompOffDurationDropdownOpen]);
 
-  // Handle success messages with cleanup to prevent infinite loops
-  useEffect(() => {
-    // Only handle vendor meeting success messages here
-    // Other success messages (comp-off, regularization, short leave) are handled directly in handleSubmit 
-    // to avoid duplicate toast notifications and ensure immediate form clearing
-    // Vendor meeting needs special handling because it doesn't go through handleSubmit's immediate success flow
-    
-    if (vendorMeetingData?.message && !processedMessagesRef.current.has(vendorMeetingData.message)) {
-      processedMessagesRef.current.add(vendorMeetingData.message);
-      
-      // Show success toast once
-      safeToast.success(vendorMeetingData.message);
-      
-      // Clear vendor meeting state to prevent showing toast on other pages
-      dispatch(resetVendorMeetingAction());
-      
-      // Close modal and clear form data
-      setModalOpen(false);
-      setSelectedDay(null);
-      setReason("");
-      setSelectType("");
-      setActionType("");
-      setLeaveType("");
-      setSelectDuration(null);
-      setClickedDay(null);
-      setCompOffDayType("");
-      setVendorMeetingDuration("");
-      setIsLeaveTypeDropdownOpen(false);
-      setIsCompOffDurationDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
-      setShowLeaveTypeError(false);
-      setShowCompOffDurationError(false);
-      setShowVendorMeetingDurationError(false);
-      setShowReasonError(false);
-      
-      // Refresh calendar data
-      if (employeeId) {
-        dispatch(getCalenderLogsApiAction(monthYear, employeeId));
-      }
-      
-      return;
-    }
-  }, [vendorMeetingData?.message, dispatch, employeeId, monthYear]);
+
 
   // Cleanup processed messages on component unmount
   useEffect(() => {
@@ -204,11 +131,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
   }, [error1]);
 
-  useEffect(() => {
-    if (vendorMeetingError) {
-                  safeToast.error(vendorMeetingError);
-    }
-  }, [vendorMeetingError]);
+
 
   // Memoized functions
   const getDayType = useCallback((day) => {
@@ -371,9 +294,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     return baseClass;
   }, [getDayType, isToday, clickedDay, currentYear, currentMonth, dayLogs, isRegularizationAllowed]);
 
-  const getLeaveTypeDisplay = useCallback((leaveType) => {
-    return LEAVE_TYPE_MAP[leaveType] || leaveType;
-  }, []);
+
 
   // Event handlers
   const handleNextMonth = useCallback(() => {
@@ -402,7 +323,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     const today = new Date();
     const selectedDate = new Date(currentYear, currentMonth, day);
 
-    // Check if date is valid for selection - current date - 35 days (for Short Leave and Regularization)
+    // Check if date is valid for selection - current date - 35 days (for Comp-Off)
     const thirtyFiveDaysAgo = new Date(today);
     thirtyFiveDaysAgo.setDate(today.getDate() - 35);
     
@@ -450,7 +371,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setModalOpen(true);
     } else {
       safeToast.error(
-        "You can only apply Short Leave and Regularization for dates within the last 35 days from today."
+        "You can only apply Comp-Off for dates within the last 35 days from today."
       );
     }
   }, [currentYear, currentMonth, dayLogs, onDaySelect, isRegularizationAllowed]);
@@ -459,19 +380,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setModalOpen(false);
     setSelectedDay(null);
     setReason("");
-    setSelectType("");
-    setActionType("");
-    setLeaveType("");
-    setSelectDuration(null);
-    setClickedDay(null);
+    setActionType("compOff");
     setCompOffDayType("");
-    setVendorMeetingDuration("");
-    setIsLeaveTypeDropdownOpen(false);
+    setClickedDay(null);
     setIsCompOffDurationDropdownOpen(false);
-    setIsVendorMeetingDurationDropdownOpen(false);
-    setShowLeaveTypeError(false);
     setShowCompOffDurationError(false);
-    setShowVendorMeetingDurationError(false);
     setShowReasonError(false);
   }, []);
 
@@ -479,30 +392,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     e.preventDefault();
     
     // Reset all validation errors first
-    setShowLeaveTypeError(false);
     setShowCompOffDurationError(false);
-    setShowVendorMeetingDurationError(false);
     setShowReasonError(false);
     
-    if (!actionType) {
-      safeToast.error("Please select an action (Apply Leave or Raise Comp-Off)");
-      return;
-    }
-    
-    // Validate leave type only when submitting leave
-    if (actionType === 'leave' && !selectType) {
-      setShowLeaveTypeError(true);
-      return;
-    }
-    
-    // Validate vendor meeting duration when submitting vendor meeting leave
-    if (actionType === 'leave' && selectType === 'vendor-meeting' && !vendorMeetingDuration) {
-      setShowVendorMeetingDurationError(true);
-      return;
-    }
-    
     // Validate comp-off duration only when submitting comp-off
-    if (actionType === 'compOff' && !compOffDayType) {
+    if (!compOffDayType) {
       setShowCompOffDurationError(true);
       return;
     }
@@ -515,69 +409,22 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
     const selectedDate = `${selectedDay} ${MONTHS[currentMonth]} ${currentYear}`;
 
-    if (actionType === 'compOff') {
-      // Handle Comp-Off submissions (First Half, Second Half, or Full Day)
-      let totalDays = 0;
-      if (compOffDayType === 'firstHalf' || compOffDayType === 'secondHalf') {
-        totalDays = 0.5;
-      } else if (compOffDayType === 'fullDay') {
-        totalDays = 1;
-      }
-      
-      dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
-      safeToast.success("Comp-Off request submitted successfully!");
-      closeModal();
-    } else if (actionType === 'leave') {
-      // Handle Leave submissions (Short Leave, Vendor Meeting, Regularization)
-      const date = new Date(selectedDate + " 00:00:00");
-      const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      
-      if (selectType === 'vendor-meeting') {
-        dispatch(postVendorMeetingAction({ 
-          leaveType: selectType, 
-          leaveStartDate: formattedDate, 
-          reason, 
-          duration: vendorMeetingDuration === 'halfDay' ? "0.5" : "1" 
-        }));
-        safeToast.success("Vendor Meeting request submitted successfully!");
-        closeModal();
-      } else if (selectType === 'regularized') {
-        // For regularization, check if the user's punch-in time allows it
-        const selectedDayData = dayLogs?.find((log) => log.AttendanceDate === selectedDate);
-        if (selectedDayData && !isRegularizationAllowed(selectedDayData)) {
-          safeToast.error(
-            "Regularization is only allowed if you punched in between 9:15 AM and 9:31 AM. Please check your punch-in time."
-          );
-          return;
-        }
-        dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
-        safeToast.success("Regularization request submitted successfully!");
-        closeModal();
-      } else if (selectType === 'shortLeave') {
-        // Handle Short Leave submission
-        dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
-        safeToast.success("Short Leave request submitted successfully!");
-        closeModal();
-      } else {
-        // Handle other leave types
-        dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
-        safeToast.success("Leave request submitted successfully!");
-        closeModal();
-      }
+    // Handle Comp-Off submissions (First Half, Second Half, or Full Day)
+    let totalDays = 0;
+    if (compOffDayType === 'firstHalf' || compOffDayType === 'secondHalf') {
+      totalDays = 0.5;
+    } else if (compOffDayType === 'fullDay') {
+      totalDays = 1;
     }
     
-    // Modal is closed immediately after each successful submission
-  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, vendorMeetingDuration, isRegularizationAllowed, closeModal]);
+    dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
+    safeToast.success("Comp-Off request submitted successfully!");
+    closeModal();
+    
+    // Modal is closed immediately after successful submission
+  }, [reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, closeModal]);
 
-  const handleInputChange = useCallback((e) => {
-    setSelectType(e.target.value);
-  }, []);
 
-  const handleLeaveTypeSelect = useCallback((leaveType) => {
-    setSelectType(leaveType);
-    setIsLeaveTypeDropdownOpen(false);
-    setShowLeaveTypeError(false); // Clear validation error when selection is made
-  }, []);
 
   const handleCompOffDurationSelect = useCallback((duration) => {
     setCompOffDayType(duration);
@@ -585,27 +432,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setIsCompOffDurationDropdownOpen(false);
   }, []);
 
-  const handleVendorMeetingDurationSelect = useCallback((duration) => {
-    setVendorMeetingDuration(duration);
-    setShowVendorMeetingDurationError(false);
-    setIsVendorMeetingDurationDropdownOpen(false);
-  }, []);
-
   const handleDropdownToggle = useCallback((dropdownType, e) => {
     e.stopPropagation();
     
-    if (dropdownType === 'leaveType') {
-      setIsLeaveTypeDropdownOpen(prev => !prev);
-      setIsCompOffDurationDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
-    } else if (dropdownType === 'compOffDuration') {
+    if (dropdownType === 'compOffDuration') {
       setIsCompOffDurationDropdownOpen(prev => !prev);
-      setIsLeaveTypeDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
-    } else if (dropdownType === 'vendorMeetingDuration') {
-      setIsVendorMeetingDurationDropdownOpen(prev => !prev);
-      setIsLeaveTypeDropdownOpen(false);
-      setIsCompOffDurationDropdownOpen(false);
     }
   }, []);
 
@@ -753,10 +584,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       return "08:00";
     }
     
-    // 4. Vendor Meeting (VM) - typically counted as full working day
-    if (leaveType === "vendor-meeting" || leaveType === "VM") {
-      return "08:00";
-    }
+
     
     // 5. Short Leave (SL) - calculate actual hours worked + short leave hours
     if (leaveType === "shortLeave" || leaveType === "SL") {
@@ -888,13 +716,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         continue;
       }
       
-      // 3. Vendor Meeting (VM) - this is a working day
-      if (leaveType === "vendor-meeting" || leaveType === "VM") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Vendor Meeting";
-        continue;
-      }
+
       
       // 4. Short Leave (SL) - this is a working day (partial)
       if (leaveType === "shortLeave" || leaveType === "SL") {
@@ -930,7 +752,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       
       // 8. Other approved leave types (medical, casual, earned, etc.)
       if (leaveType && leaveType !== "regularized" && leaveType !== "RL" && 
-          leaveType !== "vendor-meeting" && leaveType !== "VM" && 
           leaveType !== "shortLeave" && leaveType !== "SL" && 
           leaveType !== "compOffLeave" && leaveType !== "C-Off") {
         // Check if this is an approved leave type
@@ -974,7 +795,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       fullDay: 0,
       halfDay: 0,
       regularization: 0,
-      vendorMeeting: 0,
       shortLeave: 0,
       compOff: 0,
       otherLeaves: 0,
@@ -991,11 +811,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       } else if (AttendanceStatus === "Half Day") {
         breakdown.halfDay++;
         breakdown.total++;
-      } else if (leaveType === "regularized" || leaveType === "RL") {
+            } else if (leaveType === "regularized" || leaveType === "RL") {
         breakdown.regularization++;
-        breakdown.total++;
-      } else if (leaveType === "vendor-meeting" || leaveType === "VM") {
-        breakdown.vendorMeeting++;
         breakdown.total++;
       } else if (leaveType === "shortLeave" || leaveType === "SL") {
         breakdown.shortLeave++;
@@ -1098,7 +915,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           <div>
                             <p className="font-medium text-gray-700">Leaves:</p>
                             <p>• Regularization: {breakdown.regularization}</p>
-                            <p>• Vendor Meeting: {breakdown.vendorMeeting}</p>
+
                             <p>• Short Leave: {breakdown.shortLeave}</p>
                             <p>• Comp-Off: {breakdown.compOff}</p>
                             <p>• Other: {breakdown.otherLeaves}</p>
@@ -1113,7 +930,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           <p className="text-xs text-gray-500">
                             <span className="font-medium">Effective Hours Note:</span><br/>
                             • Regularization: Uses actual hours or 8h default<br/>
-                            • Vendor Meeting: Counted as 8h<br/>
                             • Short Leave: Actual hours + leave hours<br/>
                             • Comp-Off: Counted as 8h
                           </p>
@@ -1185,7 +1001,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
               const { leaveType } = getDayType(day);
               const dayClass = getDayClass(day);
-              const leaveTypeDisplay = leaveType ? getLeaveTypeDisplay(leaveType) : "";
 
               // Check if this date is selectable (current date - 35 days, not in the future)
               const today = new Date();
@@ -1218,11 +1033,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   })()}
                 >
                   <span className="text-center font-semibold">{day}</span>
-                  {leaveTypeDisplay && (
-                    <span className="text-xs font-bold mt-0.5 sm:mt-1 px-1 py-0.5 bg-blue-100 text-blue-800 rounded">
-                      {leaveTypeDisplay}
-                    </span>
-                  )}
                   {/* Show regularization eligibility indicator */}
                   {(() => {
                     const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
@@ -1238,155 +1048,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* Leave Abbreviations Section */}
-        <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></div>
-              <h4 className="text-xs sm:text-sm font-semibold text-gray-800">Leave Abbreviations</h4>
-            </div>
-            <div className="relative">
-              <button 
-                onClick={() => setShowAbbreviations(!showAbbreviations)}
-                className="cursor-pointer flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg text-xs sm:text-sm text-blue-700 hover:text-blue-800 font-medium transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                <svg className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${showAbbreviations ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-                View
-              </button>
-              {showAbbreviations && (
-                <div className="absolute bottom-full right-0 mb-2 w-56 sm:w-64 bg-white border border-blue-200 rounded-xl shadow-xl z-10 overflow-hidden">
-                  <div className="p-2 sm:p-3 space-y-2 sm:space-y-3">
-                    {/* Calendar Day Indicators */}
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 pb-1 border-b border-gray-100">
-                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full"></div>
-                        <h5 className="text-xs font-semibold text-gray-800 uppercase tracking-wide">Calendar Days</h5>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1">
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-100 border-2 border-green-300 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Full Day</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-yellow-100 border-2 border-yellow-300 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Half Day</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-100 border-2 border-red-300 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Absent</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-orange-100 border-2 border-orange-400 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Absent (Regularization Eligible)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-100 border-2 border-blue-300 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Holiday</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white border border-gray-300 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Regular</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded shadow-lg flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Today</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white border-2 border-purple-500 ring-2 ring-purple-500 ring-offset-1 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Selected</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Date Selection Rules */}
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 pb-1 border-b border-gray-100">
-                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-indigo-500 rounded-full"></div>
-                        <h5 className="text-xs font-semibold text-gray-800 uppercase tracking-wide">Date Selection Rules</h5>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-100 border-2 border-green-300 rounded flex-shrink-0"></div>
-                            <span className="text-xs text-gray-700">Selectable Dates</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">Last 35 days from today (for Short Leave and Regularization)</p>
-                        </div>
-                        <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gray-100 border border-gray-300 rounded flex-shrink-0 opacity-60"></div>
-                            <span className="text-xs text-gray-500">Non-Selectable Dates</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">Future dates and dates older than 35 days</p>
-                        </div>
-                        <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-orange-100 border-2 border-orange-400 rounded flex-shrink-0"></div>
-                            <span className="text-xs text-gray-700">Regularization Time Restriction</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">Only allowed if punched in between 9:15-9:31 AM</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Leave Abbreviations */}
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 pb-1 border-b border-gray-100">
-                        <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-green-500 rounded-full"></div>
-                        <h5 className="text-xs font-semibold text-gray-800 uppercase tracking-wide">Leave Abbreviations</h5>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1">
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-blue-600 font-semibold bg-blue-50 px-1 py-0.5 rounded">SL</span>
-                          <span className="text-xs text-gray-700">Short</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-red-600 font-semibold bg-red-50 px-1 py-0.5 rounded">ML</span>
-                          <span className="text-xs text-gray-700">Medical</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-yellow-600 font-semibold bg-yellow-50 px-1 py-0.5 rounded">CL</span>
-                          <span className="text-xs text-gray-700">Casual</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-green-600 font-semibold bg-green-50 px-1 py-0.5 rounded">EL</span>
-                          <span className="text-xs text-gray-700">Earned</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-purple-600 font-semibold bg-purple-50 px-1 py-0.5 rounded">C-Off</span>
-                          <span className="text-xs text-gray-700">Comp-Off</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 px-1 py-0.5 rounded">OL</span>
-                          <span className="text-xs text-gray-700">Optional</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-orange-600 font-semibold bg-orange-50 px-1 py-0.5 rounded">VM</span>
-                          <span className="text-xs text-gray-700">Vendor</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-teal-600 font-semibold bg-teal-50 px-1 py-0.5 rounded">RL</span>
-                          <span className="text-xs text-gray-700">Regularized</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-pink-600 font-semibold bg-pink-50 px-1 py-0.5 rounded">UL</span>
-                          <span className="text-xs text-gray-700">Uninformed</span>
-                        </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-gray-600 font-semibold bg-gray-50 px-1 py-0.5 rounded">BL</span>
-                          <span className="text-xs text-gray-700">Bereavement</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -1418,11 +1079,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="text-xs text-blue-800">
-                    <p className="font-medium mb-1">Updated Date Selection Rules:</p>
+                    <p className="font-medium mb-1">Comp-Off Information:</p>
                     <ul className="space-y-1 text-blue-700">
-                      <li>• <strong>Short Leave:</strong> Can be applied for current month + next 5 days</li>
-                      <li>• <strong>Regularization:</strong> Can be applied for current month + next 5 days</li>
-                      <li>• <strong>Other Leave Types:</strong> Follow existing rules</li>
+                      <li>• <strong>Comp-Off:</strong> Can be applied for current month + next 5 days</li>
+                      <li>• <strong>Duration:</strong> First Half, Second Half, or Full Day</li>
                     </ul>
                   </div>
                 </div>
@@ -1432,26 +1092,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
               <div className="flex gap-2 sm:gap-3 mt-4">
                 <button
                   type="button"
-                  onClick={() => setActionType('leave')}
-                  className={`flex-1 px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-200 ${
-                    actionType === 'leave' 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
-                  }`}
-                >
-                  Apply Leave
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     setActionType('compOff');
-                    setLeaveType('compOffLeave'); // Set default leave type for comp-off
+                    setCompOffDayType('compOffLeave'); // Set default leave type for comp-off
                   }}
-                  className={`flex-1 px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-200 ${
-                    actionType === 'compOff' 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'bg-white text-blue-600 border border-blue-600 hover:bg-blue-50'
-                  }`}
+                  className="flex-1 px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base font-medium transition-all duration-200 bg-blue-600 text-white shadow-md"
                 >
                   Raise Comp-Off
                 </button>
@@ -1467,7 +1112,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                       <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      {actionType === 'compOff' ? "Today's Attendance Summary" : "Attendance Summary"}
+                      Today's Attendance Summary
                     </h3>
                     <span className="text-xs text-gray-500">
                       {getAttendanceSummary().date}
@@ -1491,106 +1136,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
               )}
 
               {/* Leave Type Selection */}
-              {actionType === 'leave' && (
-                <div className="leave-type-dropdown">
-                  <label
-                    htmlFor="leaveType"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Leave Type<span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <button
-                      onClick={(e) => handleDropdownToggle('leaveType', e)}
-                      className={`flex items-center justify-between w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white hover:border-gray-300 ${
-                        showLeaveTypeError 
-                          ? 'border-red-300 bg-red-50 text-red-700' 
-                          : selectType 
-                          ? 'border-blue-300 bg-blue-50 text-blue-700' 
-                          : 'border-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <span className="text-gray-700">
-                        {selectType === 'shortLeave' ? 'Short Leave' : 
-                         selectType === 'vendor-meeting' ? 'Vendor Meeting' : 
-                         selectType === 'regularized' ? 'Regularization' : 
-                         '✓ Select Leave Type'}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
-                          isLeaveTypeDropdownOpen ? 'rotate-180' : ''
-                        } ${selectType ? 'text-blue-500' : 'text-gray-400'}`} />
-                      </div>
-                    </button>
 
-                    {isLeaveTypeDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 leave-type-dropdown transition-all duration-200 ease-in-out">
-                        <div className="p-2">
-                          <button
-                            onClick={() => handleLeaveTypeSelect('shortLeave')}
-                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
-                              selectType === 'shortLeave'
-                                ? 'bg-blue-500 text-white shadow-lg'
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full border-2 ${
-                                selectType === 'shortLeave' ? 'border-white bg-white' : 'border-gray-300'
-                              }`}></div>
-                              <div>
-                                <span className="font-medium">Short Leave</span>
-                                <p className="text-xs opacity-75">For early departure - can apply for last 35 days from today</p>
-                              </div>
-                            </div>
-                          </button>
-                          
-                          <button
-                            onClick={() => handleLeaveTypeSelect('vendor-meeting')}
-                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
-                              selectType === 'vendor-meeting'
-                                ? 'bg-blue-500 text-white shadow-lg'
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full border-2 ${
-                                selectType === 'vendor-meeting' ? 'border-white bg-white' : 'border-gray-300'
-                              }`}></div>
-                              <div>
-                                <span className="font-medium">Vendor Meeting</span>
-                                <p className="text-xs opacity-75">For external vendor meetings - select duration</p>
-                              </div>
-                            </div>
-                          </button>
-
-                          <button
-                            onClick={() => handleLeaveTypeSelect('regularized')}
-                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
-                              selectType === 'regularized'
-                                ? 'bg-blue-500 text-white shadow-lg'
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full border-2 ${
-                                selectType === 'regularized' ? 'border-white bg-white' : 'border-gray-300'
-                              }`}></div>
-                              <div>
-                                <span className="font-medium">Regularization</span>
-                                <p className="text-xs opacity-75">For attendance regularization - can apply for last 35 days from today, only if punched in between 9:15-9:31 AM</p>
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {showLeaveTypeError && (
-                    <p className="mt-1 text-sm text-red-600">Please select a leave type</p>
-                  )}
-                </div>
-              )}
 
               {/* Comp-Off Day Type Selection */}
               {actionType === 'compOff' && (
@@ -1691,84 +1237,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 </div>
               )}
 
-              {/* Vendor Meeting Duration Selection */}
-              {actionType === 'leave' && selectType === 'vendor-meeting' && (
-                <div className="vendor-meeting-duration-dropdown">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Duration<span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <button
-                      onClick={(e) => handleDropdownToggle('vendorMeetingDuration', e)}
-                      className={`flex items-center justify-between w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white hover:border-gray-300 ${
-                        showVendorMeetingDurationError 
-                          ? 'border-red-300 bg-red-50 text-red-700' 
-                          : vendorMeetingDuration 
-                          ? 'border-blue-300 bg-blue-50 text-blue-700' 
-                          : 'border-gray-200 text-gray-700'
-                      }`}
-                    >
-                      <span className="text-gray-700">
-                        {vendorMeetingDuration === 'halfDay' ? 'Half Day' : 
-                         vendorMeetingDuration === 'fullDay' ? 'Full Day' : 
-                         'Select Duration'}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
-                          isVendorMeetingDurationDropdownOpen ? 'rotate-180' : ''
-                        } ${vendorMeetingDuration ? 'text-blue-500' : 'text-gray-400'}`} />
-                      </div>
-                    </button>
 
-                    {isVendorMeetingDurationDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 vendor-meeting-duration-dropdown transition-all duration-200 ease-in-out">
-                        <div className="p-2">
-                          <button
-                            onClick={() => handleVendorMeetingDurationSelect('halfDay')}
-                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
-                              vendorMeetingDuration === 'halfDay'
-                                ? 'bg-blue-500 text-white shadow-lg'
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full border-2 ${
-                                vendorMeetingDuration === 'halfDay' ? 'border-white bg-white' : 'border-gray-300'
-                              }`}></div>
-                              <div>
-                                <span className="font-medium">Half Day</span>
-                                <p className="text-xs opacity-75">4 hours duration</p>
-                              </div>
-                            </div>
-                          </button>
-                          
-                          <button
-                            onClick={() => handleVendorMeetingDurationSelect('fullDay')}
-                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
-                              vendorMeetingDuration === 'fullDay'
-                                ? 'bg-blue-500 text-white shadow-lg'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-4 h-4 rounded-full border-2 ${
-                                vendorMeetingDuration === 'fullDay' ? 'border-white bg-white' : 'border-gray-300'
-                              }`}></div>
-                              <div>
-                                <span className="font-medium">Full Day</span>
-                                <p className="text-xs opacity-75">8 hours duration</p>
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {showVendorMeetingDurationError && (
-                    <p className="mt-1 text-sm text-red-600">Please select a duration</p>
-                  )}
-                </div>
-              )}
 
               {/* Reason Field */}
               <div>
@@ -1776,11 +1245,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   htmlFor="reason"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  {actionType === "compOff" ? "Reason for Comp-Off" : 
-                   selectType === "shortLeave" ? "Reason for Short Leave" :
-                   selectType === "vendor-meeting" ? "Reason for Vendor Meeting" :
-                   selectType === "regularized" ? "Reason for Regularization" :
-                   "Enter your reason"}<span className="text-red-500">*</span>
+                  Reason for Comp-Off<span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="reason"
@@ -1788,11 +1253,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   rows="3"
                   value={reason}
                   onChange={handleReasonChange}
-                  placeholder={actionType === "compOff" ? "Provide your reason for comp-off..." : 
-                              selectType === "shortLeave" ? "Provide your reason for short leave..." :
-                              selectType === "vendor-meeting" ? "Provide your reason for vendor meeting..." :
-                              selectType === "regularized" ? "Provide your reason for regularization..." :
-                              "Provide your reason for leave/comp-off..."}
+                  placeholder="Provide your reason for comp-off..."
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300 ${
                     showReasonError 
                       ? 'border-red-300 bg-red-50 text-red-700' 

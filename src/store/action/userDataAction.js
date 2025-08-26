@@ -2192,6 +2192,10 @@ export const resetVendorMeetingAction = () => ({
   type: RESET_VENDOR_MEETING_STATE
 });
 
+export const resetLeaveApplyByEmployeeAction = () => ({
+  type: RESET_LEAVE_APPLY_BY_EMPLOYEE_STATE
+});
+
 // Reset delete leave state
 export const resetDeleteLeaveAction = () => ({
   type: RESET_DELETE_LEAVE_STATE
