@@ -20,6 +20,8 @@ import DeclarationForm from "./DeclarationForm";
 import TaxDeclarationManager from "./TaxDeclarationManager";
 import Finance from "./Finance/Finance";
 import Footer from "./Footer";
+import LogsPage from "./Logs/LogsPage";
+import GenerateSalarySlip from "./GenerateSalarySlip";
 
 const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -332,6 +334,16 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
                   handleNavigation("employeeLeaveStatus")
                 }}
               />
+              
+              <SidebarLink
+                label="Generate Salary Slip"
+                icon="💰"
+                isSelected={selectedTag === "generateSalarySlip"}
+                onClick={() =>{
+                  setReloadHandel(true);
+                  handleNavigation("generateSalarySlip")
+                }}
+              />
             </div>
           )}
 
@@ -389,6 +401,13 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
             <div className="px-3 py-2">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Other Features</h3>
             </div>
+            
+            <SidebarLink
+              label="Activity Logs"
+              icon="📋"
+              isSelected={selectedTag === "activityLogs"}
+              onClick={() => handleNavigation("activityLogs")}
+            />
             
             <SidebarLink
               label="Task Records"
@@ -484,6 +503,8 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               {selectedTag === "taxDeclarations" && <TaxDeclarationManager />}
               {selectedTag === "leaves" && <EmployessLeave />}
               {selectedTag === "managerApproval" && <ManagerApproval />}
+              {selectedTag === "activityLogs" && <LogsPage userRole={userType} />}
+              {selectedTag === "generateSalarySlip" && <GenerateSalarySlip />}
               {selectedTag === "taskRecords" && <TotalTask />}
               {selectedTag === "hrmanual" && <ComingSoon />}
               {selectedTag === "coc" && <ComingSoon />}

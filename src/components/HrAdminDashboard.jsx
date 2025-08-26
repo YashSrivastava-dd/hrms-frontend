@@ -21,7 +21,8 @@ import {
     FaCheckCircle,
     FaExclamationTriangle,
     FaClock as FaClockIcon,
-    FaBars
+    FaBars,
+    FaMoneyBillWave
 } from "react-icons/fa";
 import AddEmployeeModal from './AddEmployeeModal';
 import AddAnouncementModel from './AddAnouncementModel';
@@ -29,27 +30,91 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getAnnouncementDataAction, getEmployeeDataCountAction, getLeaveApproveRequestAction, putApprovedLeaveByManagerAction } from '../store/action/userDataAction';
 import { MoreHorizontal, TrendingUp, TrendingDown, Activity, Users, Calendar, DollarSign } from 'lucide-react';
 import EmployeeGraphData from './EmployeeGraphData';
+import safeToast from '../utils/safeToast';
 
 function HrAdminDashboard() {
     const [isOpen, setIsOpen] = useState(false);
     const [isOpenAnnouncement, setIsOpenAnnouncement] = useState(false);
     const navigate = useNavigate();
     const { data } = useSelector((state) => state.announcementData);
-    const { data: dataa } = useSelector((state) => state.managerLeaveApprove);
+    const { data: dataa, loading: leaveLoading, error: leaveError } = useSelector((state) => state.managerLeaveApprove);
     const { data: countData } = useSelector((state) => state.exployeeDataCountCount);
     const managerApprove = dataa?.data;
     const announcementData = data?.data;
     console.log('managerApprove', managerApprove);
     const dispatch = useDispatch();
+    
     useEffect(() => {
         dispatch(getAnnouncementDataAction())
-        dispatch(getLeaveApproveRequestAction());
+        dispatch(getLeaveApproveRequestAction())
         dispatch(getEmployeeDataCountAction())
     }, [])
+    
+    // Monitor leave approval state changes
+    useEffect(() => {
+        if (leaveError) {
+            safeToast.error(`Leave approval error: ${leaveError}`);
+        }
+    }, [leaveError]);
+    
+    // Debug state changes
+    useEffect(() => {
+        console.log('Leave approval state changed:', { dataa, leaveLoading, leaveError });
+    }, [dataa, leaveLoading, leaveError]);
 
-    const handelChangeStatus = ({ value, id }) => {
+    const handelChangeStatus = async ({ value, id }) => {
+        if (!value || !id) {
+            safeToast.error('Invalid parameters for leave approval');
+            return;
+        }
+        
         const status = value === "Approved" ? "Approved" : "Reject";
-        dispatch(putApprovedLeaveByManagerAction({ status, id }));
+        
+        console.log('Starting leave approval process:', { status, id });
+        
+        // Show loading notification
+        const loadingToastId = safeToast.loading(`Processing leave ${status.toLowerCase()}...`);
+        
+        try {
+            // Dispatch the action and wait for the result
+            const result = await dispatch(putApprovedLeaveByManagerAction({ status, id }));
+            
+            console.log('Action result:', result);
+            
+            // Dismiss loading toast
+            safeToast.dismiss(loadingToastId);
+            
+            // Check if the action was successful
+            if (result?.success || result?.payload?.statusCode === 200) {
+                // Show success message
+                const successMessage = `Leave request ${status.toLowerCase()} successfully!`;
+                safeToast.success(successMessage);
+                
+                // Add a small delay before refreshing to ensure backend has processed the request
+                setTimeout(() => {
+                    dispatch(getLeaveApproveRequestAction());
+                }, 1000);
+            } else {
+                // Show error message if the action failed
+                const errorMessage = result?.error || "Unknown error occurred";
+                safeToast.error(`Failed to ${status.toLowerCase()} leave request: ${errorMessage}`);
+            }
+        } catch (error) {
+            // Dismiss loading toast
+            safeToast.dismiss(loadingToastId);
+            
+            // Show error message
+            const errorMsg = `Failed to ${status.toLowerCase()} leave request: ${error.message || 'Unknown error'}`;
+            safeToast.error(errorMsg);
+            
+            // Log error for debugging
+            console.error('Leave approval error:', error);
+            
+            // Also try to refresh the data to get the latest state
+            setTimeout(() => {
+                dispatch(getLeaveApproveRequestAction());
+            }, 1000);
+        }
     };
 
     // Navigation functions - Using custom event to communicate with Sidebar
@@ -297,33 +362,40 @@ function HrAdminDashboard() {
                             </button>
                         </div>
 
-                        {/* HR Operations */}
+                                                {/* HR Operations */}
                         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 mb-4 border border-emerald-200">
-                            <div className="flex items-center space-x-2 mb-3">
-                                <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-2 rounded-lg shadow-lg">
-                                    <FaChartBar className="text-white text-sm" />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-900">HR Operations</h4>
-                                    <p className="text-xs text-gray-600">Manage operations</p>
-                                </div>
+                          <div className="flex items-center space-x-2 mb-3">
+                            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-2 rounded-lg shadow-lg">
+                              <FaChartBar className="text-white text-sm" />
                             </div>
-                            <div className="space-y-2">
-                                <button 
-                                    onClick={handleViewAttendance}
-                                    className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-2 px-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs flex items-center justify-center space-x-2"
-                                >
-                                    <FaEye className="text-xs" />
-                                    <span>View Attendance</span>
-                                </button>
-                                <button 
-                                    onClick={handleViewPayroll}
-                                    className="w-full bg-white hover:bg-gray-50 text-emerald-600 border border-emerald-600 py-2 px-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs flex items-center justify-center space-x-2"
-                                >
-                                    <FaDownload className="text-xs" />
-                                    <span>View Payroll</span>
-                                </button>
+                            <div>
+                              <h4 className="text-sm font-bold text-gray-900">HR Operations</h4>
+                              <p className="text-xs text-gray-600">Manage operations</p>
                             </div>
+                          </div>
+                          <div className="space-y-2">
+                            <button 
+                              onClick={handleViewAttendance}
+                              className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-2 px-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs flex items-center justify-center space-x-2"
+                            >
+                              <FaEye className="text-xs" />
+                              <span>View Attendance</span>
+                            </button>
+                            <button 
+                              onClick={handleViewPayroll}
+                              className="w-full bg-white hover:bg-gray-50 text-emerald-600 border border-emerald-600 py-2 px-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs flex items-center justify-center space-x-2"
+                            >
+                              <FaDownload className="text-xs" />
+                              <span>View Payroll</span>
+                            </button>
+                            <button 
+                              onClick={() => navigateToScreen('generateSalarySlip')}
+                              className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-2 px-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-xs flex items-center justify-center space-x-2"
+                            >
+                              <FaMoneyBillWave className="text-xs" />
+                              <span>Generate Salary Slip</span>
+                            </button>
+                          </div>
                         </div>
 
                         {/* System Status */}
@@ -376,10 +448,32 @@ function HrAdminDashboard() {
                     </div>
                 </div>
 
+                                {/* Salary Slip Generation - Prominent Section */}
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl shadow-lg border border-green-200 p-6 mb-6">
+                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-gradient-to-r from-green-500 to-blue-600 p-3 rounded-xl shadow-lg">
+                        <FaMoneyBillWave className="text-white text-2xl" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Generate Salary Slip</h3>
+                        <p className="text-gray-600">Create and manage employee salary slips with comprehensive details</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => navigateToScreen('generateSalarySlip')}
+                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center space-x-3"
+                    >
+                      <FaDownload className="text-lg" />
+                      <span>Generate Now</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Compact Bottom Section - Side by side */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Compact Announcements */}
-                    <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
+                  {/* Compact Announcements */}
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-2 sm:space-y-0">
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">Recent Announcements</h3>
@@ -491,9 +585,14 @@ function HrAdminDashboard() {
                                                                     id: item._id,
                                                                 })
                                                             }
-                                                            className="border border-gray-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white whitespace-nowrap"
+                                                            disabled={leaveLoading}
+                                                            className={`border border-gray-300 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white whitespace-nowrap ${
+                                                                leaveLoading ? 'opacity-50 cursor-not-allowed' : ''
+                                                            }`}
                                                         >
-                                                            <option value="" disabled>Select</option>
+                                                            <option value="" disabled>
+                                                                {leaveLoading ? 'Processing...' : 'Select'}
+                                                            </option>
                                                             <option value="Approved">Approve</option>
                                                             <option value="Rejected">Reject</option>
                                                         </select>

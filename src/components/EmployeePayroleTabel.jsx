@@ -174,6 +174,27 @@ const EmployeePayroleTable = () => {
         />
       ) : (
         <div>
+          {/* Header Section */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white text-xl font-bold">₹</span>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-800">Salary Slips</h1>
+                  <p className="text-gray-600">View and manage employee salary information</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">
+                  Payroll Management
+                </span>
+              </div>
+            </div>
+          </div>
+          
           {/* Month Filter */}
           <div className="flex justify-end items-center mb-4">
             <CustomMonthFilter />
@@ -181,65 +202,80 @@ const EmployeePayroleTable = () => {
 
           {/* Table */}
           <div className="bg-white border border-gray-300 rounded-lg shadow-md overflow-hidden">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="py-3 px-4 text-left text-gray-600 font-bold">Employee ID</th>
-                  <th className="py-3 px-4 text-left text-gray-600 font-bold">Employee Name</th>
-                  <th className="py-3 px-4 text-left text-gray-600 font-bold">Designation</th>
-                  <th className="py-3 px-4 text-left text-gray-600 font-bold">Month</th>
-                  <th className="py-3 px-4 text-left text-gray-600 font-bold">Paid Days</th>
-                  <th className="py-3 px-4 text-left text-gray-600 font-bold">LOP</th>
-                  <th className="py-3 px-4 text-left text-gray-600 font-bold">Payslip</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData && filteredData.length > 0 ? (
-                  filteredData.map((employee, index) => (
-                    <tr key={index} className="border-t hover:bg-gray-100 transition-colors duration-200">
-                      <td className="py-4 px-4 whitespace-nowrap">{employee?.employee_basic_details?.employee_code || "--"}</td>
-                      <td className="py-4 px-4 whitespace-nowrap truncate max-w-[150px]" title={employee?.employee_basic_details?.employee_name || "Unknown Employee"}>{employee?.employee_basic_details?.employee_name || "Unknown Employee"}</td>
-                      <td className="py-4 px-4 whitespace-nowrap truncate max-w-[120px]" title={employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}>{employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}</td>
-                      <td className="py-4 px-4 whitespace-nowrap">{employee?.pay_slip_month || "--"}</td>
-                      <td className="py-4 px-4 whitespace-nowrap">{employee?.leave_summary?.payable_days || employee?.leave_summary?.workedDays || "0"}</td>
-                      <td className="py-4 px-4 whitespace-nowrap">{employee?.leave_summary?.unpaid_days || employee?.leave_summary?.absent || "0"}</td>
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            setPayslipModel(true);
-                            setPayslipModelData(employee);
-                          }}
-                          className="flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200"
-                        >
-                          View
-                        </button>
-                      </td>
+            {/* Mobile scroll indicator */}
+            <div className="md:hidden bg-blue-50 border-b border-blue-200 px-4 py-2">
+              <div className="flex items-center justify-center text-blue-700 text-sm">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                Scroll horizontally to view all columns
+              </div>
+            </div>
+            
+            {/* Mobile-responsive table wrapper */}
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div className="min-w-[800px] sm:min-w-full">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="py-3 px-2 sm:px-4 text-left text-gray-600 font-bold text-xs sm:text-sm whitespace-nowrap">Employee ID</th>
+                      <th className="py-3 px-2 sm:px-4 text-left text-gray-600 font-bold text-xs sm:text-sm whitespace-nowrap">Employee Name</th>
+                      <th className="py-3 px-2 sm:px-4 text-left text-gray-600 font-bold text-xs sm:text-sm whitespace-nowrap">Designation</th>
+                      <th className="py-3 px-2 sm:px-4 text-left text-gray-600 font-bold text-xs sm:text-sm whitespace-nowrap">Month</th>
+                      <th className="py-3 px-2 sm:px-4 text-left text-gray-600 font-bold text-xs sm:text-sm whitespace-nowrap">Paid Days</th>
+                      <th className="py-3 px-2 sm:px-4 text-left text-gray-600 font-bold text-xs sm:text-sm whitespace-nowrap">LOP</th>
+                      <th className="py-3 px-2 sm:px-4 text-left text-gray-600 font-bold text-xs sm:text-sm whitespace-nowrap">Payslip</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className="py-12">
-                      <div className="text-center">
-                        <div className="text-6xl mb-4">💰</div>
-                        <h3 className="text-xl font-semibold text-gray-800 mb-2">No Payroll Data Found</h3>
-                        <p className="text-gray-600 mb-4">
-                          {selectedMonth 
-                            ? `No payroll data available for ${selectedMonth}`
-                            : "No payroll data available at the moment"
-                          }
-                        </p>
-                        <div className="text-sm text-gray-500">
-                          {selectedMonth 
-                            ? "Try selecting a different month or check back later"
-                            : "Payroll data will appear here once it's generated"
-                          }
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {filteredData && filteredData.length > 0 ? (
+                      filteredData.map((employee, index) => (
+                        <tr key={index} className="border-t hover:bg-gray-100 transition-colors duration-200">
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.employee_basic_details?.employee_code || "--"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap truncate max-w-[120px] sm:max-w-[150px]" title={employee?.employee_basic_details?.employee_name || "Unknown Employee"}>{employee?.employee_basic_details?.employee_name || "Unknown Employee"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap truncate max-w-[100px] sm:max-w-[120px]" title={employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}>{employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.pay_slip_month || "--"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.leave_summary?.payable_days || employee?.leave_summary?.workedDays || "0"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.leave_summary?.unpaid_days || employee?.leave_summary?.absent || "0"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap">
+                            <button
+                              onClick={() => {
+                                setPayslipModel(true);
+                                setPayslipModelData(employee);
+                              }}
+                              className="flex items-center bg-gray-500 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200 text-xs sm:text-sm"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className="py-12">
+                          <div className="text-center">
+                            <div className="text-6xl mb-4">💰</div>
+                            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Payroll Data Found</h3>
+                            <p className="text-gray-600 mb-4">
+                              {selectedMonth 
+                                ? `No payroll data available for ${selectedMonth}`
+                                : "No payroll data available at the moment"
+                              }
+                            </p>
+                            <div className="text-sm text-gray-500">
+                              {selectedMonth 
+                                ? "Try selecting a different month or check back later"
+                                : "Payroll data will appear here once it's generated"
+                              }
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}

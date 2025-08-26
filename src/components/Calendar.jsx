@@ -144,63 +144,16 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
   // Handle success messages with cleanup to prevent infinite loops
   useEffect(() => {
-    let hasProcessedMessage = false;
+    // Only handle vendor meeting success messages here
+    // Other success messages (comp-off, regularization, short leave) are handled directly in handleSubmit 
+    // to avoid duplicate toast notifications and ensure immediate form clearing
+    // Vendor meeting needs special handling because it doesn't go through handleSubmit's immediate success flow
     
-    if (data?.message && !processedMessagesRef.current.has(data.message)) {
-      hasProcessedMessage = true;
-      processedMessagesRef.current.add(data.message);
-                  safeToast.success(data.message);
-      // Close modal and clear form data
-      setModalOpen(false);
-      // Clear form data inline to avoid dependency issues
-      setSelectedDay(null);
-      setReason("");
-      setSelectType("");
-      setActionType("");
-      setLeaveType("");
-      setSelectDuration(null);
-      setClickedDay(null);
-      setCompOffDayType("");
-      setVendorMeetingDuration("");
-      setIsLeaveTypeDropdownOpen(false);
-      setIsCompOffDurationDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
-      setShowLeaveTypeError(false);
-      setShowCompOffDurationError(false);
-      setShowVendorMeetingDurationError(false);
-      setShowReasonError(false);
-      return;
-    }
-    if (data1?.message && !processedMessagesRef.current.has(data1.message)) {
-      hasProcessedMessage = true;
-      processedMessagesRef.current.add(data1.message);
-                  safeToast.success(data1.message);
-      // Close modal and clear form data
-      setModalOpen(false);
-      // Clear form data inline to avoid dependency issues
-      setSelectedDay(null);
-      setReason("");
-      setSelectType("");
-      setActionType("");
-      setLeaveType("");
-      setSelectDuration(null);
-      setClickedDay(null);
-      setCompOffDayType("");
-      setVendorMeetingDuration("");
-      setIsLeaveTypeDropdownOpen(false);
-      setIsCompOffDurationDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
-      setShowLeaveTypeError(false);
-      setShowCompOffDurationError(false);
-      setShowVendorMeetingDurationError(false);
-      setShowReasonError(false);
-      return;
-    }
     if (vendorMeetingData?.message && !processedMessagesRef.current.has(vendorMeetingData.message)) {
       processedMessagesRef.current.add(vendorMeetingData.message);
       
       // Show success toast once
-      toast.success(vendorMeetingData.message);
+      safeToast.success(vendorMeetingData.message);
       
       // Clear vendor meeting state to prevent showing toast on other pages
       dispatch(resetVendorMeetingAction());
@@ -231,7 +184,19 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       
       return;
     }
-  }, [data?.message, data1?.message, vendorMeetingData?.message, dispatch, employeeId, monthYear]);
+  }, [vendorMeetingData?.message, dispatch, employeeId, monthYear]);
+
+  // Cleanup processed messages on component unmount
+  useEffect(() => {
+    return () => {
+      processedMessagesRef.current.clear();
+    };
+  }, []);
+
+  // Clear processed messages on component mount to prevent old messages from showing on page refresh
+  useEffect(() => {
+    processedMessagesRef.current.clear();
+  }, []);
 
   useEffect(() => {
     if (error1) {
@@ -335,12 +300,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     // Check if this is the clicked day
     const isClickedDay = clickedDay === day;
     
-    // Check if this date is selectable (current month and not in the future)
+    // Check if this date is selectable (current date - 35 days, not in the future)
     const today = new Date();
     const selectedDate = new Date(currentYear, currentMonth, day);
-    const isSelectable = selectedDate.getMonth() === today.getMonth() &&
-                        selectedDate.getFullYear() === today.getFullYear() &&
-                        selectedDate <= today;
+    const thirtyFiveDaysAgo = new Date(today);
+    thirtyFiveDaysAgo.setDate(today.getDate() - 35);
+    
+    const isSelectable = selectedDate >= thirtyFiveDaysAgo && selectedDate <= today;
     
     if (isToday(day)) {
       return isClickedDay 
@@ -395,7 +361,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       baseClass += " ring-2 ring-purple-500 ring-offset-2 shadow-lg";
     }
 
-    // Add visual indicator for selectable dates (current month dates)
+    // Add visual indicator for selectable dates (current date - 35 days)
     if (isSelectable) {
       baseClass += " cursor-pointer hover:shadow-md transition-shadow duration-200";
     } else {
@@ -436,18 +402,17 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     const today = new Date();
     const selectedDate = new Date(currentYear, currentMonth, day);
 
-    // Check if date is valid for selection - current month + next 5 days
-    const isValidDate = 
-      (selectedDate.getMonth() === today.getMonth() && 
-       selectedDate.getFullYear() === today.getFullYear()) ||
-      (selectedDate.getMonth() === (today.getMonth() + 1) % 12 && 
-       selectedDate.getFullYear() === (today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear()) &&
-       selectedDate.getDate() <= 5);
+    // Check if date is valid for selection - current date - 35 days (for Short Leave and Regularization)
+    const thirtyFiveDaysAgo = new Date(today);
+    thirtyFiveDaysAgo.setDate(today.getDate() - 35);
+    
+    const isValidDate = selectedDate >= thirtyFiveDaysAgo && selectedDate <= today;
 
     // Debug logging
     console.log('Date validation:', {
       selectedDate: selectedDate.toISOString().split('T')[0],
       today: today.toISOString().split('T')[0],
+      thirtyFiveDaysAgo: thirtyFiveDaysAgo.toISOString().split('T')[0],
       isValidDate,
       selectedMonth: selectedDate.getMonth(),
       todayMonth: today.getMonth(),
@@ -468,7 +433,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     // Set the clicked day for visual feedback
     setClickedDay(day);
 
-    // Allow selection for current month + next 5 days (for Short Leave and Regularization)
+    // Allow selection for current date - 35 days (for Short Leave and Regularization)
     if (isValidDate) {
       // For regularization, check if the user's punch-in time allows it
       if (selectedDayData && selectedDayData.AttendanceStatus === "Absent") {
@@ -485,10 +450,30 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setModalOpen(true);
     } else {
       safeToast.error(
-        "You can only apply Short Leave and Regularization for dates within the current month plus the next 5 days."
+        "You can only apply Short Leave and Regularization for dates within the last 35 days from today."
       );
     }
   }, [currentYear, currentMonth, dayLogs, onDaySelect, isRegularizationAllowed]);
+
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    setSelectedDay(null);
+    setReason("");
+    setSelectType("");
+    setActionType("");
+    setLeaveType("");
+    setSelectDuration(null);
+    setClickedDay(null);
+    setCompOffDayType("");
+    setVendorMeetingDuration("");
+    setIsLeaveTypeDropdownOpen(false);
+    setIsCompOffDurationDropdownOpen(false);
+    setIsVendorMeetingDurationDropdownOpen(false);
+    setShowLeaveTypeError(false);
+    setShowCompOffDurationError(false);
+    setShowVendorMeetingDurationError(false);
+    setShowReasonError(false);
+  }, []);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
@@ -540,6 +525,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       }
       
       dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
+      safeToast.success("Comp-Off request submitted successfully!");
+      closeModal();
     } else if (actionType === 'leave') {
       // Handle Leave submissions (Short Leave, Vendor Meeting, Regularization)
       const date = new Date(selectedDate + " 00:00:00");
@@ -552,6 +539,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           reason, 
           duration: vendorMeetingDuration === 'halfDay' ? "0.5" : "1" 
         }));
+        safeToast.success("Vendor Meeting request submitted successfully!");
+        closeModal();
       } else if (selectType === 'regularized') {
         // For regularization, check if the user's punch-in time allows it
         const selectedDayData = dayLogs?.find((log) => log.AttendanceDate === selectedDate);
@@ -562,33 +551,23 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           return;
         }
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
-      } else {
+        safeToast.success("Regularization request submitted successfully!");
+        closeModal();
+      } else if (selectType === 'shortLeave') {
+        // Handle Short Leave submission
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
+        safeToast.success("Short Leave request submitted successfully!");
+        closeModal();
+      } else {
+        // Handle other leave types
+        dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
+        safeToast.success("Leave request submitted successfully!");
+        closeModal();
       }
     }
     
-    // Don't close modal here - it will be closed by the success effect
-  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, vendorMeetingDuration, isRegularizationAllowed]);
-
-  const closeModal = useCallback(() => {
-    setModalOpen(false);
-    setSelectedDay(null);
-    setReason("");
-    setSelectType("");
-    setActionType("");
-    setLeaveType("");
-    setSelectDuration(null);
-    setClickedDay(null);
-    setCompOffDayType("");
-    setVendorMeetingDuration("");
-    setIsLeaveTypeDropdownOpen(false);
-    setIsCompOffDurationDropdownOpen(false);
-    setIsVendorMeetingDurationDropdownOpen(false);
-    setShowLeaveTypeError(false);
-    setShowCompOffDurationError(false);
-    setShowVendorMeetingDurationError(false);
-    setShowReasonError(false);
-  }, []);
+    // Modal is closed immediately after each successful submission
+  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, vendorMeetingDuration, isRegularizationAllowed, closeModal]);
 
   const handleInputChange = useCallback((e) => {
     setSelectType(e.target.value);
@@ -1142,7 +1121,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                         <div className="mt-2 pt-2 border-t border-gray-100">
                           <p className="text-xs text-gray-500">
                             <span className="font-medium">Regularization Rules:</span><br/>
-                            • Can apply for current month + next 5 days<br/>
+                            • Can apply for last 35 days from today<br/>
                             • Only allowed if punched in between 9:15-9:31 AM<br/>
                             • Days with orange border are eligible for regularization
                           </p>
@@ -1208,12 +1187,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
               const dayClass = getDayClass(day);
               const leaveTypeDisplay = leaveType ? getLeaveTypeDisplay(leaveType) : "";
 
-              // Check if this date is selectable (current month and not in the future)
+              // Check if this date is selectable (current date - 35 days, not in the future)
               const today = new Date();
               const selectedDate = new Date(currentYear, currentMonth, day);
-              const isSelectable = selectedDate.getMonth() === today.getMonth() &&
-                                  selectedDate.getFullYear() === today.getFullYear() &&
-                                  selectedDate <= today;
+              const thirtyFiveDaysAgo = new Date(today);
+              thirtyFiveDaysAgo.setDate(today.getDate() - 35);
+              
+              const isSelectable = selectedDate >= thirtyFiveDaysAgo && selectedDate <= today;
 
               return userRole === "Super-Admin" ? (
                 <div
@@ -1335,14 +1315,14 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                             <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-100 border-2 border-green-300 rounded flex-shrink-0"></div>
                             <span className="text-xs text-gray-700">Selectable Dates</span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">Current month dates + next 5 days</p>
+                          <p className="text-xs text-gray-500 mt-1">Last 35 days from today (for Short Leave and Regularization)</p>
                         </div>
                         <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="flex items-center gap-2">
                             <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gray-100 border border-gray-300 rounded flex-shrink-0 opacity-60"></div>
                             <span className="text-xs text-gray-500">Non-Selectable Dates</span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">Future dates and previous months</p>
+                          <p className="text-xs text-gray-500 mt-1">Future dates and dates older than 35 days</p>
                         </div>
                         <div className="p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="flex items-center gap-2">
@@ -1560,7 +1540,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Short Leave</span>
-                                <p className="text-xs opacity-75">For early departure - can apply for current month + next 5 days</p>
+                                <p className="text-xs opacity-75">For early departure - can apply for last 35 days from today</p>
                               </div>
                             </div>
                           </button>
@@ -1598,7 +1578,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Regularization</span>
-                                <p className="text-xs opacity-75">For attendance regularization - can apply for current month + next 5 days, only if punched in between 9:15-9:31 AM</p>
+                                <p className="text-xs opacity-75">For attendance regularization - can apply for last 35 days from today, only if punched in between 9:15-9:31 AM</p>
                               </div>
                             </div>
                           </button>

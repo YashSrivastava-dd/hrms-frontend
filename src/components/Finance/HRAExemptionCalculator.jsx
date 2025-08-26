@@ -14,17 +14,17 @@ const HRAExemptionCalculator = () => {
 
   /**
    * Calculates HRA exemption as per Section 10(13A) of the Indian Income Tax Act
-   * @param {number} basicSalary - Monthly basic salary
-   * @param {number} hraReceived - Monthly HRA received
-   * @param {number} rentPaid - Monthly rent paid
+   * @param {number} basicSalary - Yearly basic salary
+   * @param {number} hraReceived - Yearly HRA received
+   * @param {number} rentPaid - Yearly rent paid
    * @param {boolean} isMetro - Whether living in metro city (true) or non-metro (false)
    * @returns {Object} Object containing all calculated values and final exemption
    */
   const calculateHRAExemption = (basicSalary, hraReceived, rentPaid, isMetro) => {
-    // Convert monthly values to annual
-    const annualBasicSalary = basicSalary * 12;
-    const annualHRAReceived = hraReceived * 12;
-    const annualRentPaid = rentPaid * 12;
+    // Use yearly values directly (no conversion needed)
+    const annualBasicSalary = basicSalary;
+    const annualHRAReceived = hraReceived;
+    const annualRentPaid = rentPaid;
 
     // Step 1: Actual HRA received annually
     const actualHRAReceived = annualHRAReceived;
@@ -37,20 +37,27 @@ const HRAExemptionCalculator = () => {
     const tenPercentOfBasic = 0.1 * annualBasicSalary;
     const rentMinusTenPercentBasic = annualRentPaid - tenPercentOfBasic;
 
-    // Step 4: HRA exemption is the minimum of the three values, but not less than 0
-    const hraExemption = Math.max(0, Math.min(actualHRAReceived, percentOfBasic, rentMinusTenPercentBasic));
+    // Step 4: HRA exemption is the minimum of the three values
+    // Note: If any value is negative, it will not be the minimum
+    const hraExemption = Math.min(actualHRAReceived, percentOfBasic, rentMinusTenPercentBasic);
+    
+    // Calculate taxable HRA (HRA received minus exempted amount)
+    const taxableHRA = Math.max(0, annualHRAReceived - hraExemption);
 
     return {
       actualHRAReceived,
       percentOfBasic,
       rentMinusTenPercentBasic,
-      hraExemption,
+      hraExemption: Math.max(0, hraExemption), // Final exemption cannot be negative
+      taxableHRA,
       // Additional details for better understanding
       annualBasicSalary,
       annualHRAReceived,
       annualRentPaid,
       tenPercentOfBasic,
-      metroPercentage: metroPercentage * 100
+      metroPercentage: metroPercentage * 100,
+      // Raw values for display (before applying Math.max)
+      rawHraExemption: hraExemption
     };
   };
 
@@ -136,6 +143,7 @@ const HRAExemptionCalculator = () => {
           <div className="text-sm text-blue-800">
             <h3 className="font-semibold mb-2">How HRA Exemption is Calculated:</h3>
             <ul className="space-y-1 list-disc list-inside">
+              <li><strong>Yearly Inputs:</strong> Enter your annual basic salary, HRA, and rent amounts</li>
               <li><strong>Actual HRA Received:</strong> Total HRA received annually</li>
               <li><strong>50% of Basic Salary:</strong> For metro cities (Delhi, Mumbai, Kolkata, Chennai)</li>
               <li><strong>40% of Basic Salary:</strong> For non-metro cities</li>
@@ -153,11 +161,25 @@ const HRAExemptionCalculator = () => {
           Enter Details
         </h2>
         
+        {/* Yearly Input Note */}
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-start space-x-3">
+            <FaInfoCircle className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
+            <div className="text-sm text-green-700">
+              <p className="font-medium mb-1">📊 Enter Yearly Amounts:</p>
+              <p className="text-xs">
+                Please enter your <strong>annual</strong> basic salary, HRA, and rent amounts. 
+                For example: If your monthly basic salary is ₹40,000, enter ₹4,80,000 as yearly basic salary.
+              </p>
+            </div>
+          </div>
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Basic Salary */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Monthly Basic Salary *
+              Yearly Basic Salary *
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
@@ -166,7 +188,7 @@ const HRAExemptionCalculator = () => {
                 name="basicSalary"
                 value={formData.basicSalary}
                 onChange={handleInputChange}
-                placeholder="25000"
+                placeholder="480000"
                 className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                   errors.basicSalary ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -180,7 +202,7 @@ const HRAExemptionCalculator = () => {
           {/* HRA Received */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Monthly HRA Received
+              Yearly HRA Received
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
@@ -189,7 +211,7 @@ const HRAExemptionCalculator = () => {
                 name="hraReceived"
                 value={formData.hraReceived}
                 onChange={handleInputChange}
-                placeholder="12000"
+                placeholder="240000"
                 className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                   errors.hraReceived ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -203,7 +225,7 @@ const HRAExemptionCalculator = () => {
           {/* Rent Paid */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Monthly Rent Paid
+              Yearly Rent Paid
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
@@ -212,7 +234,7 @@ const HRAExemptionCalculator = () => {
                 name="rentPaid"
                 value={formData.rentPaid}
                 onChange={handleInputChange}
-                placeholder="15000"
+                placeholder="180000"
                 className={`w-full pl-8 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                   errors.rentPaid ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -265,11 +287,39 @@ const HRAExemptionCalculator = () => {
             Calculate HRA Exemption
           </button>
           <button
+            onClick={() => {
+              setFormData({
+                basicSalary: '480000',
+                hraReceived: '240000',
+                rentPaid: '180000',
+                isMetro: false
+              });
+              setErrors({});
+            }}
+            className="px-6 py-3 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+          >
+            Load Example
+          </button>
+          <button
             onClick={resetForm}
             className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
           >
             Reset
           </button>
+        </div>
+
+        {/* Example Note */}
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start space-x-3">
+            <FaInfoCircle className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
+            <div className="text-sm text-blue-700">
+              <p className="font-medium mb-1">Example Calculation:</p>
+              <p className="text-xs">
+                <strong>Yearly Inputs:</strong> Basic ₹4,80,000, HRA ₹2,40,000, Rent ₹1,80,000, Non-metro city<br/>
+                <strong>Result:</strong> Exempted HRA ₹1,32,000, Taxable HRA ₹1,08,000
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -287,6 +337,34 @@ const HRAExemptionCalculator = () => {
               <h3 className="text-lg font-medium text-green-800 mb-2">HRA Exemption Amount</h3>
               <p className="text-4xl font-bold text-green-600">{formatCurrency(result.hraExemption)}</p>
               <p className="text-sm text-green-700 mt-1">per annum</p>
+            </div>
+          </div>
+
+          {/* Taxable HRA Result */}
+          <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl p-6 mb-6">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-red-800 mb-2">HRA Chargeable to Tax</h3>
+              <p className="text-4xl font-bold text-red-600">{formatCurrency(result.taxableHRA)}</p>
+              <p className="text-sm text-red-700 mt-1">per annum</p>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="bg-gray-50 rounded-xl p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">Summary</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">Total HRA Received</p>
+                <p className="text-xl font-bold text-blue-600">{formatCurrency(result.annualHRAReceived)}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">Exempted HRA</p>
+                <p className="text-xl font-bold text-green-600">{formatCurrency(result.hraExemption)}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">Taxable HRA</p>
+                <p className="text-xl font-bold text-red-600">{formatCurrency(result.taxableHRA)}</p>
+              </div>
             </div>
           </div>
 
@@ -339,6 +417,23 @@ const HRAExemptionCalculator = () => {
                   <p className="text-xs text-orange-600">Rent paid minus 10% of basic salary</p>
                 </div>
               </div>
+
+              {/* Calculation Note */}
+              <div className="bg-gray-100 rounded-lg p-4 mt-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="text-sm text-gray-700">
+                    <p className="font-medium">HRA Exemption Calculation:</p>
+                    <p>The least of the above three values is exempt from HRA.</p>
+                    <p className="mt-1 text-xs text-gray-600">
+                      <strong>Step 1:</strong> Actual HRA received (yearly) = {formatCurrency(result.actualHRAReceived)}<br/>
+                      <strong>Step 2:</strong> {result.metroPercentage}% of Basic (yearly) = {formatCurrency(result.percentOfBasic)}<br/>
+                      <strong>Step 3:</strong> Rent Paid - 10% of Basic = {formatCurrency(result.annualRentPaid)} - {formatCurrency(result.tenPercentOfBasic)} = {formatCurrency(result.rentMinusTenPercentBasic)}<br/>
+                      <strong>Result:</strong> Minimum of the above = {formatCurrency(result.rawHraExemption)}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -347,8 +442,12 @@ const HRAExemptionCalculator = () => {
             <div className="flex items-start space-x-3">
               <FaInfoCircle className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
               <div className="text-sm text-yellow-800">
-                <h4 className="font-semibold mb-1">Tax Savings Information:</h4>
-                <p>With an HRA exemption of {formatCurrency(result.hraExemption)} per annum, you can save up to {formatCurrency(result.hraExemption * 0.3)} in taxes (assuming 30% tax bracket).</p>
+                <h4 className="font-semibold mb-2">Tax Impact Summary:</h4>
+                <div className="space-y-1">
+                  <p><strong>Exempted HRA:</strong> {formatCurrency(result.hraExemption)} - This amount is tax-free</p>
+                  <p><strong>Taxable HRA:</strong> {formatCurrency(result.taxableHRA)} - This amount will be added to your taxable income</p>
+                  <p className="mt-2 text-xs">With an HRA exemption of {formatCurrency(result.hraExemption)}, you can save up to {formatCurrency(result.hraExemption * 0.3)} in taxes (assuming 30% tax bracket).</p>
+                </div>
               </div>
             </div>
           </div>
