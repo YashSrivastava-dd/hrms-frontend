@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, FileText } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getEmployeeLeaveCountAction,
@@ -7,6 +7,7 @@ import {
   getUserDataAction,
   putApprovedLeaveByManagerAction,
 } from "../store/action/userDataAction";
+import safeToast from "../utils/safeToast";
 
 const statusColors = {
   Approved: "bg-blue-100 text-blue-600",
@@ -35,7 +36,56 @@ const getLeaveTypeAbbreviation = (leaveType) => {
   
   return abbreviations[leaveType] || leaveType;
 };
+
+// Function to get document icon based on file type
+const getDocumentIcon = (fileName) => {
+  if (!fileName) return FileText;
+  
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  
+  switch (extension) {
+    case 'pdf':
+      return FileText;
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+      return FileText;
+    case 'doc':
+    case 'docx':
+      return FileText;
+    default:
+      return FileText;
+  }
+};
+
+// Function to extract document data from item
+const getDocumentData = (item) => {
+  // Check if item has a direct location field (for medical certificates)
+  if (item?.location) {
+    const docData = {
+      location: item.location,
+      originalname: item.reason ? 'Medical Certificate' : 'Document',
+      mimetype: 'application/pdf' // Default to PDF since most medical certs are PDFs
+    };
+    console.log('getDocumentData: Found document at root level:', docData);
+    return docData;
+  }
+  
+  // Check for nested document fields
+  const nestedDoc = item?.medicalCertificate || item?.document || item?.file;
+  if (nestedDoc) {
+    console.log('getDocumentData: Found nested document:', nestedDoc);
+  }
+  return nestedDoc;
+};
 // api/common/get-emp-leaves-count
+// Component for HR Admin to view and manage employee leave requests
+// Features:
+// - Summary statistics (Today Presents, Planned Leaves, Unplanned Leaves, Pending Requests)
+// - Employee leave table with search functionality
+// - Document viewing for medical certificates and other leave documents
+// - Leave approval/rejection actions
 const EmployeeLeaveStatus = () => {
   const { data } = useSelector((state) => state.managerLeaveApprove);
   const employeeStatusData = data?.data || [];
@@ -52,14 +102,64 @@ console.log('employeeCount',employeeCount)
     dispatch(getEmployeeLeaveCountAction())
   }, [dispatch]);
 
-  const handelChangeStatus = ({ value, id }) => {
-    const status = value === "Approved" ? "Approved" : "Reject";
-    dispatch(putApprovedLeaveByManagerAction({ status, id }));
+  // Cleanup toasts on component unmount
+  useEffect(() => {
+    return () => {
+      safeToast.dismiss();
+    };
+  }, []);
+
+  const [approvalLoading, setApprovalLoading] = useState({});
+
+  const handelChangeStatus = async ({ value, id, employeeName }) => {
+    // Map the dropdown values to the correct backend status values
+    const status = value === "Approved" ? "Approved" : "Rejected";
+    
+    // Set loading state for this specific item
+    setApprovalLoading(prev => ({ ...prev, [id]: true }));
+    
+    try {
+      const result = await dispatch(putApprovedLeaveByManagerAction({ status, id }));
+      
+      if (result?.success) {
+        // Show success notification
+        safeToast.success(
+          `${employeeName}'s leave request ${status.toLowerCase()} successfully!`,
+          { autoClose: 3000 }
+        );
+        
+        // Refresh the data to show updated status
+        dispatch(getLeaveApproveRequestAction());
+        dispatch(getEmployeeLeaveCountAction());
+      } else {
+        // Show error notification
+        safeToast.error(
+          result?.error || `Failed to ${status.toLowerCase()} leave request. Please try again.`,
+          { autoClose: 4000 }
+        );
+      }
+    } catch (error) {
+      // Show error notification
+      safeToast.error(
+        `Error: ${error?.message || 'Something went wrong'}`,
+        { autoClose: 4000 }
+      );
+    } finally {
+      // Clear loading state
+      setApprovalLoading(prev => ({ ...prev, [id]: false }));
+    }
   };
 
   const filteredData = employeeStatusData.filter((item) =>
     item?.employeeInfo?.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Debug: Log the first item to see the data structure
+  useEffect(() => {
+    if (employeeStatusData.length > 0) {
+      console.log('EmployeeLeaveStatus: Sample data structure:', employeeStatusData[0]);
+    }
+  }, [employeeStatusData]);
 
   return (
     <div>
@@ -112,70 +212,120 @@ console.log('employeeCount',employeeCount)
           />
         </div>
         <div className="overflow-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
             <thead className="text-left bg-gray-50">
               <tr className="text-gray-500">
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Leave Type</th>
-                <th className="px-4 py-2">Designation</th>
-                <th className="px-4 py-2">Days</th>
-                <th className="px-4 py-2">Start</th>
-                <th className="px-4 py-2">End</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Action</th>
+                <th className="px-4 py-3 font-medium w-32">Name</th>
+                <th className="px-4 py-3 font-medium w-24">Leave Type</th>
+                <th className="px-4 py-3 font-medium w-28">Designation</th>
+                <th className="px-4 py-3 font-medium w-20">Days</th>
+                <th className="px-4 py-3 font-medium w-24">Start</th>
+                <th className="px-4 py-3 font-medium w-24">End</th>
+                <th className="px-4 py-3 font-medium w-24">Documents</th>
+                <th className="px-4 py-3 font-medium w-20">Status</th>
+                <th className="px-4 py-3 font-medium w-24">Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredData.map((item, idx) => (
                 <tr key={idx} className="border-b hover:bg-gray-50 transition-colors duration-200">
-                  <td className="px-4 py-3 flex items-center gap-3 whitespace-nowrap">
+                  <td className="px-4 py-3 flex items-center gap-3 whitespace-nowrap w-32">
                     <img
                       src={item.image}
                       alt={item.name}
                       className="w-8 h-8 rounded-full"
                     />
-                    <span className="font-medium text-gray-800 truncate max-w-[150px]" title={item?.employeeInfo?.employeeName || "Unknown Employee"}>
+                    <span className="font-medium text-gray-800 truncate max-w-[120px]" title={item?.employeeInfo?.employeeName || "Unknown Employee"}>
                       {item?.employeeInfo?.employeeName || "Unknown Employee"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap w-24">
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {getLeaveTypeAbbreviation(item?.leaveType) || "N/A"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap truncate max-w-[120px]" title={item?.employeeInfo?.designation || "No designation"}>
+                  <td className="px-4 py-3 text-gray-700 whitespace-nowrap truncate max-w-[100px] w-28" title={item?.employeeInfo?.designation || "No designation"}>
                     {item?.employeeInfo?.designation || "No designation"}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{item?.totalDays || 0} Days</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{item?.leaveStartDate || "--"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{item?.leaveEndDate || "--"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap w-20">{item?.totalDays || 0} Days</td>
+                  <td className="px-4 py-3 whitespace-nowrap w-24">{item?.leaveStartDate || "--"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap w-24">{item?.leaveEndDate || "--"}</td>
                   <td className="px-4 py-3 whitespace-nowrap">
+                    {(() => {
+                      const docData = getDocumentData(item);
+                      if (docData) {
+                        return (
+                          <div className="flex items-center gap-2">
+                            {React.createElement(getDocumentIcon(docData.originalname), {
+                              className: "h-4 w-4 text-green-600 flex-shrink-0"
+                            })}
+                            <button
+                              onClick={() => {
+                                if (docData.location) {
+                                  window.open(docData.location, '_blank');
+                                }
+                              }}
+                              className="text-green-600 hover:text-green-800 text-xs underline font-medium truncate max-w-[60px]"
+                              title={`${docData.originalname || 'Document'} - Click to view`}
+                            >
+                              View
+                            </button>
+                          </div>
+                        );
+                      } else if (item?.leaveType === 'medicalLeave' || item?.leaveType === 'sickLeave') {
+                        return (
+                          <span className="text-red-500 text-xs">No Doc</span>
+                        );
+                      } else {
+                        return (
+                          <span className="text-gray-400 text-xs">N/A</span>
+                        );
+                      }
+                    })()}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap w-20">
                     <span
                       className={`text-xs px-3 py-1 rounded-full font-semibold ${statusColors[item?.status] || "bg-gray-100 text-gray-600"}`}
                     >
                       {item?.status || "Unknown"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap w-24">
                     {item?.status === "Approved" ? (
                       <MoreHorizontal className="h-4 w-4 text-gray-500" />
                     ) : (
-                      <select
-                        defaultValue=""
-                        onChange={(e) =>
-                          handelChangeStatus({
-                            value: e.target.value,
-                            id: item?._id,
-                          })
-                        }
-                        className="border px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-                      >
-                        <option value="" disabled>
-                          Select
-                        </option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        {approvalLoading[item?._id] && (
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        )}
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const selectedValue = e.target.value;
+                            if (selectedValue) {
+                              handelChangeStatus({
+                                value: selectedValue,
+                                id: item?._id,
+                                employeeName: item?.employeeInfo?.employeeName || 'Employee',
+                              });
+                              // Reset to default after selection
+                              e.target.value = "";
+                            }
+                          }}
+                          disabled={approvalLoading[item?._id]}
+                          className={`border px-2 py-1 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ${
+                            approvalLoading[item?._id] 
+                              ? 'opacity-50 cursor-not-allowed bg-gray-100' 
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <option value="" disabled>
+                            {approvalLoading[item?._id] ? 'Processing...' : 'Select'}
+                          </option>
+                          <option value="Approved">Approve</option>
+                          <option value="Rejected">Reject</option>
+                        </select>
+                      </div>
                     )}
                   </td>
                 </tr>

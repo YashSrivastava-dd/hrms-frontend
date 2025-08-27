@@ -21,7 +21,6 @@ const LEAVE_TYPE_MAP = {
   'earnedLeave': 'EL',
   'compOffLeave': 'C-Off',
   'optionalLeave': 'OL',
-  'vendor-meeting': 'Vendor-M',
   'regularized': 'RL',
   'uninformedLeave': 'UL',
   'bereavementLeave': 'BL'
@@ -47,7 +46,38 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const [isCompOffDurationDropdownOpen, setIsCompOffDurationDropdownOpen] = useState(false);
   const leaveTypeDropdownRef = useRef(null);
   const compOffDurationDropdownRef = useRef(null);
+  // Use localStorage to persist processed messages across component remounts
   const processedMessagesRef = useRef(new Set());
+  
+  // Initialize processed messages from localStorage on component mount
+  useEffect(() => {
+    try {
+      const storedMessages = localStorage.getItem('calendarProcessedMessages');
+      if (storedMessages) {
+        const parsedMessages = JSON.parse(storedMessages);
+        processedMessagesRef.current = new Set(parsedMessages);
+      }
+    } catch (error) {
+      console.warn('Error loading processed messages from localStorage:', error);
+    }
+  }, []);
+  
+  // Save processed messages to localStorage
+  const saveProcessedMessages = useCallback(() => {
+    try {
+      const messagesArray = Array.from(processedMessagesRef.current);
+      localStorage.setItem('calendarProcessedMessages', JSON.stringify(messagesArray));
+      
+      // Clean up old messages if there are too many (keep only last 50)
+      if (messagesArray.length > 50) {
+        const recentMessages = messagesArray.slice(-50);
+        processedMessagesRef.current = new Set(recentMessages);
+        localStorage.setItem('calendarProcessedMessages', JSON.stringify(recentMessages));
+      }
+    } catch (error) {
+      console.warn('Error saving processed messages to localStorage:', error);
+    }
+  }, []);
   
   // Validation states
   const [showLeaveTypeError, setShowLeaveTypeError] = useState(false);
@@ -134,13 +164,15 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   }, [isLeaveTypeDropdownOpen, isCompOffDurationDropdownOpen]);
 
   // Handle success messages with cleanup to prevent infinite loops
+  // These notifications only appear AFTER successful submission, not on user interactions
   useEffect(() => {
     let hasProcessedMessage = false;
     
     if (data?.message && !processedMessagesRef.current.has(data.message)) {
       hasProcessedMessage = true;
       processedMessagesRef.current.add(data.message);
-                  safeToast.success(data.message);
+      saveProcessedMessages(); // Save to localStorage
+      safeToast.success(data.message);
       // Close modal and clear form data
       setModalOpen(false);
       // Clear form data inline to avoid dependency issues
@@ -152,20 +184,18 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setSelectDuration(null);
       setClickedDay(null);
       setCompOffDayType("");
-      setVendorMeetingDuration("");
       setIsLeaveTypeDropdownOpen(false);
       setIsCompOffDurationDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
       setShowLeaveTypeError(false);
       setShowCompOffDurationError(false);
-      setShowVendorMeetingDurationError(false);
       setShowReasonError(false);
       return;
     }
     if (data1?.message && !processedMessagesRef.current.has(data1.message)) {
       hasProcessedMessage = true;
       processedMessagesRef.current.add(data1.message);
-                  safeToast.success(data1.message);
+      saveProcessedMessages(); // Save to localStorage
+      safeToast.success(data1.message);
       // Close modal and clear form data
       setModalOpen(false);
       // Clear form data inline to avoid dependency issues
@@ -177,18 +207,23 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setSelectDuration(null);
       setClickedDay(null);
       setCompOffDayType("");
-      setVendorMeetingDuration("");
       setIsLeaveTypeDropdownOpen(false);
       setIsCompOffDurationDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
       setShowLeaveTypeError(false);
       setShowCompOffDurationError(false);
-      setShowVendorMeetingDurationError(false);
       setShowReasonError(false);
       return;
     }
 
   }, [data?.message, data1?.message, dispatch, employeeId, monthYear]);
+
+  // Cleanup effect to prevent localStorage from growing indefinitely
+  useEffect(() => {
+    return () => {
+      // Save current processed messages before unmounting
+      saveProcessedMessages();
+    };
+  }, [saveProcessedMessages]);
 
   useEffect(() => {
     if (error1) {
@@ -437,14 +472,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       setSelectedDay(day);
       setModalOpen(true);
       
-      // Show confirmation toast for selectable dates
-      if (selectedDayData && selectedDayData.AttendanceStatus === "Absent") {
-        safeToast.success("You can apply for regularization on this date. Please ensure you punched in between 9:15-9:31 AM.");
-      } else if (selectedDayData && selectedDayData.AttendanceStatus === "Present") {
-        safeToast.success("You can apply for Short Leave on this date.");
-      } else {
-        safeToast.success("You can apply for Short Leave on this date.");
-      }
+      // No notifications on date click - only show them when user actually submits
     } else {
       safeToast.error(
         "You can only apply Short Leave and Regularization for dates within the last 35 days from today."
@@ -452,13 +480,14 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
   }, [currentYear, currentMonth, dayLogs, onDaySelect, isRegularizationAllowed]);
 
+  // This function handles the actual submission of leave/comp-off requests
+  // Short Leave shows immediate notification, others use Redux state to avoid duplicates
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     
     // Reset all validation errors first
     setShowLeaveTypeError(false);
     setShowCompOffDurationError(false);
-    setShowVendorMeetingDurationError(false);
     setShowReasonError(false);
     
     if (!actionType) {
@@ -499,7 +528,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       
       dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
     } else if (actionType === 'leave') {
-      // Handle Leave submissions (Short Leave, Vendor Meeting, Regularization)
+      // Handle Leave submissions (Short Leave, Regularization)
       const date = new Date(selectedDate + " 00:00:00");
       const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       
@@ -513,7 +542,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           return;
         }
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
-        safeToast.success("Regularization request submitted successfully!");
+        // No immediate notification - let Redux state handle it
       } else if (selectType === 'shortLeave') {
         // Handle Short Leave submission
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
@@ -521,7 +550,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       } else {
         // Handle other leave types
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
-        safeToast.success("Leave request submitted successfully!");
+        // No immediate notification - let Redux state handle it
       }
     }
     
@@ -554,12 +583,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setIsLeaveTypeDropdownOpen(false);
     setShowLeaveTypeError(false); // Clear validation error when selection is made
     
-    // Show confirmation toast for different leave types
-    if (leaveType === 'shortLeave') {
-      safeToast.success("Short Leave selected. You can apply for dates within the last 35 days from today.");
-    } else if (leaveType === 'regularized') {
-      safeToast.success("Regularization selected. You can apply for dates within the last 35 days from today, only if punched in between 9:15-9:31 AM.");
-    }
+    // No notifications on selection - only show them when user actually submits
   }, []);
 
   const handleCompOffDurationSelect = useCallback((duration) => {
@@ -576,7 +600,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     if (dropdownType === 'leaveType') {
       setIsLeaveTypeDropdownOpen(prev => !prev);
       setIsCompOffDurationDropdownOpen(false);
-      setIsVendorMeetingDurationDropdownOpen(false);
     } else if (dropdownType === 'compOffDuration') {
       setIsCompOffDurationDropdownOpen(prev => !prev);
       setIsLeaveTypeDropdownOpen(false);
@@ -727,11 +750,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       return "08:00";
     }
     
-    // 4. Vendor Meeting (VM) - typically counted as full working day
-    if (leaveType === "vendor-meeting" || leaveType === "VM") {
-      return "08:00";
-    }
-    
     // 5. Short Leave (SL) - calculate actual hours worked + short leave hours
     if (leaveType === "shortLeave" || leaveType === "SL") {
       if (PunchRecords) {
@@ -862,14 +880,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         continue;
       }
       
-      // 3. Vendor Meeting (VM) - this is a working day
-      if (leaveType === "vendor-meeting" || leaveType === "VM") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Vendor Meeting";
-        continue;
-      }
-      
       // 4. Short Leave (SL) - this is a working day (partial)
       if (leaveType === "shortLeave" || leaveType === "SL") {
         workingDays++;
@@ -904,7 +914,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       
       // 8. Other approved leave types (medical, casual, earned, etc.)
       if (leaveType && leaveType !== "regularized" && leaveType !== "RL" && 
-          leaveType !== "vendor-meeting" && leaveType !== "VM" && 
           leaveType !== "shortLeave" && leaveType !== "SL" && 
           leaveType !== "compOffLeave" && leaveType !== "C-Off") {
         // Check if this is an approved leave type
@@ -948,7 +957,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       fullDay: 0,
       halfDay: 0,
       regularization: 0,
-      vendorMeeting: 0,
       shortLeave: 0,
       compOff: 0,
       otherLeaves: 0,
@@ -967,9 +975,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         breakdown.total++;
       } else if (leaveType === "regularized" || leaveType === "RL") {
         breakdown.regularization++;
-        breakdown.total++;
-      } else if (leaveType === "vendor-meeting" || leaveType === "VM") {
-        breakdown.vendorMeeting++;
         breakdown.total++;
       } else if (leaveType === "shortLeave" || leaveType === "SL") {
         breakdown.shortLeave++;
@@ -1071,9 +1076,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           </div>
                           <div>
                             <p className="font-medium text-gray-700">Leaves:</p>
-                            <p>• Regularization: {breakdown.regularization}</p>
-                            <p>• Vendor Meeting: {breakdown.vendorMeeting}</p>
-                            <p>• Short Leave: {breakdown.shortLeave}</p>
+                                                    <p>• Regularization: {breakdown.regularization}</p>
+                        <p>• Short Leave: {breakdown.shortLeave}</p>
                             <p>• Comp-Off: {breakdown.compOff}</p>
                             <p>• Other: {breakdown.otherLeaves}</p>
                           </div>
@@ -1087,7 +1091,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           <p className="text-xs text-gray-500">
                             <span className="font-medium">Effective Hours Note:</span><br/>
                             • Regularization: Uses actual hours or 8h default<br/>
-                            • Vendor Meeting: Counted as 8h<br/>
                             • Short Leave: Actual hours + leave hours<br/>
                             • Comp-Off: Counted as 8h
                           </p>
@@ -1286,10 +1289,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           <span className="text-xs text-red-600 font-semibold bg-red-50 px-1 py-0.5 rounded">ML</span>
                           <span className="text-xs text-gray-700">Medical Leave</span>
                         </div>
-                        <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <span className="text-xs text-orange-600 font-semibold bg-orange-50 px-1 py-0.5 rounded">VM</span>
-                          <span className="text-xs text-gray-700">Vendor Meeting</span>
-                        </div>
+
                         <div className="flex items-center justify-between p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <span className="text-xs text-gray-600 font-semibold bg-gray-50 px-1 py-0.5 rounded">BL</span>
                           <span className="text-xs text-gray-700">Bereavement Leave</span>
@@ -1425,7 +1425,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                     >
                       <span className="text-gray-700">
                         {selectType === 'shortLeave' ? 'Short Leave' : 
-                         selectType === 'vendor-meeting' ? 'Vendor Meeting' : 
                          selectType === 'regularized' ? 'Regularization' : 
                          '✓ Select Leave Type'}
                       </span>
@@ -1597,7 +1596,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 >
                   {actionType === "compOff" ? "Reason for Comp-Off" : 
                    selectType === "shortLeave" ? "Reason for Short Leave" :
-                   selectType === "vendor-meeting" ? "Reason for Vendor Meeting" :
                    selectType === "regularized" ? "Reason for Regularization" :
                    "Enter your reason"}<span className="text-red-500">*</span>
                 </label>
@@ -1609,7 +1607,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   onChange={handleReasonChange}
                   placeholder={actionType === "compOff" ? "Provide your reason for comp-off..." : 
                               selectType === "shortLeave" ? "Provide your reason for short leave..." :
-                              selectType === "vendor-meeting" ? "Provide your reason for vendor meeting..." :
                               selectType === "regularized" ? "Provide your reason for regularization..." :
                               "Provide your reason for leave/comp-off..."}
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-sm sm:text-base hover:border-gray-300 ${

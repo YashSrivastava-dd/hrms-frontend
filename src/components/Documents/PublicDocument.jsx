@@ -1,11 +1,13 @@
-import React, { useEffect } from "react";
-import { FiDownload, FiMoreVertical } from "react-icons/fi";
+import React, { useEffect, useState } from "react";
+import { FiDownload, FiMoreVertical, FiEye, FiFileText } from "react-icons/fi";
 import { IoChevronBackOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { getEmoployeeDocumentsAction } from "../../store/action/userDataAction";
 
 const PublicDocument = ({ onBack }) => {
   const dispatch = useDispatch();
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [viewMode, setViewMode] = useState('preview');
 
   const { data, loading, error } = useSelector((state) => state.employeeDocument);
   const publicDocuments = data?.data || [];
@@ -14,23 +16,173 @@ const PublicDocument = ({ onBack }) => {
     dispatch(getEmoployeeDocumentsAction());
   }, [dispatch]);
 
+  const getFileExtension = (url) => {
+    if (!url) return '';
+    const match = url.match(/\.([^.]+)(?:\?|$)/);
+    return match ? match[1].toLowerCase() : '';
+  };
+
+  const getFileType = (url) => {
+    const ext = getFileExtension(url);
+    const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+    const pdfTypes = ['pdf'];
+    const docTypes = ['doc', 'docx'];
+    const excelTypes = ['xls', 'xlsx'];
+    const textTypes = ['txt', 'rtf'];
+    
+    if (imageTypes.includes(ext)) return 'image';
+    if (pdfTypes.includes(ext)) return 'pdf';
+    if (docTypes.includes(ext)) return 'document';
+    if (excelTypes.includes(ext)) return 'spreadsheet';
+    if (textTypes.includes(ext)) return 'text';
+    return 'unknown';
+  };
+
   const renderDocumentPreview = (location, index) => {
     if (!location) {
       return (
         <div className="flex items-center justify-center h-full text-gray-500">
-          Preview Not Available
+          <FiFileText size={48} />
+          <span className="ml-2">Preview Not Available</span>
         </div>
       );
     }
+
+    const fileType = getFileType(location);
+    const fileExt = getFileExtension(location);
+
+    // For images, show direct preview
+    if (fileType === 'image') {
+      return (
+        <img
+          src={location}
+          alt={`Document ${index}`}
+          className="object-cover h-36 w-full rounded"
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'flex';
+          }}
+        />
+      );
+    }
+
+    // For PDFs, try Google Docs Viewer first, fallback to direct link
+    if (fileType === 'pdf') {
+      return (
+        <div className="relative">
+          <iframe
+            loading="lazy"
+            src={`https://docs.google.com/gview?url=${encodeURIComponent(location)}&embedded=true`}
+            className="object-cover h-36 w-full rounded"
+            frameBorder="0"
+            title={`Document Preview ${index}`}
+            onError={() => console.log('Google Docs Viewer failed for:', location)}
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 opacity-0 hover:opacity-100 transition-opacity duration-200">
+            <button
+              onClick={() => handleViewDocument(location, fileType)}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+            >
+              <FiEye className="inline mr-1" size={14} />
+              View
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // For other document types, show Google Docs Viewer
     return (
-      <iframe
-        loading="lazy"
-        src={`https://docs.google.com/gview?url=${location}&embedded=true`}
-        className="object-cover h-36 w-full rounded"
-        frameBorder="0"
-        title={`Document Preview ${index}`}
-      ></iframe>
+      <div className="relative">
+        <iframe
+          loading="lazy"
+          src={`https://docs.google.com/gview?url=${encodeURIComponent(location)}&embedded=true`}
+          className="object-cover h-36 w-full rounded"
+          frameBorder="0"
+          title={`Document Preview ${index}`}
+          onError={() => console.log('Google Docs Viewer failed for:', location)}
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 opacity-0 hover:opacity-100 transition-opacity duration-200">
+          <button
+            onClick={() => handleViewDocument(location, fileType)}
+            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+          >
+            <FiEye className="inline mr-1" size={14} />
+            View
+          </button>
+        </div>
+      </div>
     );
+  };
+
+  const handleViewDocument = (location, fileType) => {
+    if (!location) {
+      alert('Document location not available');
+      return;
+    }
+
+    // Try to open in new tab first
+    try {
+      const newWindow = window.open(location, '_blank');
+      if (newWindow) {
+        // If new window opens successfully, close it after a short delay to check if content loaded
+        setTimeout(() => {
+          if (newWindow.closed || newWindow.location.href === 'about:blank') {
+            // If window closed or blank, try alternative methods
+            handleAlternativeView(location, fileType);
+          }
+        }, 1000);
+      } else {
+        // If popup blocked, try alternative methods
+        handleAlternativeView(location, fileType);
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      handleAlternativeView(location, fileType);
+    }
+  };
+
+  const handleAlternativeView = (location, fileType) => {
+    // For PDFs, try Google Docs Viewer
+    if (fileType === 'pdf') {
+      const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(location)}&embedded=true`;
+      window.open(googleViewerUrl, '_blank');
+      return;
+    }
+
+    // For other types, try Microsoft Office Online Viewer
+    if (['document', 'spreadsheet'].includes(fileType)) {
+      const msViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(location)}`;
+      window.open(msViewerUrl, '_blank');
+      return;
+    }
+
+    // Fallback: download the file
+    alert('Unable to preview this document type. The file will be downloaded instead.');
+    const link = document.createElement('a');
+    link.href = location;
+    link.download = '';
+    link.click();
+  };
+
+  const handleDownload = (location, documentName) => {
+    if (!location) {
+      alert('Download link not available');
+      return;
+    }
+
+    try {
+      const link = document.createElement('a');
+      link.href = location;
+      link.download = documentName || 'document';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download error:', error);
+      // Fallback: open in new tab
+      window.open(location, '_blank');
+    }
   };
 
   if (loading) {
@@ -73,7 +225,6 @@ const PublicDocument = ({ onBack }) => {
             >
               <div className="h-48 bg-gray-100 relative overflow-hidden">
                 {renderDocumentPreview(doc?.location, index)}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
               </div>
               
               <div className="p-6">
@@ -86,22 +237,26 @@ const PublicDocument = ({ onBack }) => {
                 
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
                   <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
-                    {doc?.docType || "Unknown Type"}
+                    {doc?.docType || getFileExtension(doc?.location) || "Unknown Type"}
                   </span>
                   <span>{doc?.createdAt?.split("T")[0] || "Unknown Date"}</span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <a
-                    href={doc?.location || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download="filename.pdf"
+                  <button
+                    onClick={() => handleViewDocument(doc?.location, getFileType(doc?.location))}
                     className="flex-1 flex items-center justify-center px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                  >
+                    <FiEye className="mr-2" size={16} />
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleDownload(doc?.location, doc?.documentName)}
+                    className="flex-1 flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
                   >
                     <FiDownload className="mr-2" size={16} />
                     Download
-                  </a>
+                  </button>
                   <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                     <FiMoreVertical size={16} />
                   </button>
