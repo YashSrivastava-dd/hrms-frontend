@@ -367,11 +367,15 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
 });
 
 const Dashboard = ({ reloadHandel }) => {
-  const dispatch = useDispatch();
-  console.log('reload', reloadHandel)
-  const { loading, data } = useSelector((state) => state.userData);
-  // Announcemnet
-  const { data: announcementData } = useSelector((state) => state.announcementData);
+  try {
+    const dispatch = useDispatch();
+    console.log('Dashboard: Component starting, reloadHandel:', reloadHandel);
+    
+    const { loading, data, error, initialized } = useSelector((state) => state.userData);
+    console.log('Dashboard: Redux state extracted:', { loading, hasData: !!data, error, initialized });
+  
+  // Announcement
+  const { data: announcementData, loading: announcementLoading } = useSelector((state) => state.announcementData);
   const pieData = [
     { name: "Salary", value: 15, color: "#f43f5e" },
     { name: "Bonus", value: 8, color: "#10b981" },
@@ -381,11 +385,73 @@ const Dashboard = ({ reloadHandel }) => {
     { name: "Benefits", value: 18, color: "#facc15" },
 ];
 
-  const userDataList = data?.data || [];
   const { data: attendanceData, loading: attendanceLoading } = useSelector((state) => state.attendanceLogs);
   const { data: attendanceLogs } = useSelector((state) => state.attendanceLogsDayWise);
 
-  const employeeId = useMemo(() => localStorage.getItem("employeId"), []);
+  const employeeId = useMemo(() => {
+    try {
+      const id = localStorage.getItem("employeId");
+      const token = localStorage.getItem("authToken");
+      console.log('Dashboard localStorage check:', { 
+        employeeId: id, 
+        hasToken: !!token,
+        tokenLength: token?.length 
+      });
+      return id || null;
+    } catch (error) {
+      console.warn('Error accessing localStorage:', error);
+      return null;
+    }
+  }, []); // Empty dependency array since localStorage values don't change during component lifecycle
+  
+  // Safe data access with fallbacks - moved to top to prevent initialization error
+  const userDataList = data?.data || data || null;
+  
+  // Debug data structure - only log when data changes
+  useEffect(() => {
+    if (data && !loading) {
+      console.log('Dashboard: Data structure analysis:', {
+        dataType: typeof data,
+        dataKeys: data ? Object.keys(data) : null,
+        userDataListExists: !!userDataList,
+        userDataListKeys: userDataList ? Object.keys(userDataList) : null
+      });
+    }
+  }, [data, userDataList, loading]);
+  
+  // Debug logging - only log when data changes to reduce noise
+  useEffect(() => {
+    if (data && !loading) {
+      console.log('Dashboard state:', { 
+        loading, 
+        hasData: !!data, 
+        error, 
+        initialized, 
+        userDataListExists: !!userDataList,
+        employeeId
+      });
+    }
+  }, [data, loading, error, initialized, userDataList, employeeId]);
+  
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!data && !error && !loading) {
+        console.warn('Dashboard loading timeout - no data received after 10 seconds');
+      }
+    }, 10000);
+    
+    return () => clearTimeout(timeout);
+  }, [data, error, loading]);
+  
+  // Handle authentication errors gracefully
+  useEffect(() => {
+    if (error && (error.includes('Authentication') || error.includes('token') || error.includes('Employee ID'))) {
+      console.warn('Authentication error detected:', error);
+      // Don't show error to user, just log it
+    }
+  }, [error]);
+  
   const latestData = attendanceData?.data?.map((item) => item.PunchRecords) || [];
   const punchDate = attendanceData?.data?.[0]?.AttendanceDate?.split("T")[0] || "No Date Available";
 
@@ -393,13 +459,49 @@ const Dashboard = ({ reloadHandel }) => {
   const [selectedDayData, setSelectedDayData] = useState(null);
   const [selectedDayDate, setSelectedDayDate] = useState(null);
 
+  // Component mount effect - only log once on mount
   useEffect(() => {
-    dispatch(getAttendanceLogsDayWise());
-    dispatch(getOnLeaveStatusAction());
-    if (employeeId) {
+    console.log('Dashboard: Component mounted', { 
+      employeeId, 
+      hasData: !!data
+    });
+  }, []); // Empty dependency array to only run once
+
+  useEffect(() => {
+    // Only fetch user data if it hasn't been fetched yet by App.js
+    if (employeeId && !data && !loading) {
+      console.log('Dashboard: Dispatching getUserDataAction', { employeeId, loading, hasData: !!data });
+      dispatch(getUserDataAction());
+    } else if (employeeId && data) {
+      console.log('Dashboard: User data already available, skipping fetch');
+      console.log('Dashboard: Available data:', data);
+    } else if (!employeeId) {
+      console.log('Dashboard: No employee ID available');
+    } else {
+      console.log('Dashboard: Waiting for data to load or already loading');
+    }
+  }, [dispatch, employeeId, data, loading]);
+
+  // Monitor state changes - only log when loading or data changes significantly
+  useEffect(() => {
+    if (loading || data !== undefined) {
+      console.log('Dashboard: State changed', { 
+        loading, 
+        hasData: !!data, 
+        error, 
+        initialized
+      });
+    }
+  }, [loading, data, error, initialized]);
+
+  useEffect(() => {
+    // Only dispatch actions if we have valid data and haven't already fetched them
+    if (employeeId && !loading && !attendanceData?.data) {
+      dispatch(getAttendanceLogsDayWise());
+      dispatch(getOnLeaveStatusAction());
       dispatch(getAttendenceLogsOfEmploye(employeeId));
     }
-  }, [dispatch, employeeId]);
+  }, [dispatch, employeeId, loading, attendanceData?.data]);
   const onClick = () => {
     safeToast.dismiss()
   }
@@ -411,9 +513,11 @@ const Dashboard = ({ reloadHandel }) => {
   }, []);
   
   useEffect(() => {
-    // Don't call getUserDataAction here - it's already called in App.js
-    dispatch(getAnnouncementDataAction())
-  }, [dispatch]);
+    // Only fetch announcements if we're not loading and haven't already fetched them
+    if (!loading && !announcementLoading && !announcementData?.data) {
+      dispatch(getAnnouncementDataAction());
+    }
+  }, [dispatch, loading, announcementLoading, announcementData?.data]);
 
   // Cleanup toasts on component unmount
   useEffect(() => {
@@ -423,19 +527,39 @@ const Dashboard = ({ reloadHandel }) => {
     };
   }, []);
 
+  // Only log rendering when data changes significantly
+  useEffect(() => {
+    if (data && !loading) {
+      console.log('Dashboard: Rendering component with data:', { 
+        hasData: !!data, 
+        userDataListExists: !!userDataList,
+        userRole: userDataList?.role 
+      });
+    }
+  }, [data, userDataList, loading]);
+  
   return (
     <div className="w-full flex flex-col min-h-full overflow-x-hidden">
       <main className="space-y-4 sm:space-y-6 flex-1 px-0 sm:px-4 lg:px-6 w-full">
-        {loading && !userDataList ? (
+        {(loading) ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading dashboard...</p>
+              <p className="text-gray-600">
+                {loading ? "Loading dashboard..." : "Initializing dashboard..."}
+              </p>
+              {!loading && !data && !error && (
+                <p className="text-sm text-gray-500 mt-2">No user data available</p>
+              )}
             </div>
           </div>
         ) : (
           <>
-            {userDataList?.role !== "Super-Admin" && userDataList?.role !== "HR-Admin" ? (
+            {!data || !userDataList ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No user data available. Please check authentication.</p>
+              </div>
+            ) : userDataList?.role !== "Super-Admin" && userDataList?.role !== "HR-Admin" ? (
               <>
                 <div className="bg-white rounded-none sm:rounded-xl shadow-sm border-0 sm:border border-gray-200 p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -533,7 +657,7 @@ const Dashboard = ({ reloadHandel }) => {
               </>
             )}
 
-            {userDataList?.role === "HR-Admin" && (
+            {userDataList?.role === "HR-Admin" && (   // HR-Admin Dashboard 
               <>
                 <HrAdminDashboard />
               </>
@@ -551,6 +675,19 @@ const Dashboard = ({ reloadHandel }) => {
     </div>
     
   );
+  } catch (error) {
+    console.error('Dashboard: Error in component:', error);
+    return (
+      <div className="w-full flex flex-col min-h-full overflow-x-hidden">
+        <main className="space-y-4 sm:space-y-6 flex-1 px-0 sm:px-4 lg:px-6 w-full">
+          <div className="text-center py-8">
+            <p className="text-red-600">Error loading dashboard. Please refresh the page.</p>
+            <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 };
 
 

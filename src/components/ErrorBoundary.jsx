@@ -20,8 +20,9 @@ class ErrorBoundary extends React.Component {
         errorMessage.includes('cannot read properties of undefined') ||
         errorMessage.includes('null is not an object') ||
         errorMessage.includes('localstorage') ||
-        errorMessage.includes('sessionstorage')) {
-      console.warn('ErrorBoundary suppressed Safari undefined error:', error.message);
+        errorMessage.includes('sessionstorage') ||
+        errorMessage.includes('cannot access before initialization')) {
+      console.warn('ErrorBoundary suppressed undefined error:', error.message);
       // Reset error state to continue normal operation
       this.setState({ hasError: false, error: null, errorInfo: null });
       return;
@@ -58,15 +59,8 @@ class ErrorBoundary extends React.Component {
             
             <div className="space-y-3">
               <button
-                onClick={() => window.location.reload()}
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
-              >
-                Reload Page
-              </button>
-              
-              <button
                 onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
               >
                 Try Again
               </button>

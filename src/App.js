@@ -26,6 +26,7 @@ const DESKTOP_BREAKPOINT = 768;
 
 function App() {
   const dispatch = useDispatch();
+  const [isInitializing, setIsInitializing] = useState(true);
   
   // Safari-safe online detection
   const [isOnline, setIsOnline] = useState(() => {
@@ -98,15 +99,29 @@ function App() {
 
   // Load user data on app initialization
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    const employeeId = localStorage.getItem("employeId");
-    
-    // Only dispatch if we have valid authentication data
-    if (token && employeeId && token !== 'null' && employeeId !== 'null') {
-      console.log('App: Dispatching getUserDataAction');
-      dispatch(getUserDataAction());
-    } else {
-      console.log('App: No valid auth data found, skipping user data fetch');
+    try {
+      const token = localStorage.getItem("authToken");
+      const employeeId = localStorage.getItem("employeId");
+      
+      console.log('App: Checking auth data:', { hasToken: !!token, hasEmployeeId: !!employeeId, token, employeeId });
+      
+      // Only dispatch if we have valid authentication data
+      if (token && employeeId && token !== 'null' && employeeId !== 'null' && token !== 'undefined' && employeeId !== 'undefined') {
+        console.log('App: Dispatching getUserDataAction');
+        dispatch(getUserDataAction());
+      } else {
+        console.log('App: No valid auth data found, skipping user data fetch');
+        // For development/testing, we might want to dispatch anyway
+        if (process.env.NODE_ENV === 'development') {
+          console.log('App: Development mode - dispatching getUserDataAction anyway');
+          dispatch(getUserDataAction());
+        }
+      }
+    } catch (error) {
+      console.warn('Error accessing localStorage during app initialization:', error);
+    } finally {
+      // Always set initialization to complete
+      setIsInitializing(false);
     }
   }, [dispatch]);
 
@@ -367,6 +382,18 @@ function App() {
   // Show error page when offline
   if (!isOnline) {
     return <ErrorPage />;
+  }
+
+  // Show loading state during initialization
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing application...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

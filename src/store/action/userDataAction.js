@@ -58,6 +58,7 @@ import {
   SINGLE_USER_DATA_FAIL,
   SINGLE_USER_DATA_REDUCER,
   SINGLE_USER_DATA_SUCCESS,
+  RESET_USER_DATA_STATE,
   GET_EMPLOYEE_PRIVATE_DOC_SUCCESS,
   GET_EMPLOYEE_PRIVATE_DOC_FAIL,
   PROFILE_IMAGE_UPDATE_SUCCESS,
@@ -163,11 +164,21 @@ import {
   GET_TAX_DECLARATIONS_FAIL,
 } from "../types/UserDataType";
 export const getUserDataAction = () => async (dispatch, getState) => {
+  console.log('getUserDataAction: Action dispatched');
   try {
     const state = getState();
     const { userData } = state || {};
-    const token = safeGetLocalStorage("authToken");
-    const employeId = safeGetLocalStorage("employeId");
+    
+    // Safe localStorage access with fallbacks
+    let token, employeId;
+    try {
+      token = safeGetLocalStorage("authToken");
+      employeId = safeGetLocalStorage("employeId");
+    } catch (error) {
+      console.warn('Error accessing localStorage in getUserDataAction:', error);
+      token = null;
+      employeId = null;
+    }
     
     console.log('getUserDataAction: Starting data fetch', {
       hasToken: !!token,
@@ -194,7 +205,7 @@ export const getUserDataAction = () => async (dispatch, getState) => {
     }
 
     // Prevent duplicate fetch if data already exists
-    if (userData && userData.data && userData.data.data) {
+    if (userData && userData.data && userData.data.data && !userData.loading) {
       console.log('User data already exists, skipping fetch');
       return;
     }
@@ -210,16 +221,21 @@ export const getUserDataAction = () => async (dispatch, getState) => {
       timeout: 10000, // 10 second timeout for Safari
     };
 
-    const response = await axios.get(
-      `${process.env.REACT_APP_BASE_URL}/api/employee/get-employee-details/${employeId}`,
-      config
-    );
+    const apiUrl = `${process.env.REACT_APP_BASE_URL}/api/employee/get-employee-details/${employeId}`;
+    console.log('getUserDataAction: Making API call to:', apiUrl);
+    console.log('getUserDataAction: Environment variables:', { 
+      REACT_APP_BASE_URL: process.env.REACT_APP_BASE_URL,
+      NODE_ENV: process.env.NODE_ENV 
+    });
+    
+    const response = await axios.get(apiUrl, config);
 
     // Validate response data
     if (!response || !response.data) {
       throw new Error('Invalid response from server');
     }
 
+    console.log('getUserDataAction: API response received:', response.data);
     dispatch({ type: SINGLE_USER_DATA_SUCCESS, payload: response.data });
   } catch (error) {
     console.error('Error in getUserDataAction:', error);
@@ -1869,7 +1885,7 @@ export const putRevertLeaveByManagerAction =
   };
 
 export const getAnnouncementDataAction = () => async (dispatch, getState) => {
-  const { allUserData } = getState();
+  const { announcementData } = getState();
   const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
   // const employeId = localStorage.getItem("employeId");
   // If token does not exist, do nothing or handle the case
@@ -1881,7 +1897,7 @@ export const getAnnouncementDataAction = () => async (dispatch, getState) => {
   }
 
   // Prevent duplicate fetch if data already exists
-  if (allUserData.data) return;
+  if (announcementData?.data) return;
 
   try {
     dispatch({ type: GET_ANNOUNCEMENT_DATA_REQUEST });
@@ -1909,7 +1925,6 @@ export const getAnnouncementDataAction = () => async (dispatch, getState) => {
 export const postAnnouncementDataAction =
   ({ title, description, dateTime, imageUrl }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId = localStorage.getItem("employeId");
     // If token does not exist, do nothing or handle the case
@@ -1919,9 +1934,6 @@ export const postAnnouncementDataAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: POST_ANNOUNCEMENT_DATA_REQUEST });
@@ -1961,7 +1973,6 @@ export const postAnnouncementDataAction =
 
 export const deleteAnnouncementDataAction =
   (id) => async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId = localStorage.getItem("employeId");
     // If token does not exist, do nothing or handle the case
@@ -1971,9 +1982,6 @@ export const deleteAnnouncementDataAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: DELETE_ANNOUNCEMENT_DATA_REQUEST });
@@ -2008,7 +2016,6 @@ export const deleteAnnouncementDataAction =
 export const updateAnnouncementDataAction =
   ({ id, title, description, dateTime }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     // const employeId = localStorage.getItem("employeId");
     // If token does not exist, do nothing or handle the case
@@ -2018,9 +2025,6 @@ export const updateAnnouncementDataAction =
         payload: "Authentication token not found",
       });
     }
-
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
 
     try {
       dispatch({ type: PUT_ANNOUNCEMENT_DATA_REQUEST });
@@ -2826,4 +2830,11 @@ export const getTaxDeclarationsAction = (filterParams = {}) => async (dispatch, 
     });
     return { success: false, error: errorMessage };
   }
+};
+
+// Reset user data state action
+export const resetUserDataState = () => {
+  return {
+    type: RESET_USER_DATA_STATE,
+  };
 };

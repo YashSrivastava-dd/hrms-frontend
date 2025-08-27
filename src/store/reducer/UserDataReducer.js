@@ -129,12 +129,14 @@ import {
   SINGLE_USER_DATA_FAIL,
   SINGLE_USER_DATA_REDUCER,
   SINGLE_USER_DATA_SUCCESS,
+  RESET_USER_DATA_STATE,
 } from "../types/UserDataType";
 
 const initialState = {
   loading: false,
   data: null,
   error: null,
+  initialized: false, // Track if data has been initialized
 };
 
 export const singleUserDataReducer = (state = initialState, action) => {
@@ -147,6 +149,8 @@ export const singleUserDataReducer = (state = initialState, action) => {
         ...state,
         loading: false,
         data: action.payload,
+        initialized: true,
+        error: null,
       };
 
     case SINGLE_USER_DATA_FAIL:
@@ -154,6 +158,12 @@ export const singleUserDataReducer = (state = initialState, action) => {
         ...state,
         loading: false,
         error: action.payload,
+        initialized: true,
+      };
+
+    case RESET_USER_DATA_STATE:
+      return {
+        ...initialState,
       };
 
     default:

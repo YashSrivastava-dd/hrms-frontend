@@ -48,7 +48,7 @@ function HrAdminDashboard() {
         dispatch(getAnnouncementDataAction())
         dispatch(getLeaveApproveRequestAction())
         dispatch(getEmployeeDataCountAction())
-    }, [])
+    }, [dispatch])
     
     // Monitor leave approval state changes
     useEffect(() => {
