@@ -111,14 +111,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     }, [error])
     useEffect(() => {
         if (dataa && dataa?.message) {
-            // Use a try-catch to prevent toast errors from crashing the app
-            try {
-                safeToast.success(dataa.message);
-            } catch (toastError) {
-                console.error('Toast error:', toastError);
-            }
-            
-            // Reset form after successful submission
+            // Reset form after successful submission without showing toast
             setTimeout(() => {
                 resetForm();
                 setIsOpen(false);
@@ -151,8 +144,11 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 resetForm();
                 setIsOpen(false);
             }, 1000);
+            
+            // Reset vendor meeting state to prevent toast from showing again
+            dispatch({ type: 'RESET_VENDOR_MEETING_STATE' });
         }
-    }, [vendorMeetingData])
+    }, [vendorMeetingData, dispatch])
 
     // Handle vendor meeting error
     useEffect(() => {
@@ -164,6 +160,13 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             }
         }
     }, [vendorMeetingError]);
+
+    // Cleanup effect to reset vendor meeting state when component unmounts
+    useEffect(() => {
+        return () => {
+            dispatch({ type: 'RESET_VENDOR_MEETING_STATE' });
+        };
+    }, [dispatch]);
 
     // Handle dropdown click outside
     useEffect(() => {
@@ -237,6 +240,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             setIsOpen(false);
             resetForm(); // Reset form when modal is closed
             // Reset leave application state when modal is closed
+            // Reset vendor meeting state when modal is closed
+            dispatch({ type: 'RESET_VENDOR_MEETING_STATE' });
             dispatch(resetLeaveApplyByEmployeeAction());
         } catch (closeError) {
             // Handle errors during modal close to prevent tab switching issues
@@ -876,13 +881,26 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
         // For vendor meeting, use the vendor meeting API
         if (leaveData.leaveType === 'vendorMeeting') {
+            // Validate that both start and end dates are selected
+            if (!leaveData.startDate || !leaveData.endDate) {
+                setTotalDayError('Please select both start date and end date.');
+                return;
+            }
+
+            // Validate that vendor meeting duration is selected
+            if (!leaveData.vendorMeetingDuration) {
+                setTotalDayError('Please select a duration for the vendor meeting.');
+                return;
+            }
+
             // Import the vendor meeting action at the top of the file
             // This will need to be added to the imports
             dispatch(postVendorMeetingAction({
                 leaveType: 'vendor-meeting', // Map to API expected format
                 leaveStartDate: leaveData.startDate,
+                leaveEndDate: leaveData.endDate,
                 reason: leaveData.reason,
-                duration: getApiDuration(leaveData.vendorMeetingDuration)
+                totalDays: leaveData.totalDays
             }));
         } else {
             // Map frontend leave types to API expected format
@@ -1601,11 +1619,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                         </select>
                                         {/* Custom dropdown arrow */}
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </div>
                                     </div>
+                                    
+
+                                    
                                     {compOffDayTypeError && (
                                         <p className="text-red-600 mt-2 text-sm">{compOffDayTypeError}</p>
                                     )}

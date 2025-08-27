@@ -643,24 +643,7 @@ function Navbar({ onToggleSidebar }) {
         </div>
       </div>
 
-      {/* Location and Punch Time Info */}
-      {userType !== "HR-Admin" && userType !== "Super-Admin" && (
-        <div className="hidden md:flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
-          <div className="flex items-center space-x-4">
-            {locationInfo.city && (
-              <span className="text-sm text-gray-700">
-                📍 {locationInfo.suburb}, {locationInfo.city}, {locationInfo.state}
-              </span>
-            )}
-          </div>
 
-          {isPunchedIn && (
-            <span className="text-sm text-gray-700">
-              ⏰ Punch In Time: {punchInData?.InTime?.split(" ")[1]}
-            </span>
-          )}
-        </div>
-      )}
 
 
 

@@ -2149,7 +2149,7 @@ export const getPayrollAndPayslipAction = () => async (dispatch, getState) => {
 };
 
 export const postVendorMeetingAction =
-  ({ leaveType, leaveStartDate, reason, duration }) =>
+  ({ leaveType, leaveStartDate, reason, duration, totalDays, leaveEndDate }) =>
   async (dispatch, getState) => {
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = localStorage.getItem("employeId");
@@ -2176,12 +2176,20 @@ export const postVendorMeetingAction =
         {
           leaveType,
           leaveStartDate,
+          leaveEndDate,
           reason,
-          duration,
+          totalDays: String(totalDays), // Convert to string as expected by API
         },
         config
       );
       dispatch({ type: POST_VENDOR_MEETING_SUCCESS, payload: data });
+      
+      // After successful vendor meeting application, refresh user data to get updated leave balance
+      if (data?.statusCode === 200) {
+        // Dispatch action to refresh user data and leave balance
+        dispatch(refreshUserDataAfterVendorMeeting());
+      }
+      
       // Removed alert and window.location.reload - let the component handle success
     } catch (error) {
       dispatch({
@@ -2190,6 +2198,34 @@ export const postVendorMeetingAction =
       });
     }
   };
+
+// New action to refresh user data after vendor meeting
+export const refreshUserDataAfterVendorMeeting = () => async (dispatch, getState) => {
+  const token = localStorage.getItem("authToken");
+  if (!token) return;
+
+  try {
+    // Get current user data to refresh leave balance
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    };
+    
+    const { data } = await axios.get(
+      `${process.env.REACT_APP_BASE_URL}/api/employee/get-profile`,
+      config
+    );
+    
+    // Update the user data in store with new leave balance
+    if (data?.statusCode === 200) {
+      dispatch({ type: "REFRESH_USER_DATA_AFTER_VENDOR_MEETING", payload: data.data });
+    }
+  } catch (error) {
+    console.error("Error refreshing user data after vendor meeting:", error);
+  }
+};
 
 // Reset vendor meeting state
 export const resetVendorMeetingAction = () => ({

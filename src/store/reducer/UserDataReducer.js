@@ -130,6 +130,7 @@ import {
   SINGLE_USER_DATA_REDUCER,
   SINGLE_USER_DATA_SUCCESS,
   RESET_USER_DATA_STATE,
+  REFRESH_USER_DATA_AFTER_VENDOR_MEETING,
 } from "../types/UserDataType";
 
 const initialState = {
@@ -159,6 +160,14 @@ export const singleUserDataReducer = (state = initialState, action) => {
         loading: false,
         error: action.payload,
         initialized: true,
+      };
+
+    case REFRESH_USER_DATA_AFTER_VENDOR_MEETING:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
       };
 
     case RESET_USER_DATA_STATE:
