@@ -19,7 +19,50 @@ function PaySlipData({ setPayslipModel, payslipModelData }) {
                 return;
             }
             
-            html2pdf().from(element).save();
+            // Generate descriptive filename
+            const employeeCode = payslipModelData?.employee_basic_details?.employee_code || 'Unknown';
+            const employeeName = payslipModelData?.employee_basic_details?.employee_name || 'Unknown';
+            
+            // Extract month from the title or use current date
+            let month = 'Unknown-Month';
+            const titleElement = element.querySelector('h2');
+            if (titleElement && titleElement.textContent.includes('Month:')) {
+                const monthMatch = titleElement.textContent.match(/Month:\s*(\w+\s+\d{4})/);
+                if (monthMatch) {
+                    month = monthMatch[1].replace(/\s+/g, '-');
+                }
+            }
+            
+            // Sanitize filename by removing special characters
+            const sanitizeFilename = (str) => str.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
+            const sanitizedEmployeeCode = sanitizeFilename(employeeCode);
+            const sanitizedMonth = sanitizeFilename(month);
+            
+            // Create filename: DD-415-Payslip-May-2025.pdf
+            const filename = `DD-${sanitizedEmployeeCode}-Payslip-${sanitizedMonth}.pdf`;
+            
+            console.log('Generating PDF with filename:', filename);
+            
+            // Configure html2pdf with filename
+            const options = {
+                margin: 0.5,
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    letterRendering: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                },
+                jsPDF: { 
+                    unit: 'in', 
+                    format: 'a4', 
+                    orientation: 'portrait'
+                }
+            };
+            
+            html2pdf().set(options).from(element).save();
         } catch (error) {
             console.error("Error generating PDF:", error);
         }

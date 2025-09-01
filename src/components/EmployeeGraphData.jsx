@@ -53,28 +53,19 @@ function EmployeeGraphData() {
             if (typeof window !== 'undefined' && window.dispatchEvent) {
                 try {
                     const navigationEvent = new CustomEvent('navigationChange', {
-                        detail: { selectedTag: screen }
+                        detail: { tag: screen }
                     });
                     window.dispatchEvent(navigationEvent);
                 } catch (error) {
                     console.warn('CustomEvent not supported, using fallback:', error);
                     // Fallback for older Safari versions
                     const event = document.createEvent('CustomEvent');
-                    event.initCustomEvent('navigationChange', true, true, { selectedTag: screen });
+                    event.initCustomEvent('navigationChange', true, true, { tag: screen });
                     window.dispatchEvent(event);
                 }
             }
             
-            // Safari-safe page reload with delay
-            setTimeout(() => {
-                try {
-                    if (typeof window !== 'undefined' && window.location) {
-                        window.location.reload();
-                    }
-                } catch (error) {
-                    console.warn('Page reload failed:', error);
-                }
-            }, 100);
+            // No need to reload the page - the Sidebar will handle the navigation
         } catch (error) {
             console.error('Navigation error:', error);
         }

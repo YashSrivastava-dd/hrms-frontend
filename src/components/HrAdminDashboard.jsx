@@ -124,12 +124,11 @@ function HrAdminDashboard() {
         
         // Dispatch a custom event to notify the Sidebar component
         const navigationEvent = new CustomEvent('navigationChange', {
-            detail: { selectedTag: screen }
+            detail: { tag: screen }
         });
         window.dispatchEvent(navigationEvent);
         
-        // Force a page reload to ensure the Sidebar picks up the change
-        window.location.reload();
+        // No need to reload the page - the Sidebar will handle the navigation
     };
 
     const handleAddEmployee = () => {

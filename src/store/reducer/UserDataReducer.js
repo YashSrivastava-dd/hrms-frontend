@@ -131,6 +131,12 @@ import {
   SINGLE_USER_DATA_SUCCESS,
   RESET_USER_DATA_STATE,
   REFRESH_USER_DATA_AFTER_VENDOR_MEETING,
+  DELETE_VENDOR_MEETING_REQUEST,
+  DELETE_VENDOR_MEETING_SUCCESS,
+  DELETE_VENDOR_MEETING_FAIL,
+  DELETE_LEAVE_COMPOFF_REQUEST,
+  DELETE_LEAVE_COMPOFF_SUCCESS,
+  DELETE_LEAVE_COMPOFF_FAIL,
 } from "../types/UserDataType";
 
 const initialState = {
@@ -1146,6 +1152,54 @@ export const postVendorMeetingReducer = (state = initialState, action) => {
         data: null,
         error: null,
         loading: false,
+      };
+
+    default:
+      return state;
+  }
+};
+
+export const deleteVendorMeetingReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case DELETE_VENDOR_MEETING_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case DELETE_VENDOR_MEETING_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+      };
+
+    case DELETE_VENDOR_MEETING_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+export const deleteCompoffLeaveReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case DELETE_LEAVE_COMPOFF_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case DELETE_LEAVE_COMPOFF_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+      };
+
+    case DELETE_LEAVE_COMPOFF_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
       };
 
     default:

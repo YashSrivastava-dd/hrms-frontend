@@ -15,7 +15,6 @@ import {
   postApplyCompOffLeaveAction,
 } from "../../store/action/userDataAction";
 import "react-toastify/dist/ReactToastify.css";
-import { Link } from "react-router-dom";
 import { RxCross2 } from "react-icons/rx";
 import safeToast from "../../utils/safeToast";
 import { safeGet, safeIsArray } from "../../utils/safariHelpers";
@@ -87,6 +86,10 @@ const ManagerApproval = () => {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [goToPage, setGoToPage] = useState("");
   const [reasonPopup, setReasonPopup] = useState({ isOpen: false, reason: "", title: "" });
+  
+  // Document viewing state
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [documentLoading, setDocumentLoading] = useState(false);
   
   // Track which APIs have been loaded to avoid unnecessary calls
   const [loadedAPIs, setLoadedAPIs] = useState({
@@ -371,6 +374,75 @@ const ManagerApproval = () => {
       </div>
     );
   }, [openDropdown]);
+
+  // Document viewing functions
+  const handleViewDocument = useCallback((location, documentName) => {
+    console.log('=== DEBUG: handleViewDocument called ===');
+    console.log('Raw location:', location);
+    console.log('Document name:', documentName);
+    console.log('Location type:', typeof location);
+    console.log('Location length:', location ? location.length : 'N/A');
+    
+    if (!location || location.trim() === '') {
+      console.log('❌ Document location validation failed');
+      alert('Document location not available. The file may not have been uploaded properly.');
+      return;
+    }
+
+    const trimmedLocation = location.trim();
+    console.log('✅ Document location valid:', trimmedLocation);
+    
+    // Check if it's an image file
+    const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|heic|heif|tiff|tif)$/i.test(trimmedLocation);
+    console.log('Is image file?', isImage);
+    
+    // Check if URL is accessible
+    console.log('Testing URL accessibility...');
+    fetch(trimmedLocation, { method: 'HEAD' })
+      .then(response => {
+        console.log('URL accessibility test:', {
+          status: response.status,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+      })
+      .catch(error => {
+        console.log('URL accessibility error:', error);
+      });
+
+    console.log('Setting document for viewing...');
+    setDocumentLoading(true);
+    setSelectedDocument({
+      location: trimmedLocation,
+      documentName: documentName || 'Medical Certificate'
+    });
+    console.log('=== DEBUG: handleViewDocument complete ===');
+  }, []);
+
+  const closeDocumentViewer = useCallback(() => {
+    setSelectedDocument(null);
+    setDocumentLoading(false);
+  }, []);
+
+  const handleDownload = useCallback((location, documentName) => {
+    if (!location) {
+      alert('Download link not available');
+      return;
+    }
+
+    try {
+      const link = document.createElement('a');
+      link.href = location;
+      link.download = documentName || 'medical-certificate';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download error:', error);
+      // Fallback: open in new tab
+      window.open(location, '_blank');
+    }
+  }, []);
 
   // Memoized data filtering and processing with error handling
   const filteredData = useMemo(() => {
@@ -1001,13 +1073,16 @@ const ManagerApproval = () => {
           {activeTab === "leave" ?
             <td className="px-4 py-3 text-center whitespace-nowrap">
               {item?.location ? (
-                <Link className="inline-flex items-center px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors duration-200" to={item?.location}>
+                <button 
+                  onClick={() => handleViewDocument(item?.location, 'Medical Certificate')}
+                  className="inline-flex items-center px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors duration-200"
+                >
                   <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                   View
-                </Link>
+                </button>
               ) : (
                 <span className="text-gray-400 text-xs">---</span>
               )}
@@ -1727,6 +1802,154 @@ const ManagerApproval = () => {
                 <button 
                   onClick={closeReasonPopup} 
                   className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors duration-200 text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Document Viewer Modal */}
+        {selectedDocument && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 truncate">
+                  {selectedDocument.documentName || "Medical Certificate"}
+                </h3>
+                <button
+                  onClick={closeDocumentViewer}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                >
+                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Modal Content */}
+              <div className="flex-1 p-4 overflow-hidden relative">
+                {documentLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 z-10">
+                    <div className="flex flex-col items-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <p className="mt-3 text-gray-600 font-medium">Loading document preview...</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Universal document viewer with multiple fallbacks */}
+                <div className="w-full h-full relative">
+                  {/* Try direct image first for common formats */}
+                  {(() => {
+                    const isCommonImage = selectedDocument.location && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(selectedDocument.location);
+                    console.log('=== MODAL DEBUG ===');
+                    console.log('Selected document:', selectedDocument);
+                    console.log('Is common image format?', isCommonImage);
+                    console.log('Image URL for direct display:', selectedDocument.location);
+                    
+                    if (isCommonImage) {
+                      return (
+                        <img
+                          src={selectedDocument.location}
+                          alt="Medical Certificate"
+                          className="direct-image w-full h-full object-contain rounded-lg"
+                          onLoad={(e) => {
+                            console.log('✅ Image loaded successfully');
+                            console.log('Image dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+                            setDocumentLoading(false);
+                          }}
+                          onError={(e) => {
+                            console.log('❌ Direct image loading failed');
+                            console.log('Image error event:', e);
+                            console.log('Image src that failed:', e.target.src);
+                            // Hide the image and show iframe instead
+                            const iframe = document.querySelector('.fallback-iframe');
+                            const image = document.querySelector('.direct-image');
+                            if (iframe) iframe.style.display = 'block';
+                            if (image) image.style.display = 'none';
+                          }}
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* Google Docs Viewer for documents and .heic files */}
+                  <iframe
+                    src={(() => {
+                      const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(selectedDocument.location)}&embedded=true`;
+                      console.log('🔍 Google Docs Viewer URL:', googleDocsUrl);
+                      return googleDocsUrl;
+                    })()}
+                    className={`fallback-iframe w-full h-full border border-gray-300 rounded-lg ${
+                      selectedDocument.location && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(selectedDocument.location) 
+                        ? 'hidden' : 'block'
+                    }`}
+                    frameBorder="0"
+                    title="Document Preview"
+                    onLoad={(e) => {
+                      console.log('✅ Google Docs Viewer loaded successfully');
+                      console.log('Iframe content window:', e.target.contentWindow);
+                      setDocumentLoading(false);
+                    }}
+                    onError={(e) => {
+                      console.log('❌ Google Docs Viewer failed');
+                      console.log('Iframe error event:', e);
+                      console.log('Failed iframe src:', e.target.src);
+                      setDocumentLoading(false);
+                      // Show error message
+                      const errorDiv = document.querySelector('.preview-error');
+                      const iframe = document.querySelector('.fallback-iframe');
+                      if (errorDiv) errorDiv.style.display = 'flex';
+                      if (iframe) iframe.style.display = 'none';
+                    }}
+                  />
+                  
+                  {/* Error fallback - download option */}
+                  <div className="preview-error absolute inset-0 hidden flex-col items-center justify-center bg-gray-50 rounded-lg">
+                    <div className="text-center p-8">
+                      <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Preview Not Available</h3>
+                      <p className="text-gray-600 mb-6">This file format cannot be previewed in the browser.</p>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => window.open(selectedDocument.location, '_blank')}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Open in New Tab
+                        </button>
+                        <a
+                          href={selectedDocument.location}
+                          download
+                          className="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center"
+                        >
+                          Download File
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
+                <button
+                  onClick={() => handleDownload(selectedDocument.location, selectedDocument.documentName)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                >
+                  <svg className="inline mr-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download
+                </button>
+                <button
+                  onClick={closeDocumentViewer}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
                 >
                   Close
                 </button>

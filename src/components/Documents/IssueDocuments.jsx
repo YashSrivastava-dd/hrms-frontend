@@ -7,7 +7,8 @@ import { postEmployePrivateDocAction } from "../../store/action/userDataAction";
 
 const PrivateIssueDocuments = ({ onBack }) => {
   const {loading, data ,error} = useSelector((state) => state.privateDocument)
-  const [viewingDocuments, setViewingDocuments] = useState(new Set());
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [documentLoading, setDocumentLoading] = useState(false);
   
   console.log('Private Documents Data:', data);
   const dispatch = useDispatch();
@@ -16,27 +17,7 @@ const PrivateIssueDocuments = ({ onBack }) => {
     dispatch(postEmployePrivateDocAction());
   }, [dispatch])
 
-  const getFileExtension = (url) => {
-    if (!url) return '';
-    const match = url.match(/\.([^.]+)(?:\?|$)/);
-    return match ? match[1].toLowerCase() : '';
-  };
 
-  const getFileType = (url) => {
-    const ext = getFileExtension(url);
-    const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    const pdfTypes = ['pdf'];
-    const docTypes = ['doc', 'docx'];
-    const excelTypes = ['xls', 'xlsx'];
-    const textTypes = ['txt', 'rtf'];
-    
-    if (imageTypes.includes(ext)) return 'image';
-    if (pdfTypes.includes(ext)) return 'pdf';
-    if (docTypes.includes(ext)) return 'document';
-    if (excelTypes.includes(ext)) return 'spreadsheet';
-    if (textTypes.includes(ext)) return 'text';
-    return 'unknown';
-  };
 
   const renderDocumentPreview = (location, index) => {
     if (!location) {
@@ -48,181 +29,31 @@ const PrivateIssueDocuments = ({ onBack }) => {
       );
     }
 
-    const fileType = getFileType(location);
-
-    // For images, show direct preview
-    if (fileType === 'image') {
-      return (
-        <img
-          src={location}
-          alt={`Document ${index}`}
-          className="object-cover h-36 w-full rounded"
-          onError={(e) => {
-            console.log('Image preview failed:', location);
-            e.target.style.display = 'none';
-            const fallback = e.target.nextSibling;
-            if (fallback) fallback.style.display = 'flex';
-          }}
-        />
-      );
-    }
-
-    // For other document types, show Google Docs Viewer
+    // Simple preview - just show file icon for all types
     return (
-      <iframe
-        loading="lazy"
-        src={`https://docs.google.com/gview?url=${encodeURIComponent(location)}&embedded=true`}
-        className="object-cover h-36 w-full rounded"
-        frameBorder="0"
-        title={`Document Preview ${index}`}
-        onError={() => console.log('Google Docs Viewer failed for:', location)}
-      />
+      <div className="flex items-center justify-center h-full text-gray-400">
+        <FiFileText size={64} />
+      </div>
     );
   };
 
-  const handleViewDocument = async (location, documentName, fileType) => {
-    if (!location) {
-      alert('Document location not available');
+  const handleViewDocument = (location, documentName) => {
+    if (!location || location.trim() === '') {
+      alert('Document location not available. The file may not have been uploaded properly.');
       return;
     }
 
-    const docId = `${location}-${documentName}`;
-    setViewingDocuments(prev => new Set(prev).add(docId));
-
-    console.log('Attempting to view document:', {
-      location,
-      fileType,
-      documentName,
-      timestamp: new Date().toISOString()
+    console.log('Opening document:', { location, documentName });
+    setDocumentLoading(true);
+    setSelectedDocument({
+      location: location.trim(),
+      documentName
     });
-
-    try {
-      // For images, open directly
-      if (fileType === 'image') {
-        window.open(location, '_blank');
-        setViewingDocuments(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(docId);
-          return newSet;
-        });
-        return;
-      }
-
-      // Try to open document directly first
-      const newWindow = window.open(location, '_blank');
-      
-      if (newWindow) {
-        // Check if the document loaded successfully
-        setTimeout(() => {
-          try {
-            if (!newWindow.closed && newWindow.location.href !== 'about:blank') {
-              console.log('Document opened successfully in new tab');
-            } else {
-              console.log('Direct opening failed, trying alternative viewers');
-              openWithAlternativeViewer(location, fileType);
-            }
-          } catch (error) {
-            console.log('Error checking window status, trying alternative viewers');
-            openWithAlternativeViewer(location, fileType);
-          }
-          
-          setViewingDocuments(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(docId);
-            return newSet;
-          });
-        }, 3000);
-      } else {
-        console.log('Popup blocked, trying alternative viewers');
-        openWithAlternativeViewer(location, fileType);
-        setViewingDocuments(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(docId);
-          return newSet;
-        });
-      }
-    } catch (error) {
-      console.error('Error opening document:', error);
-      openWithAlternativeViewer(location, fileType);
-      setViewingDocuments(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(docId);
-        return newSet;
-      });
-    }
   };
 
-  const openWithAlternativeViewer = (location, fileType) => {
-    let viewerUrl = '';
-    
-    if (fileType === 'pdf') {
-      // Try Google Docs Viewer for PDFs
-      viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(location)}&embedded=true`;
-      console.log('Opening Google Docs Viewer for PDF');
-    } else if (['document', 'spreadsheet'].includes(fileType)) {
-      // Try Microsoft Office Online Viewer for Office documents
-      viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(location)}`;
-      console.log('Opening Microsoft Office Online Viewer for Office document');
-    } else {
-      // Try Google Docs Viewer for other types
-      viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(location)}&embedded=true`;
-      console.log('Opening Google Docs Viewer for other document type');
-    }
-
-    if (viewerUrl) {
-      window.open(viewerUrl, '_blank');
-    } else {
-      // If all else fails, show user options
-      showDocumentOptions(location, fileType);
-    }
-  };
-
-  const showDocumentOptions = (location, fileType) => {
-    const options = [
-      'Try opening in new tab',
-      'Download document',
-      'Copy document link'
-    ];
-
-    const choice = prompt(
-      `Unable to preview this ${fileType} document.\n\n` +
-      `Please choose an option:\n` +
-      `1. Try opening in new tab\n` +
-      `2. Download document\n` +
-      `3. Copy document link\n\n` +
-      `Enter 1, 2, or 3:`,
-      '1'
-    );
-
-    switch (choice) {
-      case '1':
-        window.open(location, '_blank');
-        break;
-      case '2':
-        handleDownload(location, 'document');
-        break;
-      case '3':
-        copyToClipboard(location);
-        break;
-      default:
-        // Do nothing
-        break;
-    }
-  };
-
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      alert('Document link copied to clipboard!');
-    }).catch(() => {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('Document link copied to clipboard!');
-    });
+  const closeDocumentViewer = () => {
+    setSelectedDocument(null);
+    setDocumentLoading(false);
   };
 
   const handleDownload = (location, documentName) => {
@@ -279,9 +110,6 @@ const PrivateIssueDocuments = ({ onBack }) => {
         {/* Document Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {data?.data?.map((doc, index) => {
-            const docId = `${doc?.location}-${doc?.documentName}`;
-            const isViewing = viewingDocuments.has(docId);
-            const fileType = getFileType(doc?.location);
             
             return (
               <div
@@ -300,41 +128,17 @@ const PrivateIssueDocuments = ({ onBack }) => {
                     {doc?.description || "No description provided."}
                   </p>
                   
-                  {/* Debug Info - Remove in production */}
-                  <div className="mb-3 p-2 bg-gray-100 rounded text-xs">
-                    <div><strong>File Type:</strong> {fileType}</div>
-                    <div><strong>Extension:</strong> {getFileExtension(doc?.location)}</div>
-                    <div><strong>Location:</strong> {doc?.location ? doc.location.substring(0, 50) + '...' : 'None'}</div>
-                  </div>
-                  
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                      {doc?.docType || getFileExtension(doc?.location) || "Unknown Type"}
-                    </span>
                     <span>{doc?.createdAt?.split("T")[0] || "Unknown Date"}</span>
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleViewDocument(doc?.location, doc?.documentName, fileType)}
-                      disabled={isViewing}
-                      className={`flex-1 flex items-center justify-center px-4 py-2 text-sm rounded-lg transition-colors duration-200 font-medium ${
-                        isViewing 
-                          ? 'bg-gray-400 text-white cursor-not-allowed' 
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
+                      onClick={() => handleViewDocument(doc?.location, doc?.documentName)}
+                      className="flex-1 flex items-center justify-center px-4 py-2 text-sm rounded-lg transition-colors duration-200 font-medium bg-blue-600 text-white hover:bg-blue-700"
                     >
-                      {isViewing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Opening...
-                        </>
-                      ) : (
-                        <>
-                          <FiEye className="mr-2" size={16} />
-                          View
-                        </>
-                      )}
+                      <FiEye className="mr-2" size={16} />
+                      View
                     </button>
                     <button
                       onClick={() => handleDownload(doc?.location, doc?.documentName)}
@@ -364,6 +168,71 @@ const PrivateIssueDocuments = ({ onBack }) => {
           </div>
         )}
       </div>
+
+      {/* Document Viewer Modal */}
+      {selectedDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {selectedDocument.documentName || "Document Preview"}
+              </h3>
+              <button
+                onClick={closeDocumentViewer}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+              >
+                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 p-4 overflow-hidden relative">
+              {documentLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 z-10">
+                  <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p className="mt-3 text-gray-600 font-medium">Loading document preview...</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Simple preview - use Google Docs Viewer for all files */}
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedDocument.location)}&embedded=true`}
+                className="w-full h-full border border-gray-300 rounded-lg"
+                frameBorder="0"
+                title="Document Preview"
+                onLoad={() => {
+                  setDocumentLoading(false);
+                }}
+                onError={() => {
+                  setDocumentLoading(false);
+                }}
+              />
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                onClick={() => handleDownload(selectedDocument.location, selectedDocument.documentName)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+              >
+                <FiDownload className="inline mr-2" size={16} />
+                Download
+              </button>
+              <button
+                onClick={closeDocumentViewer}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

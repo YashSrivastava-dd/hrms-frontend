@@ -10,7 +10,7 @@ import { TbTax, TbBriefcase } from "react-icons/tb";
 import { CgProfile } from "react-icons/cg";
 import { MdOutlineWork, MdOutlineSchool, MdOutlineLocationOn } from "react-icons/md";
 import { FaRegCalendarAlt, FaRegIdCard } from "react-icons/fa";
-import { formatBasicSalary, formatSalary } from "../utils/currencyFormatter";
+
 
 const EmployeeProfile = () => {
   const { loading, data } = useSelector((state) => state.userData);
@@ -183,35 +183,6 @@ const EmployeeProfile = () => {
             </div>
           </div>
         );
-
-      case "salary":
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 text-xl font-bold">₹</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Salary Information</h3>
-                  <p className="text-gray-600 text-sm">Compensation and benefits details</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {loading
-                  ? Array(4).fill(0).map((_, i) => <SkeletonRow key={i} />)
-                  : [
-                      renderDetail("Basic Salary", formatBasicSalary(userDataList?.salary?.basic), <span className="text-blue-600 text-lg">₹</span>),
-                      renderDetail("HRA", formatBasicSalary(userDataList?.salary?.hra), <span className="text-blue-600 text-lg">₹</span>),
-                      renderDetail("Allowances", formatBasicSalary(userDataList?.salary?.allowances), <span className="text-blue-600 text-lg">₹</span>),
-                      renderDetail("Total Salary", formatBasicSalary(userDataList?.salary?.total), <span className="text-blue-600 text-lg">₹</span>),
-                    ]}
-              </div>
-            </div>
-          </div>
-        );
       default:
         return null;
     }
@@ -331,7 +302,6 @@ const EmployeeProfile = () => {
                 {[
                   { id: "personal", label: "Personal Information", icon: <CgProfile className="w-4 h-4" /> },
                   { id: "job", label: "Job Information", icon: <MdOutlineWork className="w-4 h-4" /> },
-                  { id: "salary", label: "Salary Information", icon: <span className="w-4 h-4 text-lg font-bold">₹</span> },
                 ].map((tab) => (
                   <button
                     key={tab.id}

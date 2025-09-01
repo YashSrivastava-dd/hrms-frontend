@@ -37,17 +37,53 @@ const EmployeeHolidays = () => {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const currentDate = new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
 
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
 
+  // Filter holidays based on search and month selection
   const filteredHolidays = data?.data?.filter(holiday => {
     const matchesSearch = holiday.holidayName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesMonth = !selectedMonth || new Date(holiday.holidayDate).getMonth() === months.indexOf(selectedMonth);
     return matchesSearch && matchesMonth;
   }) || [];
+
+  // Sort holidays by priority: upcoming first, then others, then passed
+  const sortedHolidays = [...filteredHolidays].sort((a, b) => {
+    const dateA = new Date(a.holidayDate);
+    const dateB = new Date(b.holidayDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+    
+    // Check if dates are valid
+    if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
+    
+    const isUpcomingA = dateA >= today;
+    const isUpcomingB = dateB >= today;
+    
+    // If both are upcoming or both are passed, sort by date
+    if (isUpcomingA === isUpcomingB) {
+      return dateA - dateB;
+    }
+    
+    // Upcoming holidays come first
+    return isUpcomingA ? -1 : 1;
+  });
+
+  // Group holidays by status for better organization
+  const upcomingHolidaysList = sortedHolidays.filter(holiday => {
+    const holidayDate = new Date(holiday.holidayDate);
+    return holidayDate >= today;
+  });
+  
+  const passedHolidaysList = sortedHolidays.filter(holiday => {
+    const holidayDate = new Date(holiday.holidayDate);
+    return holidayDate < today;
+  });
 
   const totalHolidays = data?.data?.length || 0;
   const upcomingHolidays = data?.data?.filter(holiday => new Date(holiday.holidayDate) > currentDate).length || 0;
@@ -419,33 +455,130 @@ const EmployeeHolidays = () => {
 
         {/* Content Section */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4">
+
+          
           {loading ? (
             <SkeletonLoader />
-          ) : filteredHolidays.length > 0 ? (
+          ) : sortedHolidays.length > 0 ? (
             viewMode === "grid" ? (
-              // Grid View
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredHolidays.map((holiday, index) => (
-                  <HolidayCard key={index} holiday={holiday} index={index} />
-                ))}
+              // Grid View with Grouped Sections
+              <div className="space-y-6">
+                {/* Upcoming Holidays Section */}
+                {upcomingHolidaysList.length > 0 ? (
+                  <div>
+                    <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                      <h3 className="text-lg font-semibold text-green-800 flex items-center space-x-2">
+                        <MdDateRange className="w-5 h-5" />
+                        <span>Upcoming Holidays ({upcomingHolidaysList.length})</span>
+                      </h3>
+                      <p className="text-sm text-green-600 mt-1">Holidays from today onwards</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {upcomingHolidaysList.map((holiday, index) => (
+                        <HolidayCard key={`upcoming-${index}`} holiday={holiday} index={index} />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                    <div className="text-center">
+                      <h3 className="text-lg font-semibold text-yellow-800 flex items-center justify-center space-x-2">
+                        <MdDateRange className="w-5 h-5" />
+                        <span>No Upcoming Holidays</span>
+                      </h3>
+                      <p className="text-sm text-yellow-600 mt-1">All holidays for this period have already passed</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Passed Holidays Section */}
+                {passedHolidaysList.length > 0 && (
+                  <div>
+                    <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-700 flex items-center space-x-2">
+                        <FaCalendarAlt className="w-5 h-5" />
+                        <span>Past Holidays ({passedHolidaysList.length})</span>
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">Holidays that have already passed</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {passedHolidaysList.map((holiday, index) => (
+                        <HolidayCard key={`passed-${index}`} holiday={holiday} index={index} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              // List View
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold">Date</th>
-                      <th className="px-4 py-3 text-left font-semibold">Holiday Name</th>
-                      <th className="px-4 py-3 text-left font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredHolidays.map((holiday, index) => (
-                      <HolidayTableRow key={index} holiday={holiday} index={index} />
-                    ))}
-                  </tbody>
-                </table>
+              // List View with Grouped Sections
+              <div className="space-y-6">
+                {/* Upcoming Holidays Section */}
+                {upcomingHolidaysList.length > 0 ? (
+                  <div>
+                    <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                      <h3 className="text-lg font-semibold text-green-800 flex items-center space-x-2">
+                        <MdDateRange className="w-5 h-5" />
+                        <span>Upcoming Holidays ({upcomingHolidaysList.length})</span>
+                      </h3>
+                      <p className="text-sm text-green-600 mt-1">Holidays from today onwards</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-semibold">Date</th>
+                            <th className="px-4 py-3 text-left font-semibold">Holiday Name</th>
+                            <th className="px-4 py-3 text-left font-semibold">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {upcomingHolidaysList.map((holiday, index) => (
+                            <HolidayTableRow key={`upcoming-${index}`} holiday={holiday} index={index} />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                    <div className="text-center">
+                      <h3 className="text-lg font-semibold text-yellow-800 flex items-center justify-center space-x-2">
+                        <MdDateRange className="w-5 h-5" />
+                        <span>No Upcoming Holidays</span>
+                      </h3>
+                      <p className="text-sm text-yellow-600 mt-1">All holidays for this period have already passed</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Passed Holidays Section */}
+                {passedHolidaysList.length > 0 && (
+                  <div>
+                    <div className="mb-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-700 flex items-center space-x-2">
+                        <FaCalendarAlt className="w-5 h-5" />
+                        <span>Past Holidays ({passedHolidaysList.length})</span>
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">Holidays that have already passed</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-gradient-to-r from-gray-500 to-gray-600 text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-semibold">Date</th>
+                            <th className="px-4 py-3 text-left font-semibold">Holiday Name</th>
+                            <th className="px-4 py-3 text-left font-semibold">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {passedHolidaysList.map((holiday, index) => (
+                            <HolidayTableRow key={`passed-${index}`} holiday={holiday} index={index} />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           ) : (

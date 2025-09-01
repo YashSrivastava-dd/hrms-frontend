@@ -6,8 +6,54 @@ import html2pdf from "html2pdf.js";
 
 const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
   const generatePDF = () => {
-    const element = document.getElementById("invoice");
-    html2pdf().from(element).save();
+    try {
+      const element = document.getElementById("invoice");
+      if (!element) {
+        console.error("Invoice element not found");
+        alert("Payslip content not ready. Please try again.");
+        return;
+      }
+      
+      // Generate descriptive filename
+      const employeeCode = payslipModelData?.employee_basic_details?.employee_code || 'Unknown';
+      const employeeName = payslipModelData?.employee_basic_details?.employee_name || 'Unknown';
+      const month = payslipModelData?.pay_slip_month ? moment(payslipModelData.pay_slip_month).format("MMMM-YYYY") : 'Unknown-Month';
+      
+      // Sanitize filename by removing special characters
+      const sanitizeFilename = (str) => str.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
+      const sanitizedEmployeeCode = sanitizeFilename(employeeCode);
+      const sanitizedMonth = sanitizeFilename(month);
+      
+      // Create filename: DD-415-Payslip-June-2025.pdf
+      const filename = `DD-${sanitizedEmployeeCode}-Payslip-${sanitizedMonth}.pdf`;
+      
+      console.log('Generating PDF with filename:', filename);
+      
+      // Configure html2pdf with filename
+      const options = {
+        margin: 0.5,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          letterRendering: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'a4', 
+          orientation: 'portrait'
+        }
+      };
+      
+      html2pdf().set(options).from(element).save();
+      
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    }
   };
 
   const toTitleCase = (str) =>

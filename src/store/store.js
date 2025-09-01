@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { loginUserReducer, singleUserDataReducer, allEmployeeDataReducer, attendanceEmployeeReducer, getEmployeeLeaveStatusReducer, getHolidaysListReducer, getLeaveApproveReducer, getCompoffLeaveApprovalReducer, getPublicDocumentReduce, postLeaveApplyByEmployeReducer, deleteLeaveRequestReducer, leaveApproveByManagerReducer, postApplyCompoffLeaveReducer, putCompoffLeaveReducer, getCompoffLeaveDataReducer, getTeammateDataReducer, getEmployeePrivateReducer, postSendOtpWithEmailReducer, otpVerificationReducer, postConfirmPasswordReducer, getCalenderLogsApiReducer, postRegularizeReducer, getAllEmployeeAttendanceeReducer, getOnLeaveStatusReducer, getTotalProjectListReducer, getTaskProjectByIdReducer, getSingleTaskDetailsReducer, getAttendanceLogsDayWiseReducer, postMedicalFileReducer, getAnnouncementDataReducer, getPunchDataReducer, getPaySlipAndPayrollReducer, getPunchInPunchOutReducer, getVendorLogsReducer, getVendorSingleLogsReducer, getEmployeeDataCountReducer, getGraphCountDataReducer, getEmployeeLeaveCoutReducer, postVendorMeetingReducer, postRevertLeaveReducer, postTaxDeclarationReducer, getTaxDeclarationsReducer } from "./reducer/UserDataReducer";
+import { loginUserReducer, singleUserDataReducer, allEmployeeDataReducer, attendanceEmployeeReducer, getEmployeeLeaveStatusReducer, getHolidaysListReducer, getLeaveApproveReducer, getCompoffLeaveApprovalReducer, getPublicDocumentReduce, postLeaveApplyByEmployeReducer, deleteLeaveRequestReducer, leaveApproveByManagerReducer, postApplyCompoffLeaveReducer, putCompoffLeaveReducer, getCompoffLeaveDataReducer, getTeammateDataReducer, getEmployeePrivateReducer, postSendOtpWithEmailReducer, otpVerificationReducer, postConfirmPasswordReducer, getCalenderLogsApiReducer, postRegularizeReducer, getAllEmployeeAttendanceeReducer, getOnLeaveStatusReducer, getTotalProjectListReducer, getTaskProjectByIdReducer, getSingleTaskDetailsReducer, getAttendanceLogsDayWiseReducer, postMedicalFileReducer, getAnnouncementDataReducer, getPunchDataReducer, getPaySlipAndPayrollReducer, getPunchInPunchOutReducer, getVendorLogsReducer, getVendorSingleLogsReducer, getEmployeeDataCountReducer, getGraphCountDataReducer, getEmployeeLeaveCoutReducer, postVendorMeetingReducer, postRevertLeaveReducer, postTaxDeclarationReducer, getTaxDeclarationsReducer, deleteVendorMeetingReducer, deleteCompoffLeaveReducer } from "./reducer/UserDataReducer";
 
 const store = configureStore({
   reducer: {
@@ -45,6 +45,8 @@ const store = configureStore({
     revertLeaveReducer:postRevertLeaveReducer,
     taxDeclarationData:postTaxDeclarationReducer,
     taxDeclarationsList:getTaxDeclarationsReducer,
+    deleteVendorMeeting:deleteVendorMeetingReducer,
+    deleteCompoffLeave:deleteCompoffLeaveReducer,
   }
 });
 

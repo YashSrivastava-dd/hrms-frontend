@@ -23,6 +23,7 @@
     "convert-base64-to-image": "^0.0.16",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
+    "heic2any": "^0.0.4",
     "html2pdf.js": "^0.10.3",
     "lucide-react": "^0.518.0",
     "moment": "^2.30.1",

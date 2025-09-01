@@ -162,6 +162,9 @@ import {
   GET_TAX_DECLARATIONS_REQUEST,
   GET_TAX_DECLARATIONS_SUCCESS,
   GET_TAX_DECLARATIONS_FAIL,
+  DELETE_VENDOR_MEETING_REQUEST,
+  DELETE_VENDOR_MEETING_SUCCESS,
+  DELETE_VENDOR_MEETING_FAIL,
 } from "../types/UserDataType";
 export const getUserDataAction = () => async (dispatch, getState) => {
   console.log('getUserDataAction: Action dispatched');
@@ -326,8 +329,7 @@ export const postApplyLeaveByEmployee =
       });
     }
 
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
+    // Removed duplicate fetch prevention to allow multiple leave applications
 
     try {
       dispatch({ type: POST_LEAVE_APPLY_BY_EMPLOYEE_REQUEST });
@@ -340,28 +342,36 @@ export const postApplyLeaveByEmployee =
         },
       };
 
+      // Debug: Log the request payload
+      const requestPayload = {
+        leaveType,
+        leaveStartDate,
+        leaveEndDate,
+        totalDays,
+        reason,
+        approvedBy,
+        shift,
+        location,
+      };
+      console.log('API Request Payload:', requestPayload);
+      console.log('API URL:', `${process.env.REACT_APP_BASE_URL}/api/leave/apply-leave/${employeId}`);
+
       const { data } = await axios.post(
         `${process.env.REACT_APP_BASE_URL}/api/leave/apply-leave/${employeId}`,
-        {
-          leaveType,
-          leaveStartDate,
-          leaveEndDate,
-          totalDays,
-          reason,
-          approvedBy,
-          shift,
-          location,
-        },
+        requestPayload,
         config
       );
 
       dispatch({ type: POST_LEAVE_APPLY_BY_EMPLOYEE_SUCCESS, payload: data });
-      if (data?.statusCode == 200) {
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
     } catch (error) {
+      // Debug: Log the error details
+      console.error('Leave application API error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      
       dispatch({
         type: POST_LEAVE_APPLY_BY_EMPLOYEE_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
@@ -2282,6 +2292,46 @@ export const putVendorStatusDataAction =
     } catch (error) {
       dispatch({
         type: PUT_VENDOR_STATUS_FAIL,
+        payload: error.response?.data?.message || "Something went wrong",
+      });
+    }
+  };
+
+export const deleteVendorMeetingAction =
+  ({ id }) =>
+  async (dispatch, getState) => {
+    const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
+    
+    // If token does not exist, do nothing or handle the case
+    if (!token) {
+      return dispatch({
+        type: DELETE_VENDOR_MEETING_REQUEST,
+        payload: "Authentication token not found",
+      });
+    }
+
+    try {
+      dispatch({ type: DELETE_VENDOR_MEETING_REQUEST });
+
+      // Add token to request headers
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      };
+
+      const { data } = await axios.delete(
+        `${process.env.REACT_APP_BASE_URL}/api/leave/delete-vendor-meeting/${id}`,
+        config
+      );
+
+      dispatch({ type: DELETE_VENDOR_MEETING_SUCCESS, payload: data });
+
+      // Removed alerts and window.location.reload - let the component handle success
+    } catch (error) {
+      dispatch({
+        type: DELETE_VENDOR_MEETING_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
       });
     }

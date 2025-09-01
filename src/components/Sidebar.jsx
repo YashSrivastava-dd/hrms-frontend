@@ -406,6 +406,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               label="Activity Logs"
               icon="📋"
               isSelected={selectedTag === "activityLogs"}
+              disabled={true}
               onClick={() => handleNavigation("activityLogs")}
             />
             

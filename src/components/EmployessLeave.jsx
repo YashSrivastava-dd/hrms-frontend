@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { deleteLeaveRequestAction, getCompoffDataAction, getEmployeLeaveStatusAction, getUserDataAction, getVendorSingleLogsAction, postrevertLeaveRequest, resetDeleteLeaveAction, resetRevertLeaveAction } from "../store/action/userDataAction";
+import { deleteLeaveRequestAction, deleteLeaveCompoffAction, getCompoffDataAction, getEmployeLeaveStatusAction, getUserDataAction, getVendorSingleLogsAction, postrevertLeaveRequest, resetDeleteLeaveAction, resetRevertLeaveAction } from "../store/action/userDataAction";
 import AddEmployee from "./AddEmployee";
 import { Link } from "react-router-dom";
 import { RxCross2 } from "react-icons/rx";
+import { FiDownload } from "react-icons/fi";
 import safeToast from "../utils/safeToast";
 
 const EmployessLeave = () => {
@@ -13,9 +14,11 @@ const EmployessLeave = () => {
     const { data: dataa1 } = useSelector((state) => state.compoffData);
     const { data: vendorData } = useSelector((state) => state.singleVendorLogsData);
     const { data: dataa } = useSelector((state) => state.deleteLeaveByEmoployee);
+    const { data: deleteCompoffData } = useSelector((state) => state.deleteCompoffLeave);
     const { data: revertLeaveData, error: revertLeaveError } = useSelector((state) => state.revertLeaveReducer);
     const { data: userDataRaw } = useSelector((state) => state.userData);
     const { error: deleteError } = useSelector((state) => state.deleteLeaveByEmoployee);
+    const { error: deleteCompoffError } = useSelector((state) => state.deleteCompoffLeave);
     const userData = userDataRaw?.data || {};
     const userType = userData?.role;
     const [selectDays, setLeaveDays] = useState('');
@@ -24,7 +27,48 @@ const EmployessLeave = () => {
     const [selectedTab, setSelectedTab] = useState('leave'); // Track the selected tab
     const [currentPage, setCurrentPage] = useState(1); // Start on page 1
     const [itemsPerPage, setItemsPerPage] = useState(10); // Show 10 items per page
-    
+    const [selectedDocument, setSelectedDocument] = useState(null);
+    const [documentLoading, setDocumentLoading] = useState(false);
+
+    const handleViewDocument = (location, documentName) => {
+        if (!location || location.trim() === '') {
+            alert('Document location not available. The file may not have been uploaded properly.');
+            return;
+        }
+
+        console.log('Opening document:', { location, documentName });
+        setDocumentLoading(true);
+        setSelectedDocument({
+            location: location.trim(),
+            documentName: documentName || 'Medical Certificate'
+        });
+    };
+
+    const closeDocumentViewer = () => {
+        setSelectedDocument(null);
+        setDocumentLoading(false);
+    };
+
+    const handleDownload = (location, documentName) => {
+        if (!location) {
+            alert('Download link not available');
+            return;
+        }
+
+        try {
+            const link = document.createElement('a');
+            link.href = location;
+            link.download = documentName || 'medical-certificate';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Download error:', error);
+            // Fallback: open in new tab
+            window.open(location, '_blank');
+        }
+    };
+        
     // Track processed messages to prevent duplicate toasts
     const processedMessagesRef = useRef(new Set());
 
@@ -97,6 +141,27 @@ const EmployessLeave = () => {
         }
     }, [dataa, dispatch, employeeId]);
 
+
+
+    // Handle delete compoff success response
+    useEffect(() => {
+        if (deleteCompoffData?.message && !processedMessagesRef.current.has(deleteCompoffData.message)) {
+            processedMessagesRef.current.add(deleteCompoffData.message);
+            
+            // Show success toast once
+            safeToast.success(deleteCompoffData.message || "Comp-off request deleted successfully");
+            
+            // Refresh data after successful delete operation
+            setTimeout(() => {
+                dispatch(getEmployeLeaveStatusAction(employeeId));
+                dispatch(getCompoffDataAction());
+                dispatch(getVendorSingleLogsAction());
+            }, 1000);
+            
+            return;
+        }
+    }, [deleteCompoffData, dispatch, employeeId]);
+
     // Handle revert leave success response
     useEffect(() => {
         if (revertLeaveData?.message && !processedMessagesRef.current.has(revertLeaveData.message)) {
@@ -151,12 +216,36 @@ const EmployessLeave = () => {
         }
     }, [deleteError]);
 
+
+
     // Function to safely delete leave request
     const handleDeleteLeave = async (leaveId) => {
         try {
             await dispatch(deleteLeaveRequestAction({ id: leaveId }));
         } catch (error) {
             console.error('Error deleting leave request:', error);
+            safeToast.error("An error occurred while deleting the request");
+        }
+    };
+
+    // Function to safely delete vendor meeting request
+    const handleDeleteVendorMeeting = async (vendorId) => {
+        try {
+            // Vendor meetings are stored in the same collection as regular leaves
+            // So we use the regular leave delete action instead of the non-existent vendor delete action
+            await dispatch(deleteLeaveRequestAction({ id: vendorId }));
+        } catch (error) {
+            console.error('Error deleting vendor meeting request:', error);
+            safeToast.error("An error occurred while deleting the request");
+        }
+    };
+
+    // Function to safely delete compoff request
+    const handleDeleteCompoff = async (compoffId) => {
+        try {
+            await dispatch(deleteLeaveCompoffAction({ id: compoffId }));
+        } catch (error) {
+            console.error('Error deleting compoff request:', error);
             safeToast.error("An error occurred while deleting the request");
         }
     };
@@ -322,10 +411,13 @@ const EmployessLeave = () => {
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
                     {leave.leaveType === "medicalLeave" ? (
-                        <Link to={leave?.location} className="inline-flex items-center px-2 sm:px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors">
+                        <button 
+                            onClick={() => handleViewDocument(leave?.location, 'Medical Certificate')}
+                            className="inline-flex items-center px-2 sm:px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-100 transition-colors"
+                        >
                             <span className="hidden sm:inline">View File</span>
                             <span className="sm:hidden">File</span>
-                        </Link>
+                        </button>
                     ) : (
                         <span className="text-gray-400 text-xs">--</span>
                     )}
@@ -485,7 +577,14 @@ const EmployessLeave = () => {
                     </span>
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
-                    <span className="text-gray-400 text-xs">--</span>
+                    <button
+                        onClick={() => handleDeleteCompoff(item?._id)}
+                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-700 transition-colors duration-200"
+                        title="Delete Comp-Off Request"
+                    >
+                        <RxCross2 size={12} />
+                        <span className="ml-1">Delete</span>
+                    </button>
                 </td>
             </tr>
         ));
@@ -561,7 +660,14 @@ const EmployessLeave = () => {
                     </span>
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
-                    <span className="text-gray-400 text-xs">---</span>
+                    <button
+                        onClick={() => handleDeleteVendorMeeting(item?._id)}
+                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-700 transition-colors duration-200"
+                        title="Delete Vendor Meeting Request"
+                    >
+                        <RxCross2 size={12} />
+                        <span className="ml-1">Delete</span>
+                    </button>
                 </td>
             </tr>
         ));
@@ -813,6 +919,125 @@ const EmployessLeave = () => {
                                 className="w-full text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm px-5 py-3 transition-colors"
                             >
                                 Revert Leave
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Document Viewer Modal */}
+            {selectedDocument && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                                {selectedDocument.documentName || "Medical Certificate"}
+                            </h3>
+                            <button
+                                onClick={closeDocumentViewer}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                            >
+                                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        {/* Modal Content */}
+                        <div className="flex-1 p-4 overflow-hidden relative">
+                            {documentLoading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 z-10">
+                                    <div className="flex flex-col items-center">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                                        <p className="mt-3 text-gray-600 font-medium">Loading document preview...</p>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Universal document viewer with multiple fallbacks */}
+                            <div className="w-full h-full relative">
+                                {/* Try direct image first for common formats */}
+                                {selectedDocument.location && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(selectedDocument.location) ? (
+                                    <img
+                                        src={selectedDocument.location}
+                                        alt="Medical Certificate"
+                                        className="direct-image w-full h-full object-contain rounded-lg"
+                                        onLoad={() => {
+                                            setDocumentLoading(false);
+                                        }}
+                                        onError={() => {
+                                            console.log('Direct image failed, trying Google Docs Viewer');
+                                            // Hide the image and show iframe instead
+                                            document.querySelector('.fallback-iframe').style.display = 'block';
+                                            document.querySelector('.direct-image').style.display = 'none';
+                                        }}
+                                    />
+                                ) : null}
+                                
+                                {/* Google Docs Viewer for documents and .heic files */}
+                                <iframe
+                                    src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedDocument.location)}&embedded=true`}
+                                    className={`fallback-iframe w-full h-full border border-gray-300 rounded-lg ${
+                                        selectedDocument.location && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(selectedDocument.location) 
+                                            ? 'hidden' : 'block'
+                                    }`}
+                                    frameBorder="0"
+                                    title="Document Preview"
+                                    onLoad={() => {
+                                        setDocumentLoading(false);
+                                    }}
+                                    onError={() => {
+                                        console.log('Google Docs Viewer failed, showing download option');
+                                        setDocumentLoading(false);
+                                        // Show error message
+                                        document.querySelector('.preview-error').style.display = 'flex';
+                                        document.querySelector('.fallback-iframe').style.display = 'none';
+                                    }}
+                                />
+                                
+                                {/* Error fallback - download option */}
+                                <div className="preview-error absolute inset-0 hidden flex-col items-center justify-center bg-gray-50 rounded-lg">
+                                    <div className="text-center p-8">
+                                        <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Preview Not Available</h3>
+                                        <p className="text-gray-600 mb-6">This file format cannot be previewed in the browser.</p>
+                                        <div className="space-y-3">
+                                            <button
+                                                onClick={() => window.open(selectedDocument.location, '_blank')}
+                                                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                            >
+                                                Open in New Tab
+                                            </button>
+                                            <a
+                                                href={selectedDocument.location}
+                                                download
+                                                className="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center"
+                                            >
+                                                Download File
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Modal Footer */}
+                        <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
+                            <button
+                                onClick={() => handleDownload(selectedDocument.location, selectedDocument.documentName)}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                            >
+                                <FiDownload className="inline mr-2" size={16} />
+                                Download
+                            </button>
+                            <button
+                                onClick={closeDocumentViewer}
+                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
+                            >
+                                Close
                             </button>
                         </div>
                     </div>

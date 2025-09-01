@@ -16,6 +16,23 @@ import safeToast from '../utils/safeToast';
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
 const CreateProjectModal = ({ tittleBtn, onClick }) => {
+    // Custom scrollbar styles
+    const scrollbarStyles = `
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f3f4f6;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    `;
     const [isOpen, setIsOpen] = useState(false);
     const { data } = useSelector((state) => state.userData);
     const { loading: uploadLoading, data: medicalReport } = useSelector((state) => state.medicalFileReducer);
@@ -79,6 +96,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     useEffect(() => {
         if (error && typeof error === 'string' && error.length > 0) {
+            // Debug: Log the exact error message
+            console.log('Leave application error:', error);
+            
             // Provide more user-friendly error messages
             let errorMessage = error;
             
@@ -86,6 +106,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 errorMessage = 'Insufficient earned leave balance. Please check your available leave balance.';
             } else if (error.includes('balance')) {
                 errorMessage = 'Insufficient leave balance. Please check your available leave balance before applying.';
+            } else if (error.includes('leaveType') && error.includes('must be one of')) {
+                errorMessage = 'Invalid leave type. Please try again or contact support if the issue persists.';
             }
             
             // Use a try-catch to prevent toast errors from crashing the app
@@ -111,7 +133,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     }, [error])
     useEffect(() => {
         if (dataa && dataa?.message) {
-            // Reset form after successful submission without showing toast
+            // Show success toast notification
+            try {
+                safeToast.success(dataa.message || 'Leave application submitted successfully!');
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+            
+            // Reset form after successful submission
             setTimeout(() => {
                 resetForm();
                 setIsOpen(false);
@@ -253,15 +282,15 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     // Function to map frontend leave types to API expected format
     const getApiLeaveType = (frontendLeaveType) => {
         const leaveTypeMapping = {
-            'casualLeave': 'casual-leave',
-            'medicalLeave': 'medical-leave',
-            'earnedLeave': 'earned-leave',
-            'paternityLeave': 'paternity-leave',
-            'maternityLeave': 'maternity-leave',
-            'compOffLeave': 'comp-off-leave',
-            'optionalLeave': 'optional-leave',
-            'vendorLeave': 'vendor-leave',
+            'casualLeave': 'casualLeave',
+            'medicalLeave': 'medicalLeave',
+            'earnedLeave': 'earnedLeave',
+            'paternityLeave': 'paternityLeave',
+            'maternityLeave': 'maternityLeave',
+            'compOffLeave': 'compOffLeave',
+            'vendorLeave': 'vendorLeave',
             'vendorMeeting': 'vendor-meeting'
+          
         };
         return leaveTypeMapping[frontendLeaveType] || frontendLeaveType;
     };
@@ -269,9 +298,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     // Function to map frontend duration values to API expected format
     const getApiDuration = (frontendDuration) => {
         const durationMapping = {
-            'firstHalf': 'first-half',
-            'secondHalf': 'second-half',
-            'fullDay': 'full-day'
+            'firstHalf': 'firstHalf',
+            'secondHalf': 'secondHalf',
+            'fullDay': 'fullDay'
         };
         return durationMapping[frontendDuration] || frontendDuration;
     };
@@ -388,9 +417,6 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 }));
                 break;
 
-            case "optionalLeave":
-                break;
-                
             case "vendorLeave":
                 // Vendor leave validation
                 if (leaveData.selectTime === 'firstHalf') {
@@ -523,11 +549,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                     return;
                 }
                 
-                // Vendor meeting can be applied for dates between yesterday and the last 30 days
-                if (!(startDate <= yesterday && startDate >= thirtyDaysAgo)) {
+                // Vendor meeting can be applied for dates from 7 days ago to today
+                const sevenDaysAgo = new Date(currentDate);
+                sevenDaysAgo.setDate(currentDate.getDate() - 7);
+                
+                if (!(startDate <= currentDate && startDate >= sevenDaysAgo)) {
                     setLeaveError((prevErrors) => ({
                         ...prevErrors,
-                        vendor: 'Vendor meeting can only be applied for dates between yesterday and the last 30 days.',
+                        vendor: 'Vendor meeting can only be applied for dates from 7 days ago to today.',
                     }));
                     return;
                 }
@@ -785,6 +814,11 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        // Debug: Log the current form data
+        console.log('Form submission - Current leaveData:', leaveData);
+        console.log('Form submission - Validation starting...');
+        
         const startDate = new Date(leaveData.startDate);
         const currentDate = new Date();
         currentDate.setHours(0, 0, 0, 0); // Normalize to midnight
@@ -796,9 +830,21 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         const updatedErrors = { ...leaveError };
 
         if (!leaveData.leaveType) {
+            console.log('Validation failed: No leave type selected');
             setLeaveTypeError('Please select a leave type.');
             return;
         }
+        console.log('Validation passed: Leave type selected');
+
+        // Validate duration selection for leave types that require it (only when no date range is selected)
+        if ((leaveData.leaveType === 'earnedLeave' || leaveData.leaveType === 'casualLeave') && 
+            (!leaveData.startDate || !leaveData.endDate || leaveData.totalDays <= 1) && 
+            !leaveData.selectTime) {
+            console.log('Validation failed: selectTime not set for', leaveData.leaveType);
+            setTotalDayError('Please select a duration (First Half, Second Half, or Full Day).');
+            return;
+        }
+        console.log('Validation passed: Duration validation passed');
 
         // Validate comp-off day type selection
         if (leaveData.leaveType === 'compOffLeave' && !leaveData.compOffDayType) {
@@ -806,8 +852,10 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             return;
         }
 
-        // Validate vendor meeting duration selection
-        if (leaveData.leaveType === 'vendorMeeting' && !leaveData.vendorMeetingDuration) {
+        // Validate vendor meeting duration selection (only when no date range is selected)
+        if (leaveData.leaveType === 'vendorMeeting' && 
+            (!leaveData.startDate || !leaveData.endDate || leaveData.totalDays <= 1) && 
+            !leaveData.vendorMeetingDuration) {
             setCompOffDayTypeError('Please select a duration (First Half, Second Half, or Full Day).');
             return;
         }
@@ -879,6 +927,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             maternity: null,
         });
 
+        console.log('Validation passed: All validations completed, proceeding to submission');
+        
         // For vendor meeting, use the vendor meeting API
         if (leaveData.leaveType === 'vendorMeeting') {
             // Validate that both start and end dates are selected
@@ -887,16 +937,25 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 return;
             }
 
-            // Validate that vendor meeting duration is selected
-            if (!leaveData.vendorMeetingDuration) {
+            // Validate that vendor meeting duration is selected (only when no date range is selected)
+            if ((!leaveData.startDate || !leaveData.endDate || leaveData.totalDays <= 1) && !leaveData.vendorMeetingDuration) {
                 setTotalDayError('Please select a duration for the vendor meeting.');
                 return;
             }
 
+            // Debug: Log vendor meeting data
+            console.log('Submitting vendor meeting with data:', {
+                leaveType: 'vendor-meeting',
+                leaveStartDate: leaveData.startDate,
+                leaveEndDate: leaveData.endDate,
+                reason: leaveData.reason,
+                totalDays: leaveData.totalDays
+            });
+            
             // Import the vendor meeting action at the top of the file
             // This will need to be added to the imports
             dispatch(postVendorMeetingAction({
-                leaveType: 'vendor-meeting', // Map to API expected format
+                leaveType: 'vendor-meeting', 
                 leaveStartDate: leaveData.startDate,
                 leaveEndDate: leaveData.endDate,
                 reason: leaveData.reason,
@@ -905,6 +964,20 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         } else {
             // Map frontend leave types to API expected format
             const apiLeaveType = getApiLeaveType(leaveData.leaveType);
+            const apiShift = getApiDuration(leaveData?.selectTime);
+            
+            // Debug: Log what's being sent to the API
+            console.log('Submitting leave application with data:', {
+                leaveType: apiLeaveType,
+                leaveStartDate: leaveData?.startDate,
+                leaveEndDate: leaveData?.endDate,
+                totalDays: leaveData?.totalDays,
+                reason: leaveData?.reason,
+                approvedBy: managerId,
+                employeId: employeeId,
+                shift: apiShift,
+                location: medicalReport?.location,
+            });
             
             dispatch(
                 postApplyLeaveByEmployee({
@@ -915,7 +988,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                     reason: leaveData?.reason,
                     approvedBy: managerId,
                     employeId: employeeId,
-                    shift: getApiDuration(leaveData?.selectTime),
+                    shift: apiShift,
                     location: medicalReport?.location,
                 })
             );
@@ -1139,6 +1212,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     return (
         <div>
+            {/* Custom Scrollbar Styles */}
+            <style>{scrollbarStyles}</style>
+            
             {/* Button to Open Modal */}
             <button
                 onClick={openModal}
@@ -1157,22 +1233,31 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                     ></div>
 
                     {/* Modal Content */}
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-lg relative z-10 p-6">
-                        {/* Close Button */}
-                        <button
-                            onClick={closeModal}
-                            className="absolute top-10 right-4 text-gray-400 hover:text-gray-600"
-                        >
-                            <RxCross2 size={20} />
-                        </button>
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-lg relative z-10 max-h-[90vh] flex flex-col">
+                        {/* Modal Header - Fixed */}
+                        <div className="p-6 pb-4 border-b border-gray-200 flex-shrink-0 bg-white shadow-sm">
+                            {/* Close Button */}
+                            <button
+                                onClick={closeModal}
+                                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+                            >
+                                <RxCross2 size={20} />
+                            </button>
 
-                        {/* Modal Header */}
-                        <h2 className="text-xl font-semibold text-gray-800">
-                            Apply New Leave
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">
-                            Only applicable if you have pending leave balance.
-                        </p>
+                            <h2 className="text-xl font-semibold text-gray-800">
+                                Apply New Leave
+                            </h2>
+                            <p className="text-gray-500 text-sm mt-1">
+                                Only applicable if you have pending leave balance.
+                            </p>
+                        </div>
+
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar relative" style={{
+                            scrollbarWidth: 'thin',
+                            scrollbarColor: '#d1d5db #f3f4f6',
+                            scrollBehavior: 'smooth'
+                        }}>
 
                         {/* Attendance Summary Section */}
                         <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
@@ -1493,17 +1578,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                         </button>
                                                     )}
                                                     
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setLeaveData({ ...leaveData, leaveType: "optionalLeave" });
-                                                            setIsLeaveTypeDropdownOpen(false);
-                                                        }}
-                                                        className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors duration-150 text-sm"
-                                                    >
-                                                        <div className="font-medium text-gray-900">Optional Leave</div>
-                                                        <div className="text-xs text-gray-500">No balance limit</div>
-                                                    </button>
+
 
                                                     <button
                                                         type="button"
@@ -1589,8 +1664,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                 </div>
                             )}
 
-                            {/* Vendor Meeting Duration Selection */}
-                            {leaveData.leaveType === "vendorMeeting" && (
+                            {/* Vendor Meeting Duration Selection - Only show when no date range is selected */}
+                            {leaveData.leaveType === "vendorMeeting" && (!leaveData.startDate || !leaveData.endDate || leaveData.totalDays <= 1) && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Select Duration<span className="text-red-500">*</span>
@@ -1632,10 +1707,12 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                     )}
                                 </div>
                             )}
-                            {leaveData.totalDays <= 1 ? leaveData.leaveType === 'casualLeave' || leaveData.leaveType === 'earnedLeave' ?
+                            {/* Show duration selection only when no date range is selected (single day) */}
+                            {(!leaveData.startDate || !leaveData.endDate || leaveData.totalDays <= 1) && 
+                             (leaveData.leaveType === 'casualLeave' || leaveData.leaveType === 'earnedLeave') ? (
                                 <div>
                                     <label
-                                        htmlFor="startDate"
+                                        htmlFor="selectTime"
                                         className="block text-sm font-medium text-gray-700"
                                     >
                                         Select Duration
@@ -1648,7 +1725,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                             onChange={handleInputChange}
                                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
                                         >
-                                        <option>Select </option>
+                                        <option value="">Select Duration</option>
                                         <option value="firstHalf">First Half</option>
                                         <option value="secondHalf">Second Half</option>
                                         <option value="fullDay">Full Day</option>
@@ -1660,8 +1737,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                         </svg>
                                     </div>
                                 </div>
-                                </div> : ''
-                                : ''}
+                                </div>
+                            ) : (leaveData.leaveType === 'casualLeave' || leaveData.leaveType === 'earnedLeave') && leaveData.startDate && leaveData.endDate && leaveData.totalDays > 1 ? (
+                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <p className="text-sm text-blue-700">
+                                        ℹ️ Duration automatically calculated from date range ({leaveData.totalDays} days)
+                                    </p>
+                                </div>
+                            ) : null}
                             <p class="text-red-600 mt-2">{totalDayError ? totalDayError : ''}</p>
                             {/* Display Total Days */}
                             {leaveData.totalDays > 0 && (
@@ -1709,7 +1792,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                             </div>
                             <p className='text-red-600 mt-2'>{reasonError ? reasonError : ''}</p>
                             {/* Footer */}
-                            <div className="flex justify-center items-center mt-4">
+                            <div className="flex justify-center items-center mt-4 mb-6">
                                 <button
                                     type="submit"
                                     className="py-2 px-4 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors duration-200 font-medium"
@@ -1718,6 +1801,10 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                 </button>
                             </div>
                         </form>
+                        
+                        {/* Fade effect at bottom to indicate scrollable content */}
+                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                        </div>
                     </div>
                 </div>
             )}

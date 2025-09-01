@@ -1,7 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave, FaCalculator, FaFileAlt, FaSearch, FaSpinner, FaChevronDown, FaTimes } from 'react-icons/fa';
 
-const GenerateSalarySlip = () => {
+  const GenerateSalarySlip = () => {
+    // Store initial scroll position on component mount
+    useEffect(() => {
+      scrollPositionRef.current = window.scrollY;
+    }, []);
   const [formData, setFormData] = useState({
     pay_slip_month: '',
     company_address: 'A1, BLOCK A, SECTOR 83, NOIDA, UTTAR PRADESH 201301',
@@ -54,8 +58,28 @@ const GenerateSalarySlip = () => {
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showWorkingDaysBreakdown, setShowWorkingDaysBreakdown] = useState(false);
   const monthDropdownRef = useRef(null);
+  const scrollPositionRef = useRef(0);
 
-  // Custom scrollbar styles for dropdown
+  // Function to preserve scroll position during form updates
+  const preserveScrollPosition = (callback) => {
+    const currentScrollY = window.scrollY;
+    scrollPositionRef.current = currentScrollY;
+    
+    // Execute the callback
+    callback();
+    
+    // Restore scroll position after a short delay
+    setTimeout(() => {
+      if (window.scrollY !== scrollPositionRef.current) {
+        window.scrollTo({
+          top: scrollPositionRef.current,
+          behavior: 'instant'
+        });
+      }
+    }, 100);
+  };
+
+  // Custom scrollbar styles for dropdown and scroll behavior fixes
   const scrollbarStyles = `
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
@@ -75,9 +99,24 @@ const GenerateSalarySlip = () => {
       scrollbar-width: thin;
       scrollbar-color: #94a3b8 #f1f5f9;
     }
+    
+    /* Prevent unwanted scroll jumps */
+    html {
+      scroll-behavior: auto;
+    }
+    
+    /* Ensure form sections don't cause scroll jumps */
+    .form-section {
+      scroll-margin-top: 20px;
+    }
+    
+    /* Smooth transitions for form updates */
+    .form-input {
+      transition: all 0.2s ease-in-out;
+    }
   `;
 
-  // Handle clicking outside dropdown
+  // Handle clicking outside dropdown and prevent scroll jumps
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target)) {
@@ -85,8 +124,27 @@ const GenerateSalarySlip = () => {
       }
     };
 
+    // Prevent scroll jumps during form interactions
+    const handleScroll = () => {
+      // If scroll position changes significantly without user interaction, restore it
+      if (Math.abs(window.scrollY - scrollPositionRef.current) > 100) {
+        // Only restore if it's not a user-initiated scroll
+        setTimeout(() => {
+          window.scrollTo({
+            top: scrollPositionRef.current,
+            behavior: 'instant'
+          });
+        }, 50);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   // Calculate totals
@@ -130,6 +188,9 @@ const GenerateSalarySlip = () => {
       }));
       return;
     }
+
+    // Store current scroll position
+    const currentScrollY = window.scrollY;
 
     const gross = parseFloat(grossSalary);
     const isPermanent = employeeData?.employmentType === 'Permanent';
@@ -181,6 +242,14 @@ const GenerateSalarySlip = () => {
       }
     }));
     
+    // Restore scroll position after form update to prevent jumping
+    setTimeout(() => {
+      window.scrollTo({
+        top: currentScrollY,
+        behavior: 'instant'
+      });
+    }, 50);
+    
     console.log('Salary calculation details:', {
       grossSalary: gross,
       isPermanent,
@@ -194,6 +263,9 @@ const GenerateSalarySlip = () => {
   };
 
   const handleInputChange = (section, field, value) => {
+    // Store current scroll position for critical fields that might cause jumps
+    const currentScrollY = window.scrollY;
+    
     if (section === 'main') {
       setFormData(prev => ({ ...prev, [field]: value }));
     } else {
@@ -210,33 +282,47 @@ const GenerateSalarySlip = () => {
         calculateSalaryComponents(value);
       }
     }
+    
+    // Restore scroll position for critical fields to prevent jumping
+    if (field === 'pay_slip_month' || field === 'gross_salary') {
+      setTimeout(() => {
+        window.scrollTo({
+          top: currentScrollY,
+          behavior: 'instant'
+        });
+      }, 50);
+    }
   };
 
   // Handle month selection
   const handleMonthSelect = (month) => {
-    handleInputChange('main', 'pay_slip_month', month);
-    setShowMonthDropdown(false);
-    
-    // Auto-calculate working days if employee data is available
-    if (employeeData?.workingDays) {
-      updatePayableDays(month, parseInt(employeeData.workingDays));
-    }
+    preserveScrollPosition(() => {
+      handleInputChange('main', 'pay_slip_month', month);
+      setShowMonthDropdown(false);
+      
+      // Auto-calculate working days if employee data is available
+      if (employeeData?.workingDays) {
+        updatePayableDays(month, parseInt(employeeData.workingDays));
+      }
+    });
   };
 
   const clearMonth = () => {
-    handleInputChange('main', 'pay_slip_month', '');
-    setShowMonthDropdown(false);
-    
-    // Reset working days calculation
-    setFormData(prev => ({
-      ...prev,
-      leave_summary: {
-        ...prev.leave_summary,
-        month_days: '31',
-        payable_days: '31',
-        workedDays: 31.0
-      }
-    }));
+    preserveScrollPosition(() => {
+      handleInputChange('main', 'pay_slip_month', '');
+      setShowMonthDropdown(false);
+      
+      // Reset working days calculation
+      setFormData(prev => ({
+        ...prev,
+        leave_summary: {
+          ...prev.leave_summary,
+          month_days: '31',
+          payable_days: '31',
+          workedDays: 31.0
+        }
+      }));
+    });
   };
 
   // Month options for dropdown
@@ -320,6 +406,9 @@ const GenerateSalarySlip = () => {
   // Update payable days when month or working days change
   const updatePayableDays = (monthYear, workingDaysPerWeek) => {
     if (monthYear && workingDaysPerWeek) {
+      // Store current scroll position
+      const currentScrollY = window.scrollY;
+      
       const workingDays = calculateWorkingDaysForMonth(monthYear, workingDaysPerWeek);
       const monthDays = workingDays; // Set month days to working days
       
@@ -332,6 +421,14 @@ const GenerateSalarySlip = () => {
           workedDays: workingDays
         }
       }));
+      
+      // Restore scroll position after form update to prevent jumping
+      setTimeout(() => {
+        window.scrollTo({
+          top: currentScrollY,
+          behavior: 'instant'
+        });
+      }, 50);
     }
   };
 
@@ -396,7 +493,9 @@ const GenerateSalarySlip = () => {
   // Auto-calculate working days when month or employee working days change
   useEffect(() => {
     if (formData.pay_slip_month && employeeData?.workingDays) {
-      updatePayableDays(formData.pay_slip_month, parseInt(employeeData.workingDays));
+      preserveScrollPosition(() => {
+        updatePayableDays(formData.pay_slip_month, parseInt(employeeData.workingDays));
+      });
     }
   }, [formData.pay_slip_month, employeeData?.workingDays]);
 
@@ -431,6 +530,9 @@ const GenerateSalarySlip = () => {
         const result = await response.json();
         
         if (result.data) {
+          // Store current scroll position
+          const currentScrollY = window.scrollY;
+          
           setEmployeeData(result.data);
           
           // Auto-populate form with employee data
@@ -480,6 +582,14 @@ const GenerateSalarySlip = () => {
           if (result.data.salary_details?.gross_salary) {
             calculateSalaryComponents(result.data.salary_details.gross_salary);
           }
+          
+          // Restore scroll position after form update to prevent jumping
+          setTimeout(() => {
+            window.scrollTo({
+              top: currentScrollY,
+              behavior: 'instant'
+            });
+          }, 100);
         } else {
           setMessage({ type: 'error', text: 'Employee data not found' });
         }
@@ -829,7 +939,7 @@ const GenerateSalarySlip = () => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic Information */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 form-section">
             <div className="flex items-center space-x-3 mb-6">
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-2 rounded-lg">
                 <FaBuilding className="text-white text-lg" />
@@ -844,7 +954,11 @@ const GenerateSalarySlip = () => {
                 </label>
                 <div className="relative" ref={monthDropdownRef}>
                   <button
-                    onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+                    onClick={() => {
+                      preserveScrollPosition(() => {
+                        setShowMonthDropdown(!showMonthDropdown);
+                      });
+                    }}
                     className={`flex items-center justify-between w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white transition-colors duration-200 ${
                       formData.pay_slip_month 
                         ? 'border-green-300 bg-green-50 text-green-700' 
@@ -914,7 +1028,7 @@ const GenerateSalarySlip = () => {
           </div>
 
           {/* Employee Details */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 form-section">
             <div className="flex items-center space-x-3 mb-6">
               <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-2 rounded-lg">
                 <FaUser className="text-white text-lg" />
@@ -1087,7 +1201,7 @@ const GenerateSalarySlip = () => {
           </div>
 
           {/* Leave Summary */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 form-section">
             <div className="flex items-center space-x-3 mb-6">
               <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-2 rounded-lg">
                 <FaCalendarAlt className="text-white text-lg" />
@@ -1253,7 +1367,7 @@ const GenerateSalarySlip = () => {
           </div>
 
           {/* Salary Details */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 form-section">
             <div className="flex items-center space-x-3 mb-6">
               <div className="bg-gradient-to-r from-green-500 to-green-600 p-2 rounded-lg">
                 <FaCalculator className="text-white text-lg" />
@@ -1352,7 +1466,6 @@ const GenerateSalarySlip = () => {
                   onChange={(e) => handleInputChange('salary_details', 'travel_allowances', e.target.value)}
                   placeholder="0.00"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  readOnly
                 />
               </div>
               
@@ -1366,7 +1479,6 @@ const GenerateSalarySlip = () => {
                   onChange={(e) => handleInputChange('salary_details', 'special_allowances', e.target.value)}
                   placeholder="0.00"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  readOnly
                 />
               </div>
               
@@ -1422,8 +1534,7 @@ const GenerateSalarySlip = () => {
                   value={formData.salary_details.employee_esi}
                   onChange={(e) => handleInputChange('salary_details', 'employee_esi', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-center bg-gray-50"
-                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 />
                 <p className="text-xs text-gray-500 mt-1 text-center">
                   {employeeData?.employmentType === 'Permanent' ? 'Auto-calculated (0.75% if ≤ ₹21,000)' : '0 for non-permanent'}
