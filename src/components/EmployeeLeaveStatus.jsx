@@ -809,8 +809,9 @@ const EmployeeLeaveStatus = () => {
             <div className="text-sm text-gray-600">
               Page {serverCurrentPage} of {serverTotalPages}
             </div>
-            
-            {/* Pagination Controls */}
+            \
+
+1            {/* Pagination Controls */}
             <div className="flex items-center gap-2">
               {/* Previous Button */}
               <button

@@ -39,6 +39,9 @@ import {
   GET_TAX_DECLARATIONS_REQUEST,
   GET_TAX_DECLARATIONS_SUCCESS,
   GET_TAX_DECLARATIONS_FAIL,
+  GET_REGULARIZATION_COUNT_REQUEST,
+  GET_REGULARIZATION_COUNT_SUCCESS,
+  GET_REGULARIZATION_COUNT_FAIL,
   GET_EMPLOYEE_LEAVE_STATUS_FAIL,
   GET_EMPLOYEE_LEAVE_STATUS_REQUEST,
   GET_EMPLOYEE_LEAVE_STATUS_SUCCESS,
@@ -96,6 +99,7 @@ import {
   POST_APPLY_REGULARIZE_FAIL,
   POST_APPLY_REGULARIZE_REQUEST,
   POST_APPLY_REGULARIZE_SUCCESS,
+  RESET_REGULARIZE_STATE,
   POST_CONFIRM_PASSWORD_FAIL,
   POST_CONFIRM_PASSWORD_REQUEST,
   POST_CONFIRM_PASSWORD_SUCCESS,
@@ -704,6 +708,13 @@ export const postRegularizeReducer = (state = initialState, action) => {
         error: action.payload,
       };
 
+    case RESET_REGULARIZE_STATE:
+      return {
+        ...state,
+        data: null,
+        error: null,
+      };
+
     default:
       return state;
   }
@@ -1262,6 +1273,42 @@ export const getTaxDeclarationsReducer = (
       };
 
     case GET_TAX_DECLARATIONS_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Regularization Count Reducer
+const initialRegularizationCountState = {
+  loading: false,
+  data: null,
+  error: null,
+};
+
+export const regularizationCountReducer = (state = initialRegularizationCountState, action) => {
+  switch (action.type) {
+    case GET_REGULARIZATION_COUNT_REQUEST:
+      return {
+        ...state,
+        loading: true,
+        error: null,
+      };
+
+    case GET_REGULARIZATION_COUNT_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case GET_REGULARIZATION_COUNT_FAIL:
       return {
         ...state,
         loading: false,

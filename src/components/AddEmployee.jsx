@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { postApplyLeaveByEmployee, postMedicalFileAction, getAttendenceLogsOfEmploye, postVendorMeetingAction, resetLeaveApplyByEmployeeAction } from "../store/action/userDataAction";
+import { postApplyLeaveByEmployee, postMedicalFileAction, getAttendenceLogsOfEmploye, postVendorMeetingAction, resetLeaveApplyByEmployeeAction, getRegularizationCountAction, postApplyRegularizationAction } from "../store/action/userDataAction";
 import 'react-toastify/dist/ReactToastify.css';
 import { RxCross2 } from "react-icons/rx";
 import { useNavigate } from "react-router-dom";
@@ -41,6 +41,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     const { data: dataa, error } = useSelector((state) => state.leaveApplyByEmployee)
     const { data: vendorMeetingData, loading: vendorMeetingLoading, error: vendorMeetingError } = useSelector((state) => state.vendorMeetingData)
     const { data: attendanceData, loading: attendanceLoading } = useSelector((state) => state.attendanceLogs);
+    const { data: regularizationCount, loading: regularizationLoading } = useSelector((state) => state.regularizationCount);
+    const { data: regularizationData, loading: regularizationSubmitLoading, error: regularizationError } = useSelector((state) => state.regularizeReducer);
 
     // Reset function to clear all form data - defined before useEffect hooks
     const resetForm = () => {
@@ -179,6 +181,40 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         }
     }, [vendorMeetingData, dispatch])
 
+    // Handle regularization success
+    useEffect(() => {
+        if (regularizationData && regularizationData?.message) {
+            try {
+                safeToast.success(regularizationData.message || 'Regularization application submitted successfully!');
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+            
+            // Reset form after successful submission
+            setTimeout(() => {
+                resetForm();
+                setIsOpen(false);
+            }, 1000);
+            
+            // Refresh regularization count after successful submission
+            dispatch(getRegularizationCountAction());
+            
+            // Reset regularization state to prevent toast from showing again
+            dispatch({ type: 'RESET_REGULARIZE_STATE' });
+        }
+    }, [regularizationData, dispatch])
+
+    // Handle regularization error
+    useEffect(() => {
+        if (regularizationError && typeof regularizationError === 'string' && regularizationError.length > 0) {
+            try {
+                safeToast.error(regularizationError);
+            } catch (toastError) {
+                console.error('Toast error:', toastError);
+            }
+        }
+    }, [regularizationError])
+
     // Handle vendor meeting error
     useEffect(() => {
         if (vendorMeetingError && typeof vendorMeetingError === 'string' && vendorMeetingError.length > 0) {
@@ -262,6 +298,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             // If a date range is selected, we might need to fetch data for that range
             // For now, we'll fetch current data and let the navigation handle the rest
             dispatch(getAttendenceLogsOfEmploye(employeeId));
+            // Fetch regularization count for monthly limit check
+            dispatch(getRegularizationCountAction());
         }
     };
     const closeModal = () => {
@@ -289,7 +327,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             'maternityLeave': 'maternityLeave',
             'compOffLeave': 'compOffLeave',
             'vendorLeave': 'vendorLeave',
-            'vendorMeeting': 'vendor-meeting'
+            'vendorMeeting': 'vendor-meeting',
+            'shortLeave': 'shortLeave',
+            'regularization': 'regularized'
           
         };
         return leaveTypeMapping[frontendLeaveType] || frontendLeaveType;
@@ -670,6 +710,48 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 }));
                 break;
 
+            case "shortLeave":
+                // Short leave validation - can be applied for any date, typically half day
+                if (leaveData.selectTime === 'firstHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'secondHalf') {
+                    setLeaveData({ ...leaveData, totalDays: 0.5 });
+                    return;
+                }
+                if (leaveData.selectTime === 'fullDay') {
+                    setLeaveData({ ...leaveData, totalDays: 1 });
+                    return;
+                }
+                
+                // Short leave can be applied for dates between yesterday and the last 30 days
+                if (!(startDate <= yesterday && startDate >= thirtyDaysAgo)) {
+                    setLeaveError((prevErrors) => ({
+                        ...prevErrors,
+                        vendor: 'Short leave can only be applied for dates between yesterday and the last 30 days.',
+                    }));
+                    return;
+                }
+                
+                // Clear errors if validation passes
+                setLeaveError((prevErrors) => ({
+                    ...prevErrors,
+                    vendor: null,
+                }));
+                break;
+
+            case "regularization":
+                // Regularization validation - simplified with no conditions except monthly limit
+                setLeaveData({ ...leaveData, totalDays: 1 }); // Always 1 day for regularization
+                
+                // Clear errors if validation passes
+                setLeaveError((prevErrors) => ({
+                    ...prevErrors,
+                    vendor: null,
+                }));
+                break;
+
             default:
                 // No specific validation needed for other leave types
                 break;
@@ -769,6 +851,10 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 return formatDate(minEarnedLeaveDate > firstDayOfMonth ? minEarnedLeaveDate : firstDayOfMonth); // Allow from 31 days ago of current month 
             case "compOffLeave":
                 return formatDate(minEarnedLeaveDate > firstDayOfMonth ? minEarnedLeaveDate : firstDayOfMonth); // Allow from 31 days ago of current month 
+            case "shortLeave":
+                return formatDate(minEarnedLeaveDate > firstDayOfMonth ? minEarnedLeaveDate : firstDayOfMonth); // Allow from 31 days ago of current month
+            case "regularization":
+                return null; // No minimum date restriction for regularization
 
             default:
                 return formatDate(currentDate); // Default to today
@@ -798,6 +884,10 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 return formatDate(yesterday); // Only up to yesterday
             case "earnedLeave":
                 return formatDate(maxEarnedLeaveDate < lastDayOfMonth ? maxEarnedLeaveDate : lastDayOfMonth);
+            case "shortLeave":
+                return formatDate(yesterday); // Only up to yesterday
+            case "regularization":
+                return null; // No maximum date restriction for regularization
             default:
                 return null; // No restrictions by default
         }
@@ -875,8 +965,21 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             return;
         }
 
-        // Check leave balance before submitting (skip for vendor meeting and vendor leave as they don't consume leave balance)
-        if (leaveData.leaveType !== 'vendorMeeting' && leaveData.leaveType !== 'vendorLeave') {
+        // Regularization monthly limit validation
+        if (leaveData.leaveType === 'regularization') {
+            const currentMonthRegularizations = regularizationCount?.data?.count || 0;
+            if (currentMonthRegularizations >= 2) {
+                try {
+                    safeToast.error('You have already applied for 2 regularizations this month. Maximum limit reached.');
+                } catch (toastError) {
+                    console.error('Toast error:', toastError);
+                }
+                return;
+            }
+        }
+
+        // Check leave balance before submitting (skip for vendor meeting, vendor leave, short leave, and regularization as they don't consume leave balance)
+        if (leaveData.leaveType !== 'vendorMeeting' && leaveData.leaveType !== 'vendorLeave' && leaveData.leaveType !== 'shortLeave' && leaveData.leaveType !== 'regularization') {
             const requestedDays = parseFloat(leaveData.totalDays);
             const availableBalance = parseFloat(leaveBalance?.[leaveData.leaveType] || 0);
             
@@ -961,6 +1064,21 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 reason: leaveData.reason,
                 totalDays: leaveData.totalDays
             }));
+        } else if (leaveData.leaveType === 'shortLeave' || leaveData.leaveType === 'regularization') {
+            // Handle short leave and regularization submission using the regularization API
+            const apiLeaveType = getApiLeaveType(leaveData.leaveType);
+            
+            console.log('Submitting short leave/regularization with data:', {
+                leaveType: apiLeaveType,
+                leaveStartDate: leaveData.startDate,
+                reason: leaveData.reason,
+            });
+            
+            dispatch(postApplyRegularizationAction(
+                apiLeaveType,
+                leaveData.startDate,
+                leaveData.reason
+            ));
         } else {
             // Map frontend leave types to API expected format
             const apiLeaveType = getApiLeaveType(leaveData.leaveType);
@@ -1386,6 +1504,8 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                  leaveData.leaveType === "compOffLeave" ? "Comp Off" :
                                                  leaveData.leaveType === "optionalLeave" ? "Optional Leave" :
                                                  leaveData.leaveType === "vendorMeeting" ? "Vendor Meeting" :
+                                                 leaveData.leaveType === "shortLeave" ? "Short Leave" :
+                                                 leaveData.leaveType === "regularization" ? "Regularization" :
                                                  leaveData.leaveType) : 
                                                 "Choose your leave type"
                                             }
@@ -1590,6 +1710,30 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                                     >
                                                         <div className="font-medium text-gray-900">Vendor Meeting</div>
                                                         <div className="text-xs text-gray-500">External vendor meetings</div>
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLeaveData({ ...leaveData, leaveType: "shortLeave" });
+                                                            setIsLeaveTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left hover:bg-purple-50 transition-colors duration-150 text-sm border-t border-gray-100"
+                                                    >
+                                                        <div className="font-medium text-gray-900">Short Leave</div>
+                                                        <div className="text-xs text-gray-500">For brief absences during work hours</div>
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setLeaveData({ ...leaveData, leaveType: "regularization" });
+                                                            setIsLeaveTypeDropdownOpen(false);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left hover:bg-orange-50 transition-colors duration-150 text-sm border-t border-gray-100"
+                                                    >
+                                                        <div className="font-medium text-gray-900">Regularization</div>
+                                                        <div className="text-xs text-gray-500">For attendance regularization - max 2 per month</div>
                                                     </button>
                                         </>
                                     )}

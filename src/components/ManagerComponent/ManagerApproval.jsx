@@ -200,22 +200,11 @@ const ManagerApproval = () => {
     );
   }, []);
 
-  const CustomDropdown = useCallback(({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick, onDispatch }) => {
-    const dropdownRef = useRef(null);
-    const dropdownId = useMemo(() => `${actionType}-${item?._id}`, [actionType, item?._id]);
-    const isOpen = openDropdown === dropdownId;
+  // Simple Approve/Reject Buttons Component
+  const ApproveRejectButtons = useCallback(({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick }) => {
     const isPending = item?.status === "Pending";
 
-    useEffect(() => {
-      const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setOpenDropdown(null);
-        }
-      };
 
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     const handleApprove = useCallback(async () => {
       if (!isPending) {
@@ -238,7 +227,7 @@ const ManagerApproval = () => {
         safeToast.error("An error occurred while processing the approval.");
       }
       
-      setOpenDropdown(null);
+
     }, [actionType, item, isCompOff, isPending, onAction]);
 
     const handleReject = useCallback(async () => {
@@ -266,12 +255,10 @@ const ManagerApproval = () => {
         safeToast.error("An error occurred while processing the rejection.");
       }
       
-      setOpenDropdown(null);
+
     }, [actionType, item, isCompOff, isPending, onAction, onRejectClick]);
 
-    const handleToggleDropdown = useCallback(() => {
-      setOpenDropdown(isOpen ? null : dropdownId);
-    }, [isOpen, dropdownId]);
+
 
     // If not pending, show status instead of dropdown
     if (!isPending) {
@@ -286,94 +273,28 @@ const ManagerApproval = () => {
       );
     }
 
-    // For pending items, show dropdown
+    // For pending items, show approve/reject buttons
     return (
-      <div className="relative inline-block w-full" ref={dropdownRef} style={{ zIndex: isOpen ? 99999 : 'auto' }}>
+      <div className="flex gap-1 justify-center">
         <button
           type="button"
-          onClick={handleToggleDropdown}
-          className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 flex items-center justify-between cursor-pointer"
+          onClick={handleApprove}
+          className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 rounded-md text-xs font-medium transition-colors duration-200 flex items-center gap-1"
         >
-          <span className="truncate text-gray-600">Select Action</span>
-          <svg 
-            className={`w-3 h-3 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <span className="text-green-600">✓</span>
+          Approve
         </button>
-        
-        {isOpen && (
-          <div 
-            className="absolute mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg min-w-[120px]"
-            style={{ 
-              zIndex: 999999,
-              pointerEvents: 'auto',
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0
-            }}
-          >
-            <div className="py-1">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleApprove();
-                }}
-                style={{ 
-                  pointerEvents: 'auto',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: '#059669',
-                  fontWeight: '500'
-                }}
-                className="hover:bg-green-50 transition-colors duration-200"
-              >
-                <span className="mr-2 text-green-500">✓</span>
-                Approve
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReject();
-                }}
-                style={{ 
-                  pointerEvents: 'auto',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: '#dc2626',
-                  fontWeight: '500'
-                }}
-                className="hover:bg-red-50 transition-colors duration-200"
-              >
-                <span className="mr-2 text-red-500">✗</span>
-                Reject
-              </button>
-            </div>
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={handleReject}
+          className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800 rounded-md text-xs font-medium transition-colors duration-200 flex items-center gap-1"
+        >
+          <span className="text-red-600">✗</span>
+          Reject
+        </button>
       </div>
     );
-  }, [openDropdown]);
+  }, []);
 
   // Document viewing functions
   const handleViewDocument = useCallback((location, documentName) => {
@@ -1090,7 +1011,7 @@ const ManagerApproval = () => {
             : ''}
           <td className="px-4 py-3 text-center whitespace-nowrap">
             {item?.status === "Pending" ? (
-              <CustomDropdown 
+              <ApproveRejectButtons 
                 item={item} 
                 isCompOff={isCompOff} 
                 actionType={activeTab === "vendor" ? "vendor" : (isCompOff ? "compoff" : "leave")} 
@@ -1107,7 +1028,7 @@ const ManagerApproval = () => {
         </tr>
       );
     });
-  }, [activeTab, CustomDropdown, handleAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
+  }, [activeTab, ApproveRejectButtons, handleAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
 
   const renderRevertTableRow = useCallback((data) => {
     if (!data || data.length === 0) {
@@ -1169,7 +1090,7 @@ const ManagerApproval = () => {
             <ReasonCell reason={item?.revertLeave?.reason || "Revert request"} className="text-sm" />
           </td>
           <td className="px-4 py-3 text-center whitespace-nowrap">
-            <CustomDropdown 
+            <ApproveRejectButtons 
               item={item} 
               actionType="revert" 
               onAction={handleRevertApprovalAction} 
@@ -1180,7 +1101,7 @@ const ManagerApproval = () => {
         </tr>
       );
     });
-  }, [CustomDropdown, handleRevertApprovalAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
+  }, [ApproveRejectButtons, handleRevertApprovalAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
 
   const vendorMeetingTable = useCallback((data) => {
     if (!data || data.length === 0) {
@@ -1235,7 +1156,7 @@ const ManagerApproval = () => {
           </td>
           <td className="px-4 py-3 text-center whitespace-nowrap">
             {item?.status === "Pending" ? (
-              <CustomDropdown 
+              <ApproveRejectButtons 
                 item={item} 
                 isCompOff={true}
                 actionType="vendor" 
@@ -1252,7 +1173,7 @@ const ManagerApproval = () => {
         </tr>
       );
     });
-  }, [CustomDropdown, handleAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
+  }, [ApproveRejectButtons, handleAction, handleRejectClick, dispatch, ReasonCell, NoDataMessage]);
 
   // Show loading screen only if data is still loading
   if (loading) {
@@ -1482,7 +1403,7 @@ const ManagerApproval = () => {
                                           const action = putVendorStatusDataAction({ status: "Approved", id: item._id });
                                           dispatch(action);
                                           safeToast.success("Vendor meeting request approved successfully!");
-                                          setOpenDropdown(null);
+                                    
                                           setTimeout(() => {
                                             dispatch(getVendorLogsAction({ page: currentPage, limit: itemsPerPage }));
                                           }, 1500);
@@ -1498,7 +1419,7 @@ const ManagerApproval = () => {
                                           const action = putVendorStatusDataAction({ status: "Rejected", id: item._id });
                                           dispatch(action);
                                           safeToast.success("Vendor meeting request rejected successfully!");
-                                          setOpenDropdown(null);
+                                    
                                           setTimeout(() => {
                                             dispatch(getVendorLogsAction({ page: currentPage, limit: itemsPerPage }));
                                           }, 1500);

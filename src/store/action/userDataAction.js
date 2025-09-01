@@ -162,6 +162,9 @@ import {
   GET_TAX_DECLARATIONS_REQUEST,
   GET_TAX_DECLARATIONS_SUCCESS,
   GET_TAX_DECLARATIONS_FAIL,
+  GET_REGULARIZATION_COUNT_REQUEST,
+  GET_REGULARIZATION_COUNT_SUCCESS,
+  GET_REGULARIZATION_COUNT_FAIL,
   DELETE_VENDOR_MEETING_REQUEST,
   DELETE_VENDOR_MEETING_SUCCESS,
   DELETE_VENDOR_MEETING_FAIL,
@@ -837,6 +840,45 @@ export const postApplyRegularizationAction =
       });
     }
   };
+
+export const getRegularizationCountAction = () => async (dispatch, getState) => {
+  const token = localStorage.getItem("authToken");
+  const employeId = localStorage.getItem("employeId");
+  
+  if (!token) {
+    return dispatch({
+      type: GET_REGULARIZATION_COUNT_FAIL,
+      payload: "Authentication token not found",
+    });
+  }
+
+  try {
+    dispatch({ type: GET_REGULARIZATION_COUNT_REQUEST });
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    };
+
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+    const currentYear = currentDate.getFullYear();
+
+    const { data } = await axios.get(
+      `${process.env.REACT_APP_BASE_URL}/api/leave/regularization-count/${employeId}?month=${currentMonth}&year=${currentYear}`,
+      config
+    );
+
+    dispatch({ type: GET_REGULARIZATION_COUNT_SUCCESS, payload: data });
+  } catch (error) {
+    dispatch({
+      type: GET_REGULARIZATION_COUNT_FAIL,
+      payload: error.response?.data?.message || "Something went wrong",
+    });
+  }
+};
 
 export const postApplyCompOffLeaveAction =
   (compOffDate, reason) => async (dispatch, getState) => {
