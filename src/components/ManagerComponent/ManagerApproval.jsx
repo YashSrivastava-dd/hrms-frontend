@@ -754,6 +754,9 @@ const ManagerApproval = () => {
   }, [activeTab]);
 
   // Error handling effects
+  // Track processed error messages to prevent duplicate toasts
+  const processedErrorMessagesRef = useRef(new Set());
+  
   useEffect(() => {
     if (leaveError && 
         typeof leaveError === 'string' && 
@@ -761,7 +764,9 @@ const ManagerApproval = () => {
         !leaveError.includes('No data') && 
         !leaveError.includes('empty') &&
         leaveError !== 'null' &&
-        leaveError !== 'undefined') {
+        leaveError !== 'undefined' &&
+        !processedErrorMessagesRef.current.has(leaveError)) {
+      processedErrorMessagesRef.current.add(leaveError);
       safeToast.error(`Leave approval error: ${leaveError}`);
     }
   }, [leaveError]);
@@ -773,7 +778,9 @@ const ManagerApproval = () => {
         !compOffError.includes('No data') && 
         !compOffError.includes('empty') &&
         compOffError !== 'null' &&
-        compOffError !== 'undefined') {
+        compOffError !== 'undefined' &&
+        !processedErrorMessagesRef.current.has(compOffError)) {
+      processedErrorMessagesRef.current.add(compOffError);
       safeToast.error(`Comp-Off approval error: ${compOffError}`);
     }
   }, [compOffError]);
@@ -785,7 +792,9 @@ const ManagerApproval = () => {
         !vendorError.includes('No data') && 
         !vendorError.includes('empty') &&
         vendorError !== 'null' &&
-        vendorError !== 'undefined') {
+        vendorError !== 'undefined' &&
+        !processedErrorMessagesRef.current.has(vendorError)) {
+      processedErrorMessagesRef.current.add(vendorError);
       safeToast.error(`Vendor meeting approval error: ${vendorError}`);
     }
   }, [vendorError]);
@@ -931,7 +940,24 @@ const ManagerApproval = () => {
       
       // Calculate values for each row (moved outside useMemo since it's inside map)
       const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?";
-      const requestDate = item?.dateTime?.split(" ")[0] || item?.appliedDate?.split(" ")[0] || "---";
+      const requestDate = (() => {
+        if (isCompOff && item?.compOffDate) {
+          // Format Comp-Off date to dd-mm-yyyy format
+          try {
+            const date = new Date(item.compOffDate);
+            if (!isNaN(date.getTime())) {
+              const day = String(date.getDate()).padStart(2, '0');
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const year = date.getFullYear();
+              return `${day}-${month}-${year}`;
+            }
+          } catch (error) {
+            console.warn('Error formatting compOffDate:', error);
+          }
+        }
+        // Fallback to original logic for other cases
+        return item?.dateTime?.split(" ")[0] || item?.appliedDate?.split(" ")[0] || "---";
+      })();
       const leaveTypeDisplay = item?.leaveType ? item.leaveType.toUpperCase().split("LEAVE")[0] + " LEAVE" : "---";
       
       const totalDaysDisplay = (() => {

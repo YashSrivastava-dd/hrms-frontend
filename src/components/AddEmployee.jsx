@@ -133,8 +133,13 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             return;
         }
     }, [error])
+    // Track processed messages to prevent duplicate toasts
+    const processedMessagesRef = useRef(new Set());
+    
     useEffect(() => {
-        if (dataa && dataa?.message) {
+        if (dataa && dataa?.message && !processedMessagesRef.current.has(dataa.message)) {
+            processedMessagesRef.current.add(dataa.message);
+            
             // Show success toast notification
             try {
                 safeToast.success(dataa.message || 'Leave application submitted successfully!');
@@ -151,7 +156,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     }, [dataa])
 
     useEffect(() => {
-        if (medicalReport && medicalReport.location) {  // ✅ Ensure medicalReport is defined
+        if (medicalReport && medicalReport.location && !processedMessagesRef.current.has('File Upload Successfully')) {  // ✅ Ensure medicalReport is defined
+            processedMessagesRef.current.add('File Upload Successfully');
+            
             // Use a try-catch to prevent toast errors from crashing the app
             try {
                 safeToast.success('File Upload Successfully');
@@ -163,7 +170,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     // Handle vendor meeting success
     useEffect(() => {
-        if (vendorMeetingData && vendorMeetingData?.message) {
+        if (vendorMeetingData && vendorMeetingData?.message && !processedMessagesRef.current.has(vendorMeetingData.message)) {
+            processedMessagesRef.current.add(vendorMeetingData.message);
+            
             try {
                 safeToast.success(vendorMeetingData.message);
             } catch (toastError) {
@@ -183,7 +192,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     // Handle regularization success
     useEffect(() => {
-        if (regularizationData && regularizationData?.message) {
+        if (regularizationData && regularizationData?.message && !processedMessagesRef.current.has(regularizationData.message)) {
+            processedMessagesRef.current.add(regularizationData.message);
+            
             try {
                 safeToast.success(regularizationData.message || 'Regularization application submitted successfully!');
             } catch (toastError) {
@@ -206,7 +217,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     // Handle regularization error
     useEffect(() => {
-        if (regularizationError && typeof regularizationError === 'string' && regularizationError.length > 0) {
+        if (regularizationError && typeof regularizationError === 'string' && regularizationError.length > 0 && !processedMessagesRef.current.has(regularizationError)) {
+            processedMessagesRef.current.add(regularizationError);
+            
             try {
                 safeToast.error(regularizationError);
             } catch (toastError) {
@@ -217,7 +230,9 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     // Handle vendor meeting error
     useEffect(() => {
-        if (vendorMeetingError && typeof vendorMeetingError === 'string' && vendorMeetingError.length > 0) {
+        if (vendorMeetingError && typeof vendorMeetingError === 'string' && vendorMeetingError.length > 0 && !processedMessagesRef.current.has(vendorMeetingError)) {
+            processedMessagesRef.current.add(vendorMeetingError);
+            
             try {
                 safeToast.error(vendorMeetingError);
             } catch (toastError) {
@@ -389,15 +404,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
         switch (leaveData.leaveType) {
             case "casualLeave":
-                if (leaveData.selectTime === 'firstHalf') {
-                    setLeaveData({ ...leaveData, totalDays: 0.5 })
-                    return;
-                }
-                if (leaveData.selectTime === 'secondHalf') {
+                console.log('Casual leave validation - selectTime:', leaveData.selectTime);
+                if (leaveData.selectTime === 'firstHalf' || leaveData.selectTime === 'secondHalf') {
+                    console.log('Setting totalDays to 0.5 for casual leave');
                     setLeaveData({ ...leaveData, totalDays: 0.5 })
                     return;
                 }
                 if (leaveData.selectTime === 'fullDay') {
+                    console.log('Setting totalDays to 1 for casual leave');
                     setLeaveData({ ...leaveData, totalDays: 1 })
                     return;
                 }
@@ -498,11 +512,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 
             case "paternityLeave":
                 // Paternity leave validation
-                if (leaveData.selectTime === 'firstHalf') {
-                    setLeaveData({ ...leaveData, totalDays: 0.5 });
-                    return;
-                }
-                if (leaveData.selectTime === 'secondHalf') {
+                if (leaveData.selectTime === 'firstHalf' || leaveData.selectTime === 'secondHalf') {
                     setLeaveData({ ...leaveData, totalDays: 0.5 });
                     return;
                 }
@@ -537,11 +547,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 
             case "maternityLeave":
                 // Maternity leave validation
-                if (leaveData.selectTime === 'firstHalf') {
-                    setLeaveData({ ...leaveData, totalDays: 0.5 });
-                    return;
-                }
-                if (leaveData.selectTime === 'secondHalf') {
+                if (leaveData.selectTime === 'firstHalf' || leaveData.selectTime === 'secondHalf') {
                     setLeaveData({ ...leaveData, totalDays: 0.5 });
                     return;
                 }
@@ -617,17 +623,16 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 break;
                 
             case "earnedLeave":
+                console.log('Earned leave validation - selectTime:', leaveData.selectTime);
                 // const maxEarnedLeaveDate = new Date(currentDate);
                 // maxEarnedLeaveDate.setDate(currentDate.getDate() + 31); // 14 days after today
-                if (leaveData.selectTime === 'firstHalf') {
-                    setLeaveData({ ...leaveData, totalDays: 0.5 })
-                    return;
-                }
-                if (leaveData.selectTime === 'secondHalf') {
+                if (leaveData.selectTime === 'firstHalf' || leaveData.selectTime === 'secondHalf') {
+                    console.log('Setting totalDays to 0.5 for earned leave');
                     setLeaveData({ ...leaveData, totalDays: 0.5 })
                     return;
                 }
                 if (leaveData.selectTime === 'fullDay') {
+                    console.log('Setting totalDays to 1 for earned leave');
                     setLeaveData({ ...leaveData, totalDays: 1 })
                     return;
                 }
@@ -667,15 +672,11 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
             case "compOffLeave":
                 // Now these variables are defined outside and accessible here
-                if (leaveData.selectTime === 'firstHalf') {
+                if (leaveData.compOffDayType === 'halfDay') {
                     setLeaveData({ ...leaveData, totalDays: 0.5 });
                     return;
                 }
-                if (leaveData.selectTime === 'secondHalf') {
-                    setLeaveData({ ...leaveData, totalDays: 0.5 });
-                    return;
-                }
-                if (leaveData.selectTime === 'fullDay') {
+                if (leaveData.compOffDayType === 'fullDay') {
                     setLeaveData({ ...leaveData, totalDays: 1 });
                     return;
                 }
@@ -712,11 +713,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
             case "shortLeave":
                 // Short leave validation - can be applied for any date, typically half day
-                if (leaveData.selectTime === 'firstHalf') {
-                    setLeaveData({ ...leaveData, totalDays: 0.5 });
-                    return;
-                }
-                if (leaveData.selectTime === 'secondHalf') {
+                if (leaveData.selectTime === 'firstHalf' || leaveData.selectTime === 'secondHalf') {
                     setLeaveData({ ...leaveData, totalDays: 0.5 });
                     return;
                 }
@@ -756,7 +753,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 // No specific validation needed for other leave types
                 break;
         }
-    }, [leaveData.totalDays, leaveData.leaveType, leaveData.selectTime]);
+    }, [leaveData.totalDays, leaveData.leaveType, leaveData.selectTime, leaveData.compOffDayType, leaveData.vendorMeetingDuration]);
 
     // Add useEffect to recalculate totalDays when startDate or endDate changes
     useEffect(() => {
@@ -1102,7 +1099,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                     leaveType: apiLeaveType,
                     leaveStartDate: leaveData?.startDate,
                     leaveEndDate: leaveData?.endDate,
-                    totalDayss: leaveData?.totalDays,
+                    totalDays: leaveData?.totalDays,
                     reason: leaveData?.reason,
                     approvedBy: managerId,
                     employeId: employeeId,
@@ -1781,7 +1778,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                             onChange={(e) => {
                                                 const value = e.target.value;
                                                 let totalDays = 0;
-                                                if (value === "firstHalf" || value === "secondHalf") {
+                                                if (value === "halfDay") {
                                                     totalDays = 0.5;
                                                 } else if (value === "fullDay") {
                                                     totalDays = 1;
@@ -1791,8 +1788,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm appearance-none bg-white hover:border-gray-300"
                                         >
                                             <option value="">Select Duration</option>
-                                            <option value="firstHalf">First Half</option>
-                                            <option value="secondHalf">Second Half</option>
+                                            <option value="halfDay">Half Day</option>
                                             <option value="fullDay">Full Day</option>
                                         </select>
                                         {/* Custom dropdown arrow */}
