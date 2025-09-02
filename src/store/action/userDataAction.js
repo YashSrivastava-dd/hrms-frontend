@@ -961,7 +961,7 @@ export const getCompoffLeaveRequestAction =
       dispatch({ type: GET_COMPOFF_LEAVE_APPROVAL_SUCCESS, payload: data });
 
       if (data?.statusCode === 201) {
-        alert(data?.message || "Operation completed successfully");
+        safeToast.success(data?.message || "Operation completed successfully");
         setTimeout(() => {
           window.location.reload();
         }, 1000);
@@ -970,7 +970,7 @@ export const getCompoffLeaveRequestAction =
       if (error.response?.data?.statusCode === 404) {
         return;
       } else {
-        alert(error.response?.data?.message || "An error occurred. Please try again.");
+        safeToast.error(error.response?.data?.message || "An error occurred. Please try again.");
       }
       dispatch({
         type: GET_COMPOFF_LEAVE_APPROVAL_FAIL,

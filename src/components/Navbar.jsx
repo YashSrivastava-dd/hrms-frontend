@@ -106,11 +106,19 @@ function Navbar({ onToggleSidebar }) {
     })) || [] : [];
 
   useEffect(() => {
-    dispatch(getPunchInDataAction());
-    dispatch(getLeaveApproveRequestAction());
-    dispatch(getCompoffLeaveRequestAction());
-    dispatch(getVendorLogsAction());
-    dispatch(getAnnouncementDataAction());
+    // Only dispatch API actions if we have valid authentication
+    const token = localStorage.getItem("authToken");
+    const employeeId = localStorage.getItem("employeId");
+    
+    if (token && employeeId && token !== 'null' && token !== 'undefined' && employeeId !== 'null' && employeeId !== 'undefined') {
+      dispatch(getPunchInDataAction());
+      dispatch(getLeaveApproveRequestAction());
+      dispatch(getCompoffLeaveRequestAction());
+      dispatch(getVendorLogsAction());
+      dispatch(getAnnouncementDataAction());
+    } else {
+      console.log('Navbar: Skipping API calls - no valid authentication');
+    }
   }, []); // Only run once on mount
 
   // Real-time clock update
