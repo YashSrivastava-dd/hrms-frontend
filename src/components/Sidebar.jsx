@@ -466,7 +466,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
           flex: '1 1 auto', 
           padding: selectedTag === 'taxDeclarations' ? '0' : isMobile ? '0' : '1rem 1.5rem' 
         }}>
-          {error ? (
+          {error && error !== "Authentication token not found" ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <div className="text-6xl mb-4">⚠️</div>

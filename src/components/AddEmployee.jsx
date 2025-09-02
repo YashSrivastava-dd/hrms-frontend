@@ -1089,7 +1089,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
                 leaveType: apiLeaveType,
                 leaveStartDate: leaveData?.startDate,
                 leaveEndDate: leaveData?.endDate,
-                totalDayss: leaveData?.totalDays,
+                totalDays: leaveData?.totalDays,
                 reason: leaveData?.reason,
                 approvedBy: managerId,
                 employeId: employeeId,

@@ -468,8 +468,9 @@ const Dashboard = ({ reloadHandel }) => {
   }, []); // Empty dependency array to only run once
 
   useEffect(() => {
-    // Only fetch user data if it hasn't been fetched yet by App.js
-    if (employeeId && !data && !loading) {
+    // Only fetch user data if it hasn't been fetched yet by App.js and we have valid auth
+    const token = localStorage.getItem("authToken");
+    if (employeeId && !data && !loading && token && token !== 'null' && token !== 'undefined') {
       console.log('Dashboard: Dispatching getUserDataAction', { employeeId, loading, hasData: !!data });
       dispatch(getUserDataAction());
     } else if (employeeId && data) {
@@ -477,6 +478,8 @@ const Dashboard = ({ reloadHandel }) => {
       console.log('Dashboard: Available data:', data);
     } else if (!employeeId) {
       console.log('Dashboard: No employee ID available');
+    } else if (!token || token === 'null' || token === 'undefined') {
+      console.log('Dashboard: No valid authentication token available');
     } else {
       console.log('Dashboard: Waiting for data to load or already loading');
     }
@@ -495,8 +498,9 @@ const Dashboard = ({ reloadHandel }) => {
   }, [loading, data, error, initialized]);
 
   useEffect(() => {
-    // Only dispatch actions if we have valid data and haven't already fetched them
-    if (employeeId && !loading && !attendanceData?.data) {
+    // Only dispatch actions if we have valid data and authentication
+    const token = localStorage.getItem("authToken");
+    if (employeeId && !loading && !attendanceData?.data && token && token !== 'null' && token !== 'undefined') {
       dispatch(getAttendanceLogsDayWise());
       dispatch(getOnLeaveStatusAction());
       dispatch(getAttendenceLogsOfEmploye(employeeId));
@@ -513,8 +517,9 @@ const Dashboard = ({ reloadHandel }) => {
   }, []);
   
   useEffect(() => {
-    // Only fetch announcements if we're not loading and haven't already fetched them
-    if (!loading && !announcementLoading && !announcementData?.data) {
+    // Only fetch announcements if we're not loading and have valid authentication
+    const token = localStorage.getItem("authToken");
+    if (!loading && !announcementLoading && !announcementData?.data && token && token !== 'null' && token !== 'undefined') {
       dispatch(getAnnouncementDataAction());
     }
   }, [dispatch, loading, announcementLoading, announcementData?.data]);

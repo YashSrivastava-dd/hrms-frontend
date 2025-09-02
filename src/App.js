@@ -111,11 +111,7 @@ function App() {
         dispatch(getUserDataAction());
       } else {
         console.log('App: No valid auth data found, skipping user data fetch');
-        // For development/testing, we might want to dispatch anyway
-        if (process.env.NODE_ENV === 'development') {
-          console.log('App: Development mode - dispatching getUserDataAction anyway');
-          dispatch(getUserDataAction());
-        }
+        // Skip dispatching if no valid authentication data
       }
     } catch (error) {
       console.warn('Error accessing localStorage during app initialization:', error);
