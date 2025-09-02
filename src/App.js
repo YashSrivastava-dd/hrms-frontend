@@ -195,8 +195,10 @@ function App() {
     // Override alert function to catch undefined alerts
     const originalAlert = window.alert;
     window.alert = function(message) {
-      if (message && (message === 'undefined' || String(message).toLowerCase().includes('undefined'))) {
-        console.warn('Undefined alert suppressed:', message);
+      // Handle undefined, null, or empty messages
+      if (message === undefined || message === null || message === 'undefined' || 
+          String(message).toLowerCase().includes('undefined') || message === '') {
+        console.warn('Invalid alert message suppressed:', message);
         return; // Don't show the alert
       }
       return originalAlert.apply(this, arguments);

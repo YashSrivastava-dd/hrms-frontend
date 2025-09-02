@@ -1,5 +1,6 @@
 import axios from "axios";
 import { safeGetLocalStorage, isPrivateBrowsing } from "../../utils/safariHelpers";
+import safeToast from "../../utils/safeToast";
 import {
   ALL_EMPLOYEE_DATA_FAIL,
   ALL_EMPLOYEE_DATA_REQUEST,
@@ -350,7 +351,7 @@ export const postApplyLeaveByEmployee =
         leaveType,
         leaveStartDate,
         leaveEndDate,
-        totalDays,
+        totalDays: totalDays,
         reason,
         approvedBy,
         shift,
@@ -881,7 +882,7 @@ export const getRegularizationCountAction = () => async (dispatch, getState) => 
 };
 
 export const postApplyCompOffLeaveAction =
-  (compOffDate, reason) => async (dispatch, getState) => {
+  (compOffDate, reason, totalDays) => async (dispatch, getState) => {
     const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = localStorage.getItem("employeId");
@@ -908,17 +909,21 @@ export const postApplyCompOffLeaveAction =
       };
       const { data } = await axios.post(
         `${process.env.REACT_APP_BASE_URL}/api/leave/generate-compoff/${employeId}`,
-        { compOffDate, reason },
+        { compOffDate, reason, totalDayss: totalDays || 1 },
         config
       );
       dispatch({ type: POST_APPLY_COMPOFF_LEAVE_SUCCESS, payload: data });
-      // Removed alert and window.location.reload - let the component handle success
+      
+      // Show success message
+      safeToast.success(data?.message || "CompOff request submitted successfully!");
     } catch (error) {
-      // Removed alert - let the component handle error display
       dispatch({
         type: POST_APPLY_COMPOFF_LEAVE_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
       });
+      
+      // Show error message
+      safeToast.error(error.response?.data?.message || "Failed to submit CompOff request. Please try again.");
     }
   };
 
@@ -956,7 +961,7 @@ export const getCompoffLeaveRequestAction =
       dispatch({ type: GET_COMPOFF_LEAVE_APPROVAL_SUCCESS, payload: data });
 
       if (data?.statusCode === 201) {
-        alert(data?.message);
+        alert(data?.message || "Operation completed successfully");
         setTimeout(() => {
           window.location.reload();
         }, 1000);
@@ -965,7 +970,7 @@ export const getCompoffLeaveRequestAction =
       if (error.response?.data?.statusCode === 404) {
         return;
       } else {
-        alert(error.response?.data?.message);
+        alert(error.response?.data?.message || "An error occurred. Please try again.");
       }
       dispatch({
         type: GET_COMPOFF_LEAVE_APPROVAL_FAIL,
@@ -1210,7 +1215,7 @@ export const getEmoployeeDocumentsAction = () => async (dispatch, getState) => {
     dispatch({ type: GET_PUBLIC_DOCUMENTS_SUCCESS, payload: data });
 
     if (data?.statusCode === 201) {
-      alert(data?.message);
+      alert(data?.message || "Operation completed successfully");
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -1219,7 +1224,7 @@ export const getEmoployeeDocumentsAction = () => async (dispatch, getState) => {
     if (error.response?.data?.statusCode === 404) {
       return;
     } else {
-      alert(error.response?.data?.message);
+      alert(error.response?.data?.message || "An error occurred. Please try again.");
     }
     dispatch({
       type: GET_PUBLIC_DOCUMENTS_FAIL,
@@ -1405,7 +1410,7 @@ export const postEmployePrivateDocAction = () => async (dispatch, getState) => {
     dispatch({ type: GET_EMPLOYEE_PRIVATE_DOC_SUCCESS, payload: data });
 
     if (data?.statusCode === 201) {
-      alert(data?.message);
+      alert(data?.message || "Operation completed successfully");
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -1414,7 +1419,7 @@ export const postEmployePrivateDocAction = () => async (dispatch, getState) => {
     if (error.response?.data?.statusCode === 404) {
       return;
     } else {
-      alert(error.response?.data?.message);
+      alert(error.response?.data?.message || "An error occurred. Please try again.");
     }
     dispatch({
       type: GET_EMPLOYEE_PRIVATE_DOC_FAIL,
@@ -2230,7 +2235,7 @@ export const postVendorMeetingAction =
           leaveStartDate,
           leaveEndDate,
           reason,
-          totalDays: String(totalDays), // Convert to string as expected by API
+          totalDays: totalDays ? String(totalDays) : "1", // Convert to string, default to "1" if undefined
         },
         config
       );
@@ -2651,7 +2656,7 @@ export const postAddEmployeeAction =
       dispatch({ type: GET_COMPOFF_LEAVE_APPROVAL_SUCCESS, payload: data });
 
       if (data?.statusCode === 201) {
-        alert(data?.message);
+        alert(data?.message || "Operation completed successfully");
         setTimeout(() => {
           window.location.reload();
         }, 1000);
@@ -2660,7 +2665,7 @@ export const postAddEmployeeAction =
       if (error.response?.data?.statusCode === 404) {
         return;
       } else {
-        alert(error.response?.data?.message);
+        alert(error.response?.data?.message || "An error occurred. Please try again.");
       }
       dispatch({
         type: GET_COMPOFF_LEAVE_APPROVAL_FAIL,

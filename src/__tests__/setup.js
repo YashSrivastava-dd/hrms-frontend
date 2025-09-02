@@ -211,7 +211,7 @@ global.testUtils = {
     leaveType: 'casualLeave',
     leaveStartDate: '2025-01-15',
     leaveEndDate: '2025-01-15',
-    totalDays: '1',
+    totalDayss: '1',
     reason: 'Test leave reason',
     status,
     location: status === 'medicalLeave' ? 'https://example.com/medical.jpg' : '',

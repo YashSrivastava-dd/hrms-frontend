@@ -87,7 +87,7 @@ const mockLeaveData = [
     leaveType: "casualLeave",
     leaveStartDate: "2025-01-15",
     leaveEndDate: "2025-01-15",
-    totalDays: "1",
+    totalDayss: "1",
     reason: "Personal work",
     status: "Pending",
     location: "https://example.com/document.pdf",
@@ -1088,7 +1088,7 @@ export const testUtils = {
     leaveType: "casualLeave",
     leaveStartDate: "2025-01-15",
     leaveEndDate: "2025-01-15",
-    totalDays: "1",
+    totalDayss: "1",
     reason: "Test reason",
     status,
     employeeInfo: {

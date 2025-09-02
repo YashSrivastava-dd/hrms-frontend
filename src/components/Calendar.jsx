@@ -527,6 +527,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       }
       
       dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
+      closeModal(); // Close modal after CompOff submission
     } else if (actionType === 'leave') {
       // Handle Leave submissions (Short Leave, Regularization)
       const date = new Date(selectedDate + " 00:00:00");

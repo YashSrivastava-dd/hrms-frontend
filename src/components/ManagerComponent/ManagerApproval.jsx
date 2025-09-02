@@ -559,7 +559,7 @@ const ManagerApproval = () => {
     }
     
     // Open a modal or prompt to get the number of days to revert
-    const revertedDays = prompt(`Enter the number of days to revert for ${item?.employeeInfo?.employeeName}'s leave (${item?.totalDays} total days):`);
+    const revertedDays = prompt(`Enter the number of days to revert for ${item?.employeeInfo?.employeeName}'s leave (${item?.totalDays || 'N/A'} total days):`);
     
     if (revertedDays === null) {
       return; // User cancelled
@@ -567,7 +567,7 @@ const ManagerApproval = () => {
     
     const days = parseFloat(revertedDays);
     if (isNaN(days) || days <= 0 || days > item?.totalDays) {
-      safeToast.error(`Please enter a valid number of days (1 to ${item?.totalDays})`);
+      safeToast.error(`Please enter a valid number of days (1 to ${item?.totalDays || 'N/A'})`);
       return;
     }
     

@@ -229,7 +229,13 @@ const EmployessLeave = () => {
     };
 
     // Function to safely delete vendor meeting request
-    const handleDeleteVendorMeeting = async (vendorId) => {
+    const handleDeleteVendorMeeting = async (vendorId, status) => {
+        // Prevent deletion of approved vendor meeting requests
+        if (status === 'Approved') {
+            safeToast.error("Cannot delete approved vendor meeting requests");
+            return;
+        }
+        
         try {
             // Vendor meetings are stored in the same collection as regular leaves
             // So we use the regular leave delete action instead of the non-existent vendor delete action
@@ -241,7 +247,13 @@ const EmployessLeave = () => {
     };
 
     // Function to safely delete compoff request
-    const handleDeleteCompoff = async (compoffId) => {
+    const handleDeleteCompoff = async (compoffId, status) => {
+        // Prevent deletion of approved CompOff requests
+        if (status === 'Approved') {
+            safeToast.error("Cannot delete approved CompOff requests");
+            return;
+        }
+        
         try {
             await dispatch(deleteLeaveCompoffAction({ id: compoffId }));
         } catch (error) {
@@ -577,14 +589,21 @@ const EmployessLeave = () => {
                     </span>
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
-                    <button
-                        onClick={() => handleDeleteCompoff(item?._id)}
-                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-700 transition-colors duration-200"
-                        title="Delete Comp-Off Request"
-                    >
-                        <RxCross2 size={12} />
-                        <span className="ml-1">Delete</span>
-                    </button>
+                    {item?.status === 'Approved' ? (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-200 rounded-md cursor-not-allowed">
+                            <RxCross2 size={12} />
+                            <span className="ml-1">Cannot Delete</span>
+                        </span>
+                    ) : (
+                        <button
+                            onClick={() => handleDeleteCompoff(item?._id, item?.status)}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-700 transition-colors duration-200"
+                            title="Delete Comp-Off Request"
+                        >
+                            <RxCross2 size={12} />
+                            <span className="ml-1">Delete</span>
+                        </button>
+                    )}
                 </td>
             </tr>
         ));
@@ -660,14 +679,21 @@ const EmployessLeave = () => {
                     </span>
                 </td>
                 <td className="px-2 sm:px-4 py-3 sm:py-4">
-                    <button
-                        onClick={() => handleDeleteVendorMeeting(item?._id)}
-                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-700 transition-colors duration-200"
-                        title="Delete Vendor Meeting Request"
-                    >
-                        <RxCross2 size={12} />
-                        <span className="ml-1">Delete</span>
-                    </button>
+                    {item?.status === 'Approved' ? (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-200 rounded-md cursor-not-allowed">
+                            <RxCross2 size={12} />
+                            <span className="ml-1">Cannot Delete</span>
+                        </span>
+                    ) : (
+                        <button
+                            onClick={() => handleDeleteVendorMeeting(item?._id, item?.status)}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:text-red-700 transition-colors duration-200"
+                            title="Delete Vendor Meeting Request"
+                        >
+                            <RxCross2 size={12} />
+                            <span className="ml-1">Delete</span>
+                        </button>
+                    )}
                 </td>
             </tr>
         ));
