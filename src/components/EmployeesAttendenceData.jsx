@@ -316,6 +316,32 @@ const EmployeesAttendanceData = () => {
                   ? Array(10)
                     .fill(0)
                     .map((_, idx) => <SkeletonLoader key={idx} />)
+                  : !date.startDate && !date.endDate && employees.length === 0
+                  ? (
+                    <tr>
+                      <td colSpan="8" className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="text-6xl mb-4">📅</div>
+                          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Data Found</h3>
+                          <p className="text-gray-600 mb-4">No attendance data available for the current month.</p>
+                          <p className="text-sm text-gray-500">Please select a date range to view attendance records.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                  : employees.length === 0 && (date.startDate || date.endDate)
+                  ? (
+                    <tr>
+                      <td colSpan="8" className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="text-6xl mb-4">🔍</div>
+                          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Data Found</h3>
+                          <p className="text-gray-600 mb-4">No attendance records found for the selected date range.</p>
+                          <p className="text-sm text-gray-500">Try selecting a different date range or check if data exists for the selected period.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )
                   : employees
                     ?.map((employee, index) => {
                       const hours = Math.floor(employee.Duration / 60);
@@ -507,10 +533,11 @@ const EmployeesAttendanceData = () => {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-center sm:justify-end mt-4 gap-4">
-          <div className="text-sm text-gray-600">
-            Showing {startIndex + 1}-{Math.min(endIndex, filteredAndSortedEmployees.length)} of {filteredAndSortedEmployees.length} items
-          </div>
+        {filteredAndSortedEmployees.length > 0 && (
+          <div className="flex items-center justify-center sm:justify-end mt-4 gap-4">
+            <div className="text-sm text-gray-600">
+              Showing {startIndex + 1}-{Math.min(endIndex, filteredAndSortedEmployees.length)} of {filteredAndSortedEmployees.length} items
+            </div>
           {currentPage === 1 ? "" :
           <button
             onClick={handlePrevious}
@@ -530,6 +557,7 @@ const EmployeesAttendanceData = () => {
             Next
           </button>
         </div>
+        )}
       </div>
 
       {/* Records Modal */}
