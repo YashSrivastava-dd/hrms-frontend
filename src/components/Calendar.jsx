@@ -518,9 +518,9 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     const selectedDate = `${selectedDay} ${MONTHS[currentMonth]} ${currentYear}`;
 
     if (actionType === 'compOff') {
-      // Handle Comp-Off submissions (First Half, Second Half, or Full Day)
+      // Handle Comp-Off submissions (Half Day or Full Day)
       let totalDays = 0;
-      if (compOffDayType === 'firstHalf' || compOffDayType === 'secondHalf') {
+      if (compOffDayType === 'halfDay') {
         totalDays = 0.5;
       } else if (compOffDayType === 'fullDay') {
         totalDays = 1;
@@ -1506,8 +1506,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                       }`}
                     >
                       <span className="text-gray-700">
-                        {compOffDayType === 'firstHalf' ? 'First Half' : 
-                         compOffDayType === 'secondHalf' ? 'Second Half' : 
+                        {compOffDayType === 'halfDay' ? 'Half Day' : 
                          compOffDayType === 'fullDay' ? 'Full Day' : 
                          'Select Duration'}
                       </span>
@@ -1522,39 +1521,20 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 comp-off-duration-dropdown transition-all duration-200 ease-in-out">
                         <div className="p-2">
                           <button
-                            onClick={() => handleCompOffDurationSelect('firstHalf')}
+                            onClick={() => handleCompOffDurationSelect('halfDay')}
                             className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
-                              compOffDayType === 'firstHalf'
+                              compOffDayType === 'halfDay'
                                 ? 'bg-blue-500 text-white shadow-lg'
                                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                             }`}
                           >
                             <div className="flex items-center space-x-3">
                               <div className={`w-4 h-4 rounded-full border-2 ${
-                                compOffDayType === 'firstHalf' ? 'border-white bg-white' : 'border-gray-300'
+                                compOffDayType === 'halfDay' ? 'border-white bg-white' : 'border-gray-300'
                               }`}></div>
                               <div>
-                                <span className="font-medium">First Half</span>
-                                <p className="text-xs opacity-75">Morning shift (9 AM - 1 PM)</p>
-                              </div>
-                            </div>
-                          </button>
-                          
-                          <button
-                            onClick={() => handleCompOffDurationSelect('secondHalf')}
-                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 mt-1 ${
-                              compOffDayType === 'secondHalf'
-                                ? 'bg-blue-500 text-white shadow-lg'
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full border-2 ${
-                                compOffDayType === 'secondHalf' ? 'border-white bg-white' : 'border-gray-300'
-                              }`}></div>
-                              <div>
-                                <span className="font-medium">Second Half</span>
-                                <p className="text-xs opacity-75">Afternoon shift (2 PM - 6 PM)</p>
+                                <span className="font-medium">Half Day</span>
+                                <p className="text-xs opacity-75">Half day comp-off (4 hours)</p>
                               </div>
                             </div>
                           </button>
@@ -1573,7 +1553,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                               }`}></div>
                               <div>
                                 <span className="font-medium">Full Day</span>
-                                <p className="text-xs opacity-75">Complete day (9 AM - 6 PM)</p>
+                                <p className="text-xs opacity-75">Complete day comp-off (8 hours)</p>
                               </div>
                             </div>
                           </button>
