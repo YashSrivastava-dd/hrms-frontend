@@ -233,6 +233,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
 
 
+
+
   // Memoized functions
   const getDayType = useCallback((day) => {
     const formattedDate = `${day} ${MONTHS[currentMonth]} ${currentYear}`;
@@ -244,7 +246,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         inTimeData: null,
         isLeaveTaken: null,
         Status: null,
-        leaveType: null
+        leaveType: null,
+        workingDays: null
       };
     }
 
@@ -255,7 +258,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       inTimeData: inTimeData || null,
       isLeaveTaken: dayOff?.isLeaveTaken || null,
       Status: dayOff?.Status || null,
-      leaveType: dayOff?.leaveType || null
+      leaveType: dayOff?.leaveType || null,
+      workingDays: dayOff?.workingDays || null
     };
   }, [dayLogs, currentMonth, currentYear]);
 
@@ -347,8 +351,30 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const isWeekend = useCallback((day) => {
     const date = new Date(currentYear, currentMonth, day);
     const dayOfWeek = date.getDay();
-    return dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
-  }, [currentYear, currentMonth]);
+    
+    // Get the working days configuration for this day
+    const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
+    let workingDays = dayData?.workingDays;
+    
+    // If no workingDays found for this specific day, try to find it from any day in the month
+    if (!workingDays && dayLogs && dayLogs.length > 0) {
+      const anyDayWithWorkingDays = dayLogs.find(log => log.workingDays);
+      workingDays = anyDayWithWorkingDays?.workingDays;
+    }
+    
+    // If workingDays is 6, then Saturday (6) is a working day, only Sunday (0) is weekend
+    if (workingDays === "6") {
+      return dayOfWeek === 0; // Only Sunday is weekend
+    }
+    // If workingDays is 5, then both Saturday (6) and Sunday (0) are weekends
+    else if (workingDays === "5") {
+      return dayOfWeek === 0 || dayOfWeek === 6; // Sunday and Saturday are weekends
+    }
+    // Default behavior for other cases (fallback to standard weekend)
+    else {
+      return dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+    }
+  }, [currentYear, currentMonth, dayLogs]);
 
   // Check if a day is weekday (Monday to Friday)
   const isWeekday = useCallback((day) => {
@@ -413,6 +439,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
     const { AttendanceStatus, inTimeData, isLeaveTaken } = getDayType(day);
     const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
+    
+    // Get working days configuration (same logic as isWeekend function)
+    let workingDays = dayData?.workingDays;
+    if (!workingDays && dayLogs && dayLogs.length > 0) {
+      const anyDayWithWorkingDays = dayLogs.find(log => log.workingDays);
+      workingDays = anyDayWithWorkingDays?.workingDays;
+    }
 
     // Base classes for different attendance statuses
     let baseClass = "";
@@ -429,6 +462,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         // Weekend with no data - show as off day
         baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
       }
+    }
+    // Special case: WeeklyOff status but employee has 6 working days (Saturday should be green)
+    else if (AttendanceStatus === "WeeklyOff" && workingDays === "6") {
+      // For 6-day employees, Saturday with WeeklyOff status should be treated as a regular working day
+      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
     }
     // Weekday minimum hours check
     else if (isWeekday(day) && dayData && !meetsWeekdayMinimumHours(dayData) && dayData.PunchRecords) {
@@ -1002,12 +1040,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       }
     }
     
-    // Debug logging (remove in production)
-    console.log("Working Days Calculation Debug:", {
-      totalLogs: currentMonthLogs.length,
-      workingDays,
-      debugInfo
-    });
+
     
     return workingDays;
   }, [dayLogs, currentMonth, currentYear, isWeekend, getWeekendCompOffEligibility]);
