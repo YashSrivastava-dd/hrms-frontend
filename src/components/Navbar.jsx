@@ -75,13 +75,35 @@ function Navbar({ onToggleSidebar }) {
   const pendingVendorNotifications = (userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") ? vendorReqData?.filter((item) => item.status === "Pending") || [] : [];
   const pendingRevertNotifications = (userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") ? leaveReqData?.filter((item) => item?.revertLeave?.status === "Pending") || [] : [];
   
-  // Combine all notifications with type indicators
+  // Combine all notifications with type indicators and sort by most recent applied date
   const pendingNotifications = [
     ...pendingLeaveNotifications.map(item => ({ ...item, type: 'leave' })),
     ...pendingCompOffNotifications.map(item => ({ ...item, type: 'compoff' })),
     ...pendingVendorNotifications.map(item => ({ ...item, type: 'vendor' })),
     ...pendingRevertNotifications.map(item => ({ ...item, type: 'revert' }))
-  ];
+  ].sort((a, b) => {
+    // Get the applied date for each notification type
+    const getAppliedDate = (item) => {
+      switch (item.type) {
+        case 'leave':
+          return new Date(item?.appliedDate || item?.createdAt || item?.dateTime || 0);
+        case 'compoff':
+          return new Date(item?.appliedDate || item?.dateTime || item?.createdAt || 0);
+        case 'vendor':
+          return new Date(item?.appliedDate || item?.dateTime || item?.createdAt || 0);
+        case 'revert':
+          return new Date(item?.revertLeave?.requestedDateTime || item?.appliedDate || item?.createdAt || 0);
+        default:
+          return new Date(item?.appliedDate || item?.createdAt || item?.dateTime || 0);
+      }
+    };
+
+    const dateA = getAppliedDate(a);
+    const dateB = getAppliedDate(b);
+    
+    // Sort in descending order (most recent first)
+    return dateB - dateA;
+  });
 
   // Employee notifications - announcements and warnings
   const employeeNotifications = (userType !== "Manager" && userType !== "Super-Admin" && userType !== "HR-Admin") ? 

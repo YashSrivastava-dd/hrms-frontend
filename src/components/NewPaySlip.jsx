@@ -31,11 +31,11 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
       
       // Configure html2pdf with filename
       const options = {
-        margin: 0.5,
+        margin: [0.2, 0.2, 0.2, 0.2], // Reduced margins: top, right, bottom, left
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
-          scale: 2,
+          scale: 1.5, // Reduced scale for better fit
           useCORS: true,
           letterRendering: true,
           allowTaint: true,
@@ -91,7 +91,7 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
       {/* Main Payslip Container */}
       <div
         id="invoice"
-        className="mx-auto my-0 p-8 border border-gray-300 font-sans text-sm text-gray-900 bg-white"
+        className="mx-auto my-0 p-4 border border-gray-300 font-sans text-sm text-gray-900 bg-white"
         style={{ maxWidth: "794px" }} // A4 at 96 DPI
       >
         {/* Header */}
@@ -115,7 +115,7 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
         </div>
 
         {/* Employee Summary */}
-        <div className="flex justify-between border-b border-gray-300 p-4">
+        <div className="flex justify-between border-b border-gray-300 p-2">
           <div className="w-1/2">
             <div className="text-xs font-bold text-gray-500">
               Employee Fixed Gross
@@ -153,8 +153,8 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
         </div>
         
         {/* Bank details */}
-        <div className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs border-b border-gray-300 pb-2">
+        <div className="p-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs border-b border-gray-300 pb-2">
             {[...[
               { label: "Bank Name", value: payslipModelData?.employee_basic_details?.bank_name },
               { label: "Bank IFSC", value: payslipModelData?.employee_basic_details?.bank_ifsc },
@@ -177,8 +177,8 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
         </div>
 
         {/* Earnings and Deductions */}
-        <div className="p-4 text-xs">
-          <div className="grid grid-cols-2 gap-4 font-semibold border-b border-gray-300 pb-2">
+        <div className="p-2 text-xs">
+          <div className="grid grid-cols-2 gap-2 font-semibold border-b border-gray-300 pb-2">
             <div>EARNINGS</div>
             <div className="text-right">AMOUNT</div>
           </div>
@@ -189,20 +189,20 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
             { label: "Travel Allowance", amount: payslipModelData?.salary_details?.travel_allowances },
             { label: "Special Allowance", amount: payslipModelData?.salary_details?.special_allowances }
           ]].map((item, index) => (
-            <div key={index} className="grid grid-cols-2 gap-4 py-1 border-b border-gray-100">
+            <div key={index} className="grid grid-cols-2 gap-2 py-1 border-b border-gray-100">
               <div className="font-medium">{item.label}</div>
               <div className="text-right">₹{item.amount}</div>
             </div>
           ))}
 
-          <div className="grid grid-cols-2 gap-4 py-2 font-semibold border-t border-gray-300 mt-2">
+          <div className="grid grid-cols-2 gap-2 py-2 font-semibold border-t border-gray-300 mt-2">
             <div className="font-bold">Gross Earnings - A</div>
             <div className="text-right">
               ₹{payslipModelData?.salary_details?.total_gross_salary}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-xs font-semibold border-t border-gray-300 pt-4 mt-4">
+          <div className="grid grid-cols-2 gap-2 text-xs font-semibold border-t border-gray-300 pt-2 mt-2">
             <div>DEDUCTIONS</div>
             <div className="text-right">AMOUNT</div>
           </div>
@@ -215,13 +215,13 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
             { label: "Transport and others", amount: payslipModelData?.salary_details?.transport_or_others },
             { label: "Penalty", amount: payslipModelData?.salary_details?.penalty }
           ]].map((item, index) => (
-            <div key={index} className="grid grid-cols-2 gap-4 py-1 border-b border-gray-100">
+            <div key={index} className="grid grid-cols-2 gap-2 py-1 border-b border-gray-100">
               <div className="font-medium">{item.label}</div>
               <div className="text-right">₹{item.amount}</div>
             </div>
           ))}
 
-          <div className="grid grid-cols-2 gap-4 py-2 font-semibold border-t border-gray-300 mt-1">
+          <div className="grid grid-cols-2 gap-2 py-2 font-semibold border-t border-gray-300 mt-1">
             <div className="font-bold">Total Deductions - B</div>
             <div className="text-right">
               ₹{(
@@ -232,9 +232,9 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
         </div>
 
         {/* Net Pay */}
-        <div className="border-t border-gray-300 p-4 text-sm">
-          <div className="font-semibold mb-1">NET PAY</div>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="border-t border-gray-300 p-1 text-sm">
+          <div className="font-semibold mb-0.5">NET PAY</div>
+          <div className="grid grid-cols-2 gap-2">
             <div className="font-bold">Gross Earnings - A</div>
             <div className="text-right">
               ₹{payslipModelData?.salary_details?.total_gross_salary}
@@ -247,7 +247,7 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
               ).toFixed(2)}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 mt-1 border-t border-gray-300 pt-1 font-bold">
+          <div className="grid grid-cols-2 gap-2 mt-1 border-t border-gray-300 pt-1 font-bold">
             <div>Total Net Payable (A - B)</div>
             <div className="text-right text-green-700">
               ₹{netPay.toFixed(2)}
@@ -256,13 +256,13 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
         </div>
 
         {/* Footer Note */}
-        <div className="bg-gray-100 text-center p-2 text-xs font-normal italic">
+        <div className="bg-gray-100 text-center p-1 text-xs font-normal italic">
           Total Net Payable{" "}
           <span className="font-bold text-black not-italic">
             ₹{netPay.toFixed(2)}
           </span>{" "}
           Inr {toTitleCase(toWords(Number(netPay.toFixed(0))))} Only
-          <div className="text-xs font-normal mt-1">
+          <div className="text-xs font-normal mt-0.5">
             **Total Net Payable = Gross Earnings - Total Deductions
           </div>
         </div>

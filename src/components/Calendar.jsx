@@ -417,13 +417,17 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     // Base classes for different attendance statuses
     let baseClass = "";
     
-    // Weekend comp-off cases (check first as they have priority)
-    if (isWeekend(day) && dayData && dayData.PunchRecords) {
-      const compOffEligibility = getWeekendCompOffEligibility(dayData);
-      if (compOffEligibility === 'fullDay') {
-        baseClass = "bg-purple-100 text-purple-800 border-2 border-purple-400 hover:bg-purple-200";
-      } else if (compOffEligibility === 'halfDay') {
-        baseClass = "bg-indigo-100 text-indigo-800 border-2 border-indigo-400 hover:bg-indigo-200";
+    // Weekend cases (check first as they have priority)
+    if (isWeekend(day)) {
+      if (dayData && dayData.PunchRecords) {
+        // Weekend with punch records - check for comp-off eligibility
+        const compOffEligibility = getWeekendCompOffEligibility(dayData);
+        if (compOffEligibility === 'fullDay' || compOffEligibility === 'halfDay') {
+          baseClass = "bg-purple-100 text-purple-800 border-2 border-purple-400 hover:bg-purple-200";
+        }
+      } else {
+        // Weekend with no data - show as off day
+        baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
       }
     }
     // Weekday minimum hours check
@@ -687,15 +691,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     
     const { AttendanceStatus, isLeaveTaken, leaveType, PunchRecords, InTime, OutTime, Duration } = dayData;
     
-    // Check if this is weekend work eligible for comp-off
+    // Check if this is weekend work - show actual hours worked
     const dayDate = dayData.AttendanceDate ? new Date(dayData.AttendanceDate) : null;
     if (dayDate && isWeekend(dayDate.getDate()) && PunchRecords) {
-      const compOffEligibility = getWeekendCompOffEligibility(dayData);
-      if (compOffEligibility === 'fullDay') {
-        return "08:00"; // Full day comp-off
-      } else if (compOffEligibility === 'halfDay') {
-        return "04:00"; // Half day comp-off
-      }
+      // For weekends, show the actual hours worked, not comp-off hours
+      return calculateTotalHours(PunchRecords);
     }
     
     // If Duration field is available and valid, use it (this might be the source of "8h3mins")
@@ -1348,16 +1348,16 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           <span className="text-xs text-gray-700">Regular</span>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gray-100 border border-gray-300 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Off Day</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded shadow-lg flex-shrink-0"></div>
                           <span className="text-xs text-gray-700">Today</span>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-purple-100 border-2 border-purple-400 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Weekend Full Day</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-indigo-100 border-2 border-indigo-400 rounded flex-shrink-0"></div>
-                          <span className="text-xs text-gray-700">Weekend Half Day</span>
+                          <span className="text-xs text-gray-700">Weekend Comp-Off</span>
                         </div>
                         
                       </div>

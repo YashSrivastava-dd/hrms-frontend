@@ -202,7 +202,10 @@ const ManagerApproval = () => {
 
   // Simple Approve/Reject Buttons Component
   const ApproveRejectButtons = useCallback(({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick }) => {
-    const isPending = item?.status === "Pending";
+    // For revert requests, check the revertLeave status, otherwise check the main status
+    const isPending = actionType === "revert" 
+      ? item?.revertLeave?.status === "Pending"
+      : item?.status === "Pending";
 
 
 
@@ -262,13 +265,18 @@ const ManagerApproval = () => {
 
     // If not pending, show status instead of dropdown
     if (!isPending) {
-      const statusClass = item?.status === "Approved" ? "bg-green-100 text-green-800" : 
-                         item?.status === "Rejected" ? "bg-red-100 text-red-800" : 
+      // For revert requests, get status from revertLeave, otherwise from main item
+      const currentStatus = actionType === "revert" 
+        ? item?.revertLeave?.status 
+        : item?.status;
+        
+      const statusClass = currentStatus === "Approved" ? "bg-green-100 text-green-800" : 
+                         currentStatus === "Rejected" ? "bg-red-100 text-red-800" : 
                          "bg-gray-100 text-gray-800";
       
       return (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
-          {item?.status || "---"}
+          {currentStatus || "---"}
         </span>
       );
     }
@@ -1092,6 +1100,7 @@ const ManagerApproval = () => {
     return pendingRevertRequests?.map((item, index) => {
       const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "?";
       const requestDate = item?.revertLeave?.requestedDateTime?.split(' ')[0] || "---";
+      const revertDays = item?.revertLeave?.revertedDays || item?.revertLeave?.days || "---";
       
       return (
         <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
@@ -1110,6 +1119,11 @@ const ManagerApproval = () => {
           <td className="px-6 py-4 text-center whitespace-nowrap">
             <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
               {requestDate}
+            </span>
+          </td>
+          <td className="px-6 py-4 text-center whitespace-nowrap">
+            <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full font-medium">
+              {revertDays} {revertDays === 1 ? 'day' : 'days'}
             </span>
           </td>
           <td className="px-6 py-4 text-center">

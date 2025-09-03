@@ -1621,10 +1621,7 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                     <p className="text-lg font-bold text-blue-800">₹{parseInt(formData.salary_details.employee_pf || 0) + parseInt(formData.salary_details.employee_esi || 0) + parseInt(formData.salary_details.tds || 0)}</p>
                   </div>
                 </div>
-                <div className="mt-3 text-xs text-blue-600 text-center">
-                  <p><span className="font-medium">Employee Type:</span> {employeeData?.employmentType || 'Not specified'}</p>
-                  <p><span className="font-medium">Calculation Status:</span> {formData.salary_details.basic_salary ? 'Completed' : 'Pending - Enter Gross Salary'}</p>
-                </div>
+
               </div>
             )}
           </div>
@@ -1660,14 +1657,14 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
               </div>
             </div>
             
-            {employeeData?.salary_details?.net_pay && (
+            {/* {employeeData?.salary_details?.net_pay && (
               <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-700">
                   <span className="font-medium">Note:</span> The net pay shown above is calculated based on the form inputs. 
                   The API-provided net pay is ₹{parseFloat(employeeData.salary_details.net_pay).toLocaleString()}.
                 </p>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Submit Button */}
