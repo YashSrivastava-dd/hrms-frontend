@@ -293,6 +293,32 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     return uniquePunches;
   }, []);
 
+  // Calculate total hours from punch records
+  const calculateTotalHours = useCallback((punchRecords) => {
+    if (!punchRecords) return "00:00";
+    
+    const punches = cleanPunchRecords(punchRecords);
+    const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
+    const outTimes = punches.filter(p => p.includes("(OUT")).map(p => formatTime(p));
+    
+    if (inTimes.length === 0 || outTimes.length === 0) return "00:00";
+    
+    // Calculate total hours from first in and last out
+    const firstIn = inTimes[0];
+    const lastOut = outTimes[outTimes.length - 1];
+    
+    if (!firstIn || !lastOut) return "00:00";
+    
+    const inMinutes = parseInt(firstIn.split(':')[0]) * 60 + parseInt(firstIn.split(':')[1]);
+    const outMinutes = parseInt(lastOut.split(':')[0]) * 60 + parseInt(lastOut.split(':')[1]);
+    
+    const totalMinutes = outMinutes - inMinutes;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }, [formatTime, cleanPunchRecords]);
+
   // Check if regularization is allowed based on punch-in time
   const isRegularizationAllowed = useCallback((dayData) => {
     if (!dayData || !dayData.PunchRecords) return false;
@@ -317,6 +343,54 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     return totalMinutes >= minTime && totalMinutes <= maxTime;
   }, [cleanPunchRecords, formatTime]);
 
+  // Check if a day is weekend (Saturday or Sunday)
+  const isWeekend = useCallback((day) => {
+    const date = new Date(currentYear, currentMonth, day);
+    const dayOfWeek = date.getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+  }, [currentYear, currentMonth]);
+
+  // Check if a day is weekday (Monday to Friday)
+  const isWeekday = useCallback((day) => {
+    return !isWeekend(day);
+  }, [isWeekend]);
+
+  // Calculate comp-off eligibility for weekend work
+  const getWeekendCompOffEligibility = useCallback((dayData) => {
+    if (!dayData || !isWeekend(dayData.AttendanceDate ? new Date(dayData.AttendanceDate).getDate() : null)) {
+      return null;
+    }
+
+    const totalHours = calculateTotalHours(dayData.PunchRecords);
+    if (totalHours === "00:00") return null;
+
+    const [hours, minutes] = totalHours.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+
+    if (totalMinutes >= 240) { // 4 hours or more
+      return 'fullDay';
+    } else if (totalMinutes >= 60) { // 1 hour or more
+      return 'halfDay';
+    }
+
+    return null;
+  }, [isWeekend, calculateTotalHours]);
+
+  // Check if weekday work meets minimum hours requirement
+  const meetsWeekdayMinimumHours = useCallback((dayData) => {
+    if (!dayData || !isWeekday(dayData.AttendanceDate ? new Date(dayData.AttendanceDate).getDate() : null)) {
+      return true; // Not a weekday, so no minimum requirement
+    }
+
+    const totalHours = calculateTotalHours(dayData.PunchRecords);
+    if (totalHours === "00:00") return false;
+
+    const [hours, minutes] = totalHours.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+
+    return totalMinutes >= 240; // 4 hours minimum for weekdays
+  }, [isWeekday, calculateTotalHours]);
+
   const getDayClass = useCallback((day) => {
     if (!day) return "bg-transparent";
     
@@ -337,20 +411,33 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         : "bg-blue-500 text-white shadow-white shadow-lg ring-2 ring-blue-300";
     }
 
-    const { AttendanceStatus, inTimeData, isLeaveTaken, Status } = getDayType(day);
+    const { AttendanceStatus, inTimeData, isLeaveTaken } = getDayType(day);
+    const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
 
     // Base classes for different attendance statuses
     let baseClass = "";
     
+    // Weekend comp-off cases (check first as they have priority)
+    if (isWeekend(day) && dayData && dayData.PunchRecords) {
+      const compOffEligibility = getWeekendCompOffEligibility(dayData);
+      if (compOffEligibility === 'fullDay') {
+        baseClass = "bg-purple-100 text-purple-800 border-2 border-purple-400 hover:bg-purple-200";
+      } else if (compOffEligibility === 'halfDay') {
+        baseClass = "bg-indigo-100 text-indigo-800 border-2 border-indigo-400 hover:bg-indigo-200";
+      }
+    }
+    // Weekday minimum hours check
+    else if (isWeekday(day) && dayData && !meetsWeekdayMinimumHours(dayData) && dayData.PunchRecords) {
+      baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
+    }
     // Leave taken cases
-    if (AttendanceStatus === "Present" || isLeaveTaken === true || 
+    else if (AttendanceStatus === "Present" || isLeaveTaken === true || 
         (AttendanceStatus === "Absent" && isLeaveTaken === true)) {
       baseClass = "bg-white text-gray-900 border-2 border-gray-900 shadow-sm hover:shadow-md";
     }
     // Absent cases
-    else if (AttendanceStatus === "Absent" && (Status === 'Present' || Status === 'Absent')) {
+    else if (AttendanceStatus === "Absent") {
       // Check if this day is eligible for regularization
-      const dayData = dayLogs?.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
       const isRegularizationEligible = dayData && isRegularizationAllowed(dayData);
       
       if (isRegularizationEligible) {
@@ -359,7 +446,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
       }
     }
-    else if (AttendanceStatus === "Absent" || Status === 'WeeklyOff') {
+    else if (AttendanceStatus === "WeeklyOff") {
       baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
     }
     // Present cases
@@ -392,7 +479,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
 
     return baseClass;
-  }, [getDayType, isToday, clickedDay, currentYear, currentMonth, dayLogs, isRegularizationAllowed]);
+  }, [getDayType, isToday, clickedDay, currentYear, currentMonth, dayLogs, isRegularizationAllowed, isWeekend, isWeekday, getWeekendCompOffEligibility, meetsWeekdayMinimumHours]);
 
   const getLeaveTypeDisplay = useCallback((leaveType) => {
     return LEAVE_TYPE_MAP[leaveType] || leaveType;
@@ -458,17 +545,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
     // Allow selection for current date - 35 days (for Short Leave and Regularization)
     if (isValidDate) {
-      // For regularization, check if the user's punch-in time allows it
-      if (selectedDayData && selectedDayData.AttendanceStatus === "Absent") {
-        // Check if regularization is allowed based on punch-in time
-        if (!isRegularizationAllowed(selectedDayData)) {
-          safeToast.error(
-            "Regularization is only allowed if you punched in between 9:15 AM and 9:31 AM. Please check your punch-in time."
-          );
-          return;
-        }
-      }
-      
       setSelectedDay(day);
       setModalOpen(true);
       
@@ -478,7 +554,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         "You can only apply Short Leave and Regularization for dates within the last 35 days from today."
       );
     }
-  }, [currentYear, currentMonth, dayLogs, onDaySelect, isRegularizationAllowed]);
+  }, [currentYear, currentMonth, dayLogs, onDaySelect]);
 
   // This function handles the actual submission of leave/comp-off requests
   // Short Leave shows immediate notification, others use Redux state to avoid duplicates
@@ -534,14 +610,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       
       if (selectType === 'regularized') {
-        // For regularization, check if the user's punch-in time allows it
-        const selectedDayData = dayLogs?.find((log) => log.AttendanceDate === selectedDate);
-        if (selectedDayData && !isRegularizationAllowed(selectedDayData)) {
-          safeToast.error(
-            "Regularization is only allowed if you punched in between 9:15 AM and 9:31 AM. Please check your punch-in time."
-          );
-          return;
-        }
+        // Handle regularization submission
         dispatch(postApplyRegularizationAction(selectType, formattedDate, reason));
         // No immediate notification - let Redux state handle it
       } else if (selectType === 'shortLeave') {
@@ -556,7 +625,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     }
     
     // Don't close modal here - it will be closed by the success effect
-  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType, isRegularizationAllowed]);
+  }, [actionType, selectType, reason, selectedDay, currentMonth, currentYear, dispatch, compOffDayType]);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -612,37 +681,22 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setShowReasonError(false); // Clear validation error when user starts typing
   }, []);
 
-  // Calculate total hours from punch records
-  const calculateTotalHours = useCallback((punchRecords) => {
-    if (!punchRecords) return "00:00";
-    
-    const punches = cleanPunchRecords(punchRecords);
-    const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
-    const outTimes = punches.filter(p => p.includes("(OUT")).map(p => formatTime(p));
-    
-    if (inTimes.length === 0 || outTimes.length === 0) return "00:00";
-    
-    // Calculate total hours from first in and last out
-    const firstIn = inTimes[0];
-    const lastOut = outTimes[outTimes.length - 1];
-    
-    if (!firstIn || !lastOut) return "00:00";
-    
-    const inMinutes = parseInt(firstIn.split(':')[0]) * 60 + parseInt(firstIn.split(':')[1]);
-    const outMinutes = parseInt(lastOut.split(':')[0]) * 60 + parseInt(lastOut.split(':')[1]);
-    
-    const totalMinutes = outMinutes - inMinutes;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  }, [formatTime, cleanPunchRecords]);
-
   // Calculate effective hours considering leave types and special cases
   const calculateEffectiveHours = useCallback((dayData) => {
     if (!dayData) return "00:00";
     
-    const { AttendanceStatus, Status, isLeaveTaken, leaveType, PunchRecords, InTime, OutTime, Duration } = dayData;
+    const { AttendanceStatus, isLeaveTaken, leaveType, PunchRecords, InTime, OutTime, Duration } = dayData;
+    
+    // Check if this is weekend work eligible for comp-off
+    const dayDate = dayData.AttendanceDate ? new Date(dayData.AttendanceDate) : null;
+    if (dayDate && isWeekend(dayDate.getDate()) && PunchRecords) {
+      const compOffEligibility = getWeekendCompOffEligibility(dayData);
+      if (compOffEligibility === 'fullDay') {
+        return "08:00"; // Full day comp-off
+      } else if (compOffEligibility === 'halfDay') {
+        return "04:00"; // Half day comp-off
+      }
+    }
     
     // If Duration field is available and valid, use it (this might be the source of "8h3mins")
     if (Duration && Duration !== "" && Duration !== "00:00") {
@@ -664,7 +718,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     
     // Debug logging for regularization days only
     if (leaveType === "regularized" || leaveType === "RL" || 
-        (Status === "Present" && AttendanceStatus === "Absent") ||
         (isLeaveTaken === true && AttendanceStatus === "Absent") ||
         dayData?.RegularizationStatus === "Approved" ||
         dayData?.IsRegularized === true ||
@@ -715,7 +768,6 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     
     // 3. Regularization (RL) - calculate from actual punch records or use standard hours
     if (leaveType === "regularized" || leaveType === "RL" || 
-        (Status === "Present" && AttendanceStatus === "Absent") || // Present status with absent attendance
         (isLeaveTaken === true && AttendanceStatus === "Absent") || // Leave taken but marked as absent (likely regularization)
         dayData?.RegularizationStatus === "Approved" || // Check if regularization status is approved
         dayData?.IsRegularized === true || // Check if isRegularized flag is true
@@ -790,8 +842,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       }
     }
     
-    // 8. Present status - use actual punch records
-    if (Status === "Present") {
+    // 8. Present attendance status - use actual punch records
+    if (AttendanceStatus === "Present") {
       if (PunchRecords) {
         return calculateTotalHours(PunchRecords);
       } else if (InTime && OutTime) {
@@ -806,7 +858,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
         }
       }
-      // Default to 8 hours for present status
+      // Default to 8 hours for present attendance status
       return "08:00";
     }
     
@@ -828,7 +880,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     
     // Default case - no hours
     return "00:00";
-  }, [calculateTotalHours, formatTime]);
+  }, [calculateTotalHours, formatTime, isWeekend, getWeekendCompOffEligibility]);
 
   // Calculate working days for the current month including regularization
   const calculateWorkingDays = useCallback(() => {
@@ -845,14 +897,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     
     for (let i = 0; i < currentMonthLogs.length; i++) {
       const log = currentMonthLogs[i];
-      const { AttendanceStatus, Status, isLeaveTaken, leaveType } = log;
+      const { AttendanceStatus, isLeaveTaken, leaveType } = log;
       const date = log.AttendanceDate;
       
       // Debug: Log what we're processing
       debugInfo.push({
         date,
         AttendanceStatus,
-        Status,
         isLeaveTaken,
         leaveType,
         counted: false
@@ -860,7 +911,24 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       
       // Count as working day if ANY of these conditions are met:
       
-      // 1. Full Day or Half Day attendance (definitely working)
+      // 1. Weekend comp-off work (check first as it has priority)
+      const dayDate = new Date(log.AttendanceDate);
+      if (isWeekend(dayDate.getDate()) && log.PunchRecords) {
+        const compOffEligibility = getWeekendCompOffEligibility(log);
+        if (compOffEligibility === 'fullDay') {
+          workingDays++;
+          debugInfo[debugInfo.length - 1].counted = true;
+          debugInfo[debugInfo.length - 1].reason = "Weekend Full Day Comp-Off";
+          continue;
+        } else if (compOffEligibility === 'halfDay') {
+          workingDays++;
+          debugInfo[debugInfo.length - 1].counted = true;
+          debugInfo[debugInfo.length - 1].reason = "Weekend Half Day Comp-Off";
+          continue;
+        }
+      }
+      
+      // 2. Full Day or Half Day attendance (definitely working)
       if (AttendanceStatus === "Full Day" || AttendanceStatus === "Half Day") {
         workingDays++;
         debugInfo[debugInfo.length - 1].counted = true;
@@ -868,9 +936,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         continue;
       }
       
-      // 2. Regularization applied (RL) - this is a working day
+      // 3. Regularization applied (RL) - this is a working day
       if (leaveType === "regularized" || leaveType === "RL" ||
-          (Status === "Present" && AttendanceStatus === "Absent") ||
           (isLeaveTaken === true && AttendanceStatus === "Absent") ||
           log?.RegularizationStatus === "Approved" ||
           log?.IsRegularized === true ||
@@ -897,11 +964,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         continue;
       }
       
-      // 6. Present status (regardless of attendance status)
-      if (Status === "Present") {
+      // 6. Present attendance status
+      if (AttendanceStatus === "Present") {
         workingDays++;
         debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Status Present";
+        debugInfo[debugInfo.length - 1].reason = "Attendance Present";
         continue;
       }
       
@@ -918,7 +985,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           leaveType !== "shortLeave" && leaveType !== "SL" && 
           leaveType !== "compOffLeave" && leaveType !== "C-Off") {
         // Check if this is an approved leave type
-        if (isLeaveTaken === true || Status === "Present") {
+        if (isLeaveTaken === true || AttendanceStatus === "Present") {
           workingDays++;
           debugInfo[debugInfo.length - 1].counted = true;
           debugInfo[debugInfo.length - 1].reason = `Other Leave: ${leaveType}`;
@@ -926,11 +993,11 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
         }
       }
       
-      // 9. Special case: If status shows "Present" in any form
-      if (Status && Status.toLowerCase().includes("present")) {
+      // 9. Special case: If attendance status shows "Present" in any form
+      if (AttendanceStatus && AttendanceStatus.toLowerCase().includes("present")) {
         workingDays++;
         debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Status Present (variation)";
+        debugInfo[debugInfo.length - 1].reason = "Attendance Present (variation)";
         continue;
       }
     }
@@ -943,7 +1010,7 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     });
     
     return workingDays;
-  }, [dayLogs, currentMonth, currentYear]);
+  }, [dayLogs, currentMonth, currentYear, isWeekend, getWeekendCompOffEligibility]);
 
   // Get detailed working days breakdown for debugging
   const getWorkingDaysBreakdown = useCallback(() => {
@@ -960,13 +1027,25 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       regularization: 0,
       shortLeave: 0,
       compOff: 0,
+      weekendCompOff: 0,
       otherLeaves: 0,
       presentStatus: 0,
       total: 0
     };
     
     currentMonthLogs.forEach(log => {
-      const { AttendanceStatus, Status, isLeaveTaken, leaveType } = log;
+      const { AttendanceStatus, isLeaveTaken, leaveType } = log;
+      
+      // Check for weekend comp-off first
+      const dayDate = new Date(log.AttendanceDate);
+      if (isWeekend(dayDate.getDate()) && log.PunchRecords) {
+        const compOffEligibility = getWeekendCompOffEligibility(log);
+        if (compOffEligibility === 'fullDay' || compOffEligibility === 'halfDay') {
+          breakdown.weekendCompOff++;
+          breakdown.total++;
+          return; // Skip other checks for weekend comp-off
+        }
+      }
       
       if (AttendanceStatus === "Full Day") {
         breakdown.fullDay++;
@@ -983,17 +1062,17 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
       } else if (leaveType === "compOffLeave" || leaveType === "C-Off") {
         breakdown.compOff++;
         breakdown.total++;
-      } else if (Status === "Present" || (isLeaveTaken === true && AttendanceStatus !== "Absent")) {
+      } else if (AttendanceStatus === "Present" || (isLeaveTaken === true && AttendanceStatus !== "Absent")) {
         breakdown.otherLeaves++;
         breakdown.total++;
-      } else if (Status && Status.toLowerCase().includes("present")) {
+      } else if (AttendanceStatus && AttendanceStatus.toLowerCase().includes("present")) {
         breakdown.presentStatus++;
         breakdown.total++;
       }
     });
     
     return breakdown;
-  }, [dayLogs, currentMonth, currentYear]);
+  }, [dayLogs, currentMonth, currentYear, isWeekend, getWeekendCompOffEligibility]);
 
   // Get attendance summary for selected day
   const getAttendanceSummary = useCallback(() => {
@@ -1077,9 +1156,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                           </div>
                           <div>
                             <p className="font-medium text-gray-700">Leaves:</p>
-                                                    <p>• Regularization: {breakdown.regularization}</p>
-                        <p>• Short Leave: {breakdown.shortLeave}</p>
+                            <p>• Regularization: {breakdown.regularization}</p>
+                            <p>• Short Leave: {breakdown.shortLeave}</p>
                             <p>• Comp-Off: {breakdown.compOff}</p>
+                            <p>• Weekend Comp-Off: {breakdown.weekendCompOff}</p>
                             <p>• Other: {breakdown.otherLeaves}</p>
                           </div>
                         </div>
@@ -1270,6 +1350,14 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                         <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
                           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded shadow-lg flex-shrink-0"></div>
                           <span className="text-xs text-gray-700">Today</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-purple-100 border-2 border-purple-400 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Weekend Full Day</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 p-1 hover:bg-gray-50 rounded transition-colors duration-150">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-indigo-100 border-2 border-indigo-400 rounded flex-shrink-0"></div>
+                          <span className="text-xs text-gray-700">Weekend Half Day</span>
                         </div>
                         
                       </div>
