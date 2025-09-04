@@ -136,13 +136,49 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     // Track processed messages to prevent duplicate toasts
     const processedMessagesRef = useRef(new Set());
     
+    // Initialize processed messages from localStorage on component mount
     useEffect(() => {
+        try {
+            const storedMessages = localStorage.getItem('leaveProcessedMessages');
+            if (storedMessages) {
+                const parsedMessages = JSON.parse(storedMessages);
+                processedMessagesRef.current = new Set(parsedMessages);
+            }
+        } catch (error) {
+            console.warn('Error loading processed messages from localStorage:', error);
+        }
+    }, []);
+    
+    // Save processed messages to localStorage
+    const saveProcessedMessages = () => {
+        try {
+            const messagesArray = Array.from(processedMessagesRef.current);
+            localStorage.setItem('leaveProcessedMessages', JSON.stringify(messagesArray));
+            
+            // Clean up old messages if there are too many (keep only last 50)
+            if (messagesArray.length > 50) {
+                const recentMessages = messagesArray.slice(-50);
+                processedMessagesRef.current = new Set(recentMessages);
+                localStorage.setItem('leaveProcessedMessages', JSON.stringify(recentMessages));
+            }
+        } catch (error) {
+            console.warn('Error saving processed messages to localStorage:', error);
+        }
+    };
+    
+    useEffect(() => {
+        // Debug: Log the dataa state to see what's coming through
+        console.log('Leave application dataa state:', dataa);
+        
         if (dataa && dataa?.message && !processedMessagesRef.current.has(dataa.message)) {
+            console.log('Showing success toast for message:', dataa.message);
             processedMessagesRef.current.add(dataa.message);
+            saveProcessedMessages(); // Save to localStorage
             
             // Show success toast notification
             try {
                 safeToast.success(dataa.message || 'Leave application submitted successfully!');
+                console.log('Toast success called');
             } catch (toastError) {
                 console.error('Toast error:', toastError);
             }
@@ -172,6 +208,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     useEffect(() => {
         if (vendorMeetingData && vendorMeetingData?.message && !processedMessagesRef.current.has(vendorMeetingData.message)) {
             processedMessagesRef.current.add(vendorMeetingData.message);
+            saveProcessedMessages(); // Save to localStorage
             
             try {
                 safeToast.success(vendorMeetingData.message);
@@ -194,6 +231,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
     useEffect(() => {
         if (regularizationData && regularizationData?.message && !processedMessagesRef.current.has(regularizationData.message)) {
             processedMessagesRef.current.add(regularizationData.message);
+            saveProcessedMessages(); // Save to localStorage
             
             try {
                 safeToast.success(regularizationData.message || 'Regularization application submitted successfully!');
@@ -247,6 +285,14 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             dispatch({ type: 'RESET_VENDOR_MEETING_STATE' });
         };
     }, [dispatch]);
+
+    // Cleanup effect to prevent localStorage from growing indefinitely
+    useEffect(() => {
+        return () => {
+            // Save current processed messages before unmounting
+            saveProcessedMessages();
+        };
+    }, []);
 
     // Handle dropdown click outside
     useEffect(() => {
@@ -1028,6 +1074,7 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
         });
 
         console.log('Validation passed: All validations completed, proceeding to submission');
+        console.log('Submitting with leaveData:', leaveData);
         
         // For vendor meeting, use the vendor meeting API
         if (leaveData.leaveType === 'vendorMeeting') {
@@ -1083,6 +1130,18 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
             
             // Debug: Log what's being sent to the API
             console.log('Submitting leave application with data:', {
+                leaveType: apiLeaveType,
+                leaveStartDate: leaveData?.startDate,
+                leaveEndDate: leaveData?.endDate,
+                totalDays: leaveData?.totalDays,
+                reason: leaveData?.reason,
+                approvedBy: managerId,
+                employeId: employeeId,
+                shift: apiShift,
+                location: medicalReport?.location,
+            });
+            
+            console.log('Dispatching postApplyLeaveByEmployee with data:', {
                 leaveType: apiLeaveType,
                 leaveStartDate: leaveData?.startDate,
                 leaveEndDate: leaveData?.endDate,
