@@ -44,6 +44,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
   const [compOffDayType, setCompOffDayType] = useState(""); // For comp-off day type selection
   const [isLeaveTypeDropdownOpen, setIsLeaveTypeDropdownOpen] = useState(false);
   const [isCompOffDurationDropdownOpen, setIsCompOffDurationDropdownOpen] = useState(false);
+  const [hoveredDay, setHoveredDay] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const leaveTypeDropdownRef = useRef(null);
   const compOffDurationDropdownRef = useRef(null);
   // Use localStorage to persist processed messages across component remounts
@@ -723,6 +725,25 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     setShowReasonError(false); // Clear validation error when user starts typing
   }, []);
 
+  // Handle day hover for tooltip
+  const handleDayHover = useCallback((day, event) => {
+    if (!day) return;
+    
+    setHoveredDay(day);
+    
+    // Calculate tooltip position
+    const rect = event.currentTarget.getBoundingClientRect();
+    const tooltipX = rect.left + rect.width / 2;
+    const tooltipY = rect.top - 10; // Position above the day
+    
+    setTooltipPosition({ x: tooltipX, y: tooltipY });
+  }, []);
+
+  // Handle day hover end
+  const handleDayHoverEnd = useCallback(() => {
+    setHoveredDay(null);
+  }, []);
+
   // Calculate effective hours considering leave types and special cases
   const calculateEffectiveHours = useCallback((dayData) => {
     if (!dayData) return "00:00";
@@ -1127,6 +1148,36 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
     };
   }, [selectedDay, currentMonth, currentYear, dayLogs, calculateEffectiveHours, formatTime]);
 
+  // Get attendance summary for hovered day
+  const getHoveredDaySummary = useCallback(() => {
+    if (!hoveredDay) return null;
+    
+    const formattedDate = `${hoveredDay} ${MONTHS[currentMonth]} ${currentYear}`;
+    const dayData = dayLogs?.find((log) => log.AttendanceDate === formattedDate);
+    
+    if (!dayData) return {
+      date: formattedDate,
+      totalHours: "00:00",
+      firstIn: "00:00",
+      lastOut: "00:00",
+      status: "No Data",
+      punchRecords: null
+    };
+    
+    const effectiveHours = calculateEffectiveHours(dayData);
+    
+    return {
+      date: formattedDate,
+      totalHours: effectiveHours,
+      firstIn: dayData?.InTime ? formatTime(dayData.InTime) : "00:00",
+      lastOut: dayData?.OutTime ? formatTime(dayData.OutTime) : "00:00",
+      status: dayData?.AttendanceStatus || "Absent",
+      punchRecords: dayData?.PunchRecords || null,
+      leaveType: dayData?.leaveType || null,
+      isLeaveTaken: dayData?.isLeaveTaken || false
+    };
+  }, [hoveredDay, currentMonth, currentYear, dayLogs, calculateEffectiveHours, formatTime]);
+
   // Calculate total effective hours for the current month
   const calculateTotalEffectiveHours = useCallback(() => {
     if (!dayLogs || dayLogs.length === 0) return "00:00";
@@ -1290,6 +1341,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                 <div
                   key={`day-${index}`}
                   className={`min-h-[50px] sm:min-h-[80px] p-1 flex flex-col items-center justify-center text-xs sm:text-base font-medium transition-all duration-200 ${dayClass}`}
+                  onMouseEnter={(e) => handleDayHover(day, e)}
+                  onMouseLeave={handleDayHoverEnd}
                 >
                   <span className="text-center font-semibold break-words">{day}</span>
                 </div>
@@ -1298,6 +1351,8 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
                   key={`day-${index}`}
                   onClick={isSelectable ? () => handleDayClick(day) : undefined}
                   disabled={!isSelectable}
+                  onMouseEnter={(e) => handleDayHover(day, e)}
+                  onMouseLeave={handleDayHoverEnd}
                   className={`min-h-[50px] sm:min-h-[80px] p-1 flex flex-col items-center justify-center text-xs sm:text-base font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${dayClass}`}
                   aria-label={isSelectable ? `Select ${day} ${MONTHS[currentMonth]} ${currentYear}` : `${day} ${MONTHS[currentMonth]} ${currentYear} - Not selectable`}
                   title={(() => {
@@ -1425,6 +1480,78 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
           </div>
         </div>
       </div>
+
+      {/* Hover Tooltip */}
+      {hoveredDay && getHoveredDaySummary() && (
+        <div
+          className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-48 pointer-events-none"
+          style={{
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y}px`,
+            transform: 'translateX(-50%) translateY(-100%)',
+          }}
+        >
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="text-center">
+              <h4 className="text-sm font-semibold text-gray-800">
+                {hoveredDay} {MONTHS[currentMonth]}
+              </h4>
+            </div>
+
+            {/* Status Badge */}
+            <div className="text-center">
+              <span className={`inline-block text-xs font-medium px-2 py-1 rounded-full ${
+                getHoveredDaySummary().status === 'Present' || getHoveredDaySummary().status === 'Full Day' 
+                  ? 'bg-green-100 text-green-800' 
+                  : getHoveredDaySummary().status === 'Half Day'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : getHoveredDaySummary().status === 'Absent'
+                  ? 'bg-red-100 text-red-800'
+                  : getHoveredDaySummary().status === 'Holiday'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {getHoveredDaySummary().status}
+              </span>
+            </div>
+
+            {/* Key Info */}
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Hours:</span>
+                <span className="font-medium text-gray-800">{getHoveredDaySummary().totalHours}</span>
+              </div>
+              
+              {getHoveredDaySummary().firstIn !== "00:00" && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">In:</span>
+                  <span className="font-medium text-gray-800">{getHoveredDaySummary().firstIn}</span>
+                </div>
+              )}
+
+              {getHoveredDaySummary().lastOut !== "00:00" && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Out:</span>
+                  <span className="font-medium text-gray-800">{getHoveredDaySummary().lastOut}</span>
+                </div>
+              )}
+
+              {getHoveredDaySummary().leaveType && (
+                <div className="flex justify-between pt-1 border-t border-gray-100">
+                  <span className="text-gray-600">Leave:</span>
+                  <span className="font-medium text-blue-600">
+                    {getLeaveTypeDisplay(getHoveredDaySummary().leaveType)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Arrow */}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-3 border-r-3 border-t-3 border-transparent border-t-gray-200"></div>
+        </div>
+      )}
 
       {/* Modal */}
       {modalOpen && (
