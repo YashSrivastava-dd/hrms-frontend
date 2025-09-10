@@ -1560,11 +1560,13 @@ export const postProfileUploadAction = (file) => async (dispatch) => {
 
 export const getCalenderLogsApiAction =
   (monthYear, employeeId) => async (dispatch, getState) => {
+    console.log('getCalenderLogsApiAction called with:', { monthYear, employeeId });
     const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = employeeId
       ? employeeId
       : localStorage.getItem("employeId");
+    console.log('API action - employeId:', employeId, 'token exists:', !!token);
     // If token does not exist, do nothing or handle the case
     if (!token) {
       return dispatch({
@@ -1573,8 +1575,7 @@ export const getCalenderLogsApiAction =
       });
     }
 
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
+    // Note: Removed the duplicate fetch prevention as it was preventing calendar data from being fetched
 
     try {
       dispatch({ type: GET_CALENDER_LOGS_API_REQUEST });
@@ -1586,10 +1587,10 @@ export const getCalenderLogsApiAction =
           "Content-Type": "application/json",
         },
       };
-      const { data } = await axios.get(
-        `${process.env.REACT_APP_BASE_URL}/api/attendance-days-by-month/${employeId}?yearMonth=${monthYear}`,
-        config
-      );
+      const apiUrl = `${process.env.REACT_APP_BASE_URL}/api/attendance-days-by-month/${employeId}?yearMonth=${monthYear}`;
+      console.log('Making API call to:', apiUrl);
+      const { data } = await axios.get(apiUrl, config);
+      console.log('API response received:', data);
       dispatch({ type: GET_CALENDER_LOGS_API_SUCCESS, payload: data });
     } catch (error) {
       dispatch({

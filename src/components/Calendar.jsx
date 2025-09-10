@@ -28,7 +28,7 @@ const LEAVE_TYPE_MAP = {
 
 
 
-function Calendar({ employeeId, userRole, onDaySelect }) {
+function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [selectDuration, setSelectDuration] = useState(null);
@@ -96,8 +96,13 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
 
 
-  const dayLogs = dataaa?.data;
+  const dayLogs = calendarLogs || dataaa?.data;
   const userDataList = dataa?.data || [];
+  
+  // Debug logging
+  console.log('Calendar component - dayLogs:', dayLogs);
+  console.log('Calendar component - calendarLogs prop:', calendarLogs);
+  console.log('Calendar component - dataaa?.data:', dataaa?.data);
 
   // Memoized values
   const monthYear = useMemo(() => 
@@ -131,10 +136,10 @@ function Calendar({ employeeId, userRole, onDaySelect }) {
 
   // Effects
   useEffect(() => {
-    if (employeeId) {
+    if (employeeId && !calendarLogs) {
       dispatch(getCalenderLogsApiAction(monthYear, employeeId));
     }
-  }, [monthYear, employeeId]);
+  }, [monthYear, employeeId, calendarLogs]);
 
   // Cleanup toasts on component unmount
   useEffect(() => {

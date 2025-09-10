@@ -16,8 +16,8 @@ import dayjs from 'dayjs';
 function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeLeaveBalance }) {
     const [search, setSearch] = useState("");
     const [date, setDate] = useState({ 
-        startDate: dayjs().startOf('month'), 
-        endDate: dayjs().endOf('month') 
+        startDate: dayjs().subtract(30, 'day'), 
+        endDate: dayjs() 
     });
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -27,16 +27,19 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
     const userDataList = userData?.data?.role || [];
     const { loading, data, error } = useSelector((state) => state.attendanceLogs);
     const employees = data?.data || [];
+    // Note: Calendar component handles its own data fetching and state management
     const dispatch = useDispatch();
     
     useEffect(() => {
         if (employeeTicket) {
-            const dateFrom = date.startDate ? date.startDate.format("YYYY-MM-DD") : dayjs().startOf('month').format("YYYY-MM-DD");
-            const dateTo = date.endDate ? date.endDate.format("YYYY-MM-DD") : dayjs().endOf('month').format("YYYY-MM-DD");
+            const dateFrom = date.startDate ? date.startDate.format("YYYY-MM-DD") : dayjs().subtract(30, 'day').format("YYYY-MM-DD");
+            const dateTo = date.endDate ? date.endDate.format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD");
             
             dispatch(getAttendenceLogsOfEmploye(employeeTicket, dateFrom, dateTo, count));
         }
     }, [employeeTicket, date.startDate, date.endDate, count, dispatch]);
+
+    // Note: Calendar component now handles its own data fetching
 
     const handleOpenModal = (employee) => {
         setSelectedEmployee(employee);
@@ -197,7 +200,7 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
                                         <div className="flex items-center space-x-4">
                                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                                                 <DatePicker
-                                                    label="Start Date"
+                                                    label="From Date (Last 30 days by default)"
                                                     value={date.startDate}
                                                     onChange={(newValue) => setDate(prev => ({ ...prev, startDate: newValue }))}
                                                     renderInput={(params) => <input {...params} />}
@@ -206,7 +209,7 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
                                             </LocalizationProvider>
                                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                                                 <DatePicker
-                                                    label="End Date"
+                                                    label="To Date (Today by default)"
                                                     value={date.endDate}
                                                     onChange={(newValue) => setDate(prev => ({ ...prev, endDate: newValue }))}
                                                     renderInput={(params) => <input {...params} />}
