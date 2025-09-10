@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Calendar, Clock, Users, RefreshCw, CheckCircle, XCircle, Eye, Download } from "lucide-react";
 import { FiDownload } from "react-icons/fi";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -7,6 +7,12 @@ import {
   getLeaveApproveRequestAction,
   getUserDataAction,
   putApprovedLeaveByManagerAction,
+  getAllCompoffLeaveRequestAction,
+  putCompOffLeaveRequestAction,
+  getVendorLogsAction,
+  putVendorStatusDataAction,
+  deleteVendorMeetingAction,
+  putRevertLeaveByManagerAction,
 } from "../store/action/userDataAction";
 import safeToast from "../utils/safeToast";
 
@@ -79,83 +85,314 @@ const getDocumentData = (item) => {
   return null;
 };
 // api/common/get-emp-leaves-count
-// Component for HR Admin to view and manage employee leave requests
-// Features:
-// - Summary statistics (Today Presents, Planned Leaves, Unplanned Leaves, Pending Requests)
-// - Employee leave table with search functionality
-// - Document viewing for medical certificates and other leave documents
-// - Leave approval/rejection actions
-const EmployeeLeaveStatus = () => {
-  const { data } = useSelector((state) => state.managerLeaveApprove);
-  const employeeStatusData = data?.data || [];
-  const dispatch = useDispatch();
+// Tab component
+const Tab = ({ active, onClick, children, count, icon: Icon, disabled = false }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`group relative flex items-center gap-3 px-6 py-4 text-sm font-semibold rounded-xl transition-all duration-300 transform ${
+      active
+        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/25 scale-105'
+        : disabled
+        ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+        : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:shadow-md hover:scale-105'
+    }`}
+  >
+    {Icon && (
+      <Icon className={`w-5 h-5 transition-all duration-300 ${
+        active ? 'text-white' : disabled ? 'text-gray-400' : 'text-gray-500 group-hover:text-gray-700'
+      }`} />
+    )}
+    <span className="relative">
+      {children}
+      {active && (
+        <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-pulse"></div>
+      )}
+    </span>
+    {count > 0 && (
+      <span className={`px-3 py-1 text-xs font-bold rounded-full transition-all duration-300 ${
+        active 
+          ? 'bg-white/20 text-white border border-white/30' 
+          : disabled
+          ? 'bg-gray-200 text-gray-500'
+          : 'bg-blue-100 text-blue-700 group-hover:bg-blue-200 group-hover:text-blue-800'
+      }`}>
+        {count}
+      </span>
+    )}
+  </button>
+);
 
-  // Calculate summary stats from table API data (current page only)
-  // Note: Since table API only returns pending leaves, summary will only show current page data
-  const calculatedSummary = {
-    todayPresentCount: 0, // Not available from current API
-    plannedLeaveCount: employeeStatusData.filter(item => 
-      item?.status === "Approved" && new Date(item?.leaveStartDate) > new Date()
-    ).length,
-    unplannedLeaveCount: employeeStatusData.filter(item => 
-      item?.status === "Approved" && new Date(item?.leaveStartDate) <= new Date()
-    ).length,
-    pendingReqCount: employeeStatusData.filter(item => item?.status === "Pending").length
+// Status badge component
+const StatusBadge = ({ status, type = "default" }) => {
+  const getStatusConfig = () => {
+    switch (status) {
+      case "Approved":
+        return { bg: "bg-green-100", text: "text-green-800", icon: CheckCircle };
+      case "Rejected":
+        return { bg: "bg-red-100", text: "text-red-800", icon: XCircle };
+      case "Pending":
+        return { bg: "bg-yellow-100", text: "text-yellow-800", icon: Clock };
+      default:
+        return { bg: "bg-gray-100", text: "text-gray-800", icon: Clock };
+    }
   };
+
+  const config = getStatusConfig();
+  const Icon = config.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+      <Icon className="w-3 h-3" />
+      {status}
+    </span>
+  );
+};
+
+// Action buttons component
+const ActionButtons = ({ item, onApprove, onReject, onDelete, loading, type = "leave" }) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDropdown]);
+
+  const isPending = item?.status === "Pending";
+  const isApproved = item?.status === "Approved";
+
+  if (!isPending) {
+    if (isApproved) {
+      return (
+        <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-600">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Approved
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-400">
+        -
+      </span>
+    );
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setShowDropdown(!showDropdown)}
+        disabled={loading}
+        className={`inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-200 min-w-[80px] ${
+          loading
+            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+        }`}
+      >
+        {loading ? (
+          <>
+            <div className="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent mr-1"></div>
+            Processing...
+          </>
+        ) : (
+          <>
+            Actions
+            <svg className={`ml-1 h-3 w-3 transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </>
+        )}
+      </button>
+
+      {showDropdown && !loading && (
+        <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+          <div className="py-1">
+            <button
+              onClick={() => {
+                onApprove(item);
+                setShowDropdown(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-green-50 hover:text-green-800 transition-colors duration-200 flex items-center"
+            >
+              <CheckCircle className="w-3 h-3 mr-2 text-green-600" />
+              Approve
+            </button>
+            <button
+              onClick={() => {
+                onReject(item);
+                setShowDropdown(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-red-50 hover:text-red-800 transition-colors duration-200 flex items-center"
+            >
+              <XCircle className="w-3 h-3 mr-2 text-red-600" />
+              Reject
+            </button>
+            {type === "vendor" && onDelete && (
+              <button
+                onClick={() => {
+                  onDelete(item);
+                  setShowDropdown(false);
+                }}
+                className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-red-50 hover:text-red-800 transition-colors duration-200 flex items-center"
+              >
+                <XCircle className="w-3 h-3 mr-2 text-red-600" />
+                Delete
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Main component
+const EmployeeLeaveStatus = () => {
+  const dispatch = useDispatch();
   
-  // Add server totals for more accurate display  
-  const enhancedSummary = {
-    ...calculatedSummary,
-    totalRecordsInSystem: data?.totalRecords || 0,
-    currentPagePending: calculatedSummary.pendingReqCount
-  };
+  // Redux selectors with better error handling
+  const leaveState = useSelector((state) => state.managerLeaveApprove) || {};
+  const compOffState = useSelector((state) => state.compoffApprove) || {};
+  const vendorState = useSelector((state) => state.vendorLogsData) || {};
+  const userState = useSelector((state) => state.userData) || {};
   
-  // Use calculated summary instead of separate API
-  const employeeCount = calculatedSummary;
-  
-  console.log('=== CALCULATED SUMMARY FROM TABLE DATA ===');
-  console.log('Calculated summary:', calculatedSummary);
-  console.log('Table data count:', employeeStatusData.length);
-  console.log('Pending from table:', calculatedSummary.pendingReqCount);
-  console.log('=== END CALCULATED SUMMARY ===');
+  const leaveData = leaveState?.data || {};
+  const compOffData = compOffState?.data || {};
+  const vendorData = vendorState?.data || {};
+  const userData = userState?.data || {};
+
+  // State
+  const [activeTab, setActiveTab] = useState("leave");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [documentLoading, setDocumentLoading] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(20); // Show more items per page for better UX
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [documentLoading, setDocumentLoading] = useState(false);
+  const [approvalLoading, setApprovalLoading] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [availableFeatures, setAvailableFeatures] = useState({
+    compOff: false,
+    vendor: false
+  });
+  const [viewMode, setViewMode] = useState("pending"); // "pending" or "approved"
 
-  const handleViewDocument = (location, documentName) => {
-    console.log('=== DEBUG: handleViewDocument called ===');
-    console.log('Raw location:', location);
-    console.log('Document name:', documentName);
-    console.log('Location type:', typeof location);
-    console.log('Location length:', location ? location.length : 'N/A');
+  // Data with safe fallbacks
+  const leaveRequests = Array.isArray(leaveData?.data) ? leaveData.data : [];
+  const compOffRequests = Array.isArray(compOffData?.data) ? compOffData.data : [];
+  const vendorMeetings = Array.isArray(vendorData?.data) ? vendorData.data : [];
+
+  // Calculate counts for tabs with error handling
+  const tabCounts = (() => {
+    try {
+      return {
+        leave: viewMode === "approved"
+          ? leaveRequests.filter(item => item?.status === "Approved").length
+          : leaveRequests.filter(item => item?.status === "Pending").length,
+        compOff: viewMode === "approved"
+          ? compOffRequests.filter(item => item?.status === "Approved").length
+          : compOffRequests.filter(item => item?.status === "Pending").length,
+        vendor: viewMode === "approved"
+          ? vendorMeetings.filter(item => item?.status === "Approved").length
+          : vendorMeetings.filter(item => item?.status === "Pending").length,
+        revert: 0 // Will be implemented when revert data is available
+      };
+    } catch (error) {
+      console.error('Error calculating tab counts:', error);
+      return { leave: 0, compOff: 0, vendor: 0, revert: 0 };
+    }
+  })();
+
+  // Load data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      setHasError(false);
+      
+      try {
+        // Load essential data first - fetch all data without pagination
+        await dispatch(getUserDataAction());
+        await dispatch(getLeaveApproveRequestAction({ page: 1, limit: 1000 })); // Fetch all data
+        
+        // Load optional data with error handling
+        try {
+          await dispatch(getAllCompoffLeaveRequestAction({ page: 1, limit: 1000 })); // Fetch all data
+          setAvailableFeatures(prev => ({ ...prev, compOff: true }));
+        } catch (error) {
+          console.warn('Comp-off API not available:', error);
+          setAvailableFeatures(prev => ({ ...prev, compOff: false }));
+        }
+        
+        try {
+          await dispatch(getVendorLogsAction({ page: 1, limit: 1000 })); // Fetch all data
+          setAvailableFeatures(prev => ({ ...prev, vendor: true }));
+        } catch (error) {
+          console.warn('Vendor logs API not available:', error);
+          setAvailableFeatures(prev => ({ ...prev, vendor: false }));
+        }
+        
+      } catch (error) {
+        console.error('Error loading essential data:', error);
+        setHasError(true);
+        safeToast.error('Failed to load essential data. Please refresh the page.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
+    loadData();
+  }, [dispatch]); // Remove currentPage and itemsPerPage since we fetch all data
+
+  // Cleanup toasts on component unmount
+  useEffect(() => {
+    return () => {
+      safeToast.dismiss();
+    };
+  }, []);
+
+  // Handle tab change
+  const handleTabChange = (tab) => {
+    // Check if the tab is available
+    if (tab === "compOff" && !availableFeatures.compOff) return;
+    if (tab === "vendor" && !availableFeatures.vendor) return;
+    
+    setActiveTab(tab);
+    setSearchTerm("");
+    setStatusFilter("All");
+    setCurrentPage(1);
+  };
+
+  // Auto-switch to available tab if current tab is not available
+  useEffect(() => {
+    if (activeTab === "compOff" && !availableFeatures.compOff) {
+      setActiveTab("leave");
+    }
+    if (activeTab === "vendor" && !availableFeatures.vendor) {
+      setActiveTab("leave");
+    }
+  }, [activeTab, availableFeatures]);
+
+  // Handle document viewing
+  const handleViewDocument = (location, documentName) => {
     if (!location || location.trim() === '') {
-      console.log('❌ Document location validation failed');
-      alert('Document location not available. The file may not have been uploaded properly.');
+      safeToast.error('Document location not available. The file may not have been uploaded properly.');
       return;
     }
 
-    const trimmedLocation = location.trim();
-    console.log('✅ Document location valid:', trimmedLocation);
-    
-    // Check if it's an image file
-    const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|heic|heif|tiff|tif)$/i.test(trimmedLocation);
-    console.log('Is image file?', isImage);
-    
-    // Skip URL accessibility test for now to avoid CORS issues
-    console.log('Skipping URL accessibility test to avoid CORS issues');
-
-    console.log('Setting document for viewing...');
     setDocumentLoading(true);
     setSelectedDocument({
-      location: trimmedLocation,
-      documentName: documentName || 'Medical Certificate'
+      location: location.trim(),
+      documentName: documentName || 'Document'
     });
-    console.log('=== DEBUG: handleViewDocument complete ===');
   };
 
   const closeDocumentViewer = () => {
@@ -165,431 +402,223 @@ const EmployeeLeaveStatus = () => {
 
   const handleDownload = (location, documentName) => {
     if (!location) {
-      alert('Download link not available');
+      safeToast.error('Download link not available');
       return;
     }
 
     try {
       const link = document.createElement('a');
       link.href = location;
-      link.download = documentName || 'medical-certificate';
+      link.download = documentName || 'document';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
       console.error('Download error:', error);
-      // Fallback: open in new tab
       window.open(location, '_blank');
     }
   };
 
-  useEffect(() => {
-    dispatch(getUserDataAction());
-    
-    // Use only the table API for consistency
-    console.log('🔍 Using table API for both summary and table data');
-    dispatch(getLeaveApproveRequestAction({ page: currentPage, limit: itemsPerPage }));
-    // Removed getEmployeeLeaveCountAction() - we'll calculate from table data
+  // Handle leave approval/rejection
+  const handleLeaveAction = useCallback(async (action, item) => {
+    const status = action === "approve" ? "Approved" : "Rejected";
+    setApprovalLoading(prev => ({ ...prev, [item._id]: true }));
+
+    try {
+      await dispatch(putApprovedLeaveByManagerAction({ status, id: item._id }));
+      safeToast.success(`Leave request ${status.toLowerCase()} successfully!`);
+    dispatch(getLeaveApproveRequestAction({ page: 1, limit: 1000 }));
+    } catch (error) {
+      safeToast.error(`Failed to ${status.toLowerCase()} leave request: ${error?.message || 'Something went wrong'}`);
+    } finally {
+      setApprovalLoading(prev => ({ ...prev, [item._id]: false }));
+    }
   }, [dispatch, currentPage, itemsPerPage]);
 
-  // Cleanup toasts on component unmount
-  useEffect(() => {
-    return () => {
-      safeToast.dismiss();
-    };
-  }, []);
+  // Handle comp-off approval/rejection
+  const handleCompOffAction = useCallback(async (action, item) => {
+    const status = action === "approve" ? "Approved" : "Rejected";
+    setApprovalLoading(prev => ({ ...prev, [item._id]: true }));
 
-  const [approvalLoading, setApprovalLoading] = useState({});
-
-  const handelChangeStatus = useCallback(async (value, id, employeeName) => {
-    console.log('=== DEBUG: handelChangeStatus called ===');
-    console.log('Value:', value);
-    console.log('ID:', id);
-    console.log('Employee Name:', employeeName);
-    
-    // Map the dropdown values to the correct backend status values
-    const status = value === "Approved" ? "Approved" : "Rejected";
-    console.log('Mapped status:', status);
-    
-    // Set loading state for this specific item
-    setApprovalLoading(prev => ({ ...prev, [id]: true }));
-    
     try {
-      console.log('Dispatching putApprovedLeaveByManagerAction...');
-      const result = await dispatch(putApprovedLeaveByManagerAction({ status, id }));
-      console.log('Action result:', result);
-      
-      // Show success notification
-      safeToast.success(
-        `${employeeName}'s leave request ${status.toLowerCase()} successfully!`,
-        { 
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-        }
-      );
-      
-              // Refresh the data to show updated status
-        console.log('Refreshing data...');
-        dispatch(getLeaveApproveRequestAction({ page: currentPage, limit: itemsPerPage }));
-        // Summary will be recalculated automatically from the refreshed table data
-      
+      await dispatch(putCompOffLeaveRequestAction({ status, id: item._id }));
+      safeToast.success(`Comp-off request ${status.toLowerCase()} successfully!`);
+      dispatch(getAllCompoffLeaveRequestAction({ page: 1, limit: 1000 }));
     } catch (error) {
-      console.error('Error in handelChangeStatus:', error);
-      // Show error notification
-      safeToast.error(
-        `Failed to ${status.toLowerCase()} leave request: ${error?.response?.data?.message || error?.message || 'Something went wrong'}`,
-        { 
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-        }
-      );
+      safeToast.error(`Failed to ${status.toLowerCase()} comp-off request: ${error?.message || 'Something went wrong'}`);
     } finally {
-      // Clear loading state
-      console.log('Clearing loading state for ID:', id);
-      setApprovalLoading(prev => ({ ...prev, [id]: false }));
+      setApprovalLoading(prev => ({ ...prev, [item._id]: false }));
+    }
+  }, [dispatch, currentPage, itemsPerPage]);
+
+  // Handle vendor meeting approval/rejection
+  const handleVendorAction = useCallback(async (action, item) => {
+    const status = action === "approve" ? "Approved" : "Rejected";
+    setApprovalLoading(prev => ({ ...prev, [item._id]: true }));
+
+    try {
+      await dispatch(putVendorStatusDataAction({ status, id: item._id }));
+      safeToast.success(`Vendor meeting ${status.toLowerCase()} successfully!`);
+      dispatch(getVendorLogsAction({ page: 1, limit: 1000 }));
+    } catch (error) {
+      safeToast.error(`Failed to ${status.toLowerCase()} vendor meeting: ${error?.message || 'Something went wrong'}`);
+    } finally {
+      setApprovalLoading(prev => ({ ...prev, [item._id]: false }));
     }
   }, [dispatch]);
 
-  // Get server pagination data
-  const serverTotalPages = data?.totalPages || 1;
-  const serverCurrentPage = data?.currentPage || 1;
-  const serverTotalRecords = data?.totalRecords || 0;
+  // Handle vendor meeting deletion
+  const handleVendorDelete = useCallback(async (item) => {
+    if (!window.confirm('Are you sure you want to delete this vendor meeting request?')) {
+      return;
+    }
 
-  // Debug: Log the server pagination data
-  console.log('=== SERVER PAGINATION DEBUG ===');
-  console.log('Server data:', data);
-  console.log('Server totalPages:', serverTotalPages);
-  console.log('Server currentPage:', serverCurrentPage);
-  console.log('Server totalRecords:', serverTotalRecords);
-  console.log('Current local page state:', currentPage);
-  console.log('Items per page:', itemsPerPage);
+    setApprovalLoading(prev => ({ ...prev, [item._id]: true }));
 
-  // Client-side filtering for search and status (on current page data)
-  const filteredData = employeeStatusData.filter((item) => {
+    try {
+      await dispatch(deleteVendorMeetingAction({ id: item._id }));
+      safeToast.success('Vendor meeting deleted successfully!');
+      dispatch(getVendorLogsAction({ page: 1, limit: 1000 }));
+    } catch (error) {
+      safeToast.error(`Failed to delete vendor meeting: ${error?.message || 'Something went wrong'}`);
+    } finally {
+      setApprovalLoading(prev => ({ ...prev, [item._id]: false }));
+    }
+  }, [dispatch]);
+
+  // Filter data based on search and status
+  const getFilteredData = (data) => {
+    try {
+      if (!Array.isArray(data)) return [];
+      
+      return data.filter((item) => {
+        if (!item || typeof item !== 'object') return false;
+        
     const matchesSearch = searchTerm === "" || 
                          item?.employeeInfo?.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item?.employeeInfo?.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item?.leaveType?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "All" || item?.status === statusFilter;
+          item?.leaveType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item?.reason?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        let matchesStatus;
+        if (viewMode === "approved") {
+          matchesStatus = item?.status === "Approved";
+        } else {
+          matchesStatus = statusFilter === "All" || item?.status === statusFilter;
+        }
     
     return matchesSearch && matchesStatus;
   });
-
-  console.log('Client filtered data length:', filteredData.length);
-  console.log('Client filtered data:', filteredData);
-
-  // Use filtered data directly (no additional pagination since server handles it)
-  const paginatedData = filteredData;
-
-  // Reset to first page when filters change and reload data
-  useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    } else {
-      // Only reload if we're already on page 1
-      dispatch(getLeaveApproveRequestAction({ page: 1, limit: itemsPerPage }));
+    } catch (error) {
+      console.error('Error filtering data:', error);
+      return [];
     }
-  }, [searchTerm, statusFilter, dispatch, itemsPerPage]);
-
-  // Debug: Log the first item to see the data structure
-  useEffect(() => {
-    if (employeeStatusData.length > 0) {
-      console.log('EmployeeLeaveStatus: Sample data structure:', employeeStatusData[0]);
-    }
-  }, [employeeStatusData]);
-
-  // Simplified Custom Dropdown Component - Direct Implementation
-  const CustomDropdown = ({ item }) => {
-    console.log('🔄 CustomDropdown rendered for item:', item?._id, 'Status:', item?.status);
-    
-    const dropdownRef = useRef(null);
-    const dropdownId = `leave-${item?._id}`;
-    const isOpen = openDropdown === dropdownId;
-    const isPending = item?.status === "Pending";
-    
-    console.log('Dropdown state:', { dropdownId, isOpen, isPending, openDropdown });
-
-    useEffect(() => {
-      const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setOpenDropdown(null);
-        }
-      };
-
-      if (isOpen) {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-      }
-    }, [isOpen]);
-
-    // Direct approve handler
-    const handleApprove = async () => {
-      console.log('🔥 APPROVE BUTTON CLICKED - DIRECT!');
-      console.log('Item ID:', item?._id);
-      console.log('Employee Name:', item?.employeeInfo?.employeeName);
-      
-      if (!isPending) {
-        safeToast.error("This request is no longer pending and cannot be modified.");
-        return;
-      }
-      
-      try {
-        console.log('Calling handelChangeStatus directly...');
-        await handelChangeStatus("Approved", item?._id, item?.employeeInfo?.employeeName);
-        setOpenDropdown(null);
-        console.log('✅ Direct approve completed');
-      } catch (error) {
-        console.error('❌ Direct approve error:', error);
-        safeToast.error(`Error approving leave: ${error?.message || 'Something went wrong'}`);
-      }
-    };
-
-    // Direct reject handler
-    const handleReject = async () => {
-      console.log('🔥 REJECT BUTTON CLICKED - DIRECT!');
-      console.log('Item ID:', item?._id);
-      console.log('Employee Name:', item?.employeeInfo?.employeeName);
-      
-      if (!isPending) {
-        safeToast.error("This request is no longer pending and cannot be modified.");
-        return;
-      }
-      
-      try {
-        console.log('Calling handelChangeStatus directly...');
-        await handelChangeStatus("Rejected", item?._id, item?.employeeInfo?.employeeName);
-        setOpenDropdown(null);
-        console.log('✅ Direct reject completed');
-      } catch (error) {
-        console.error('❌ Direct reject error:', error);
-        safeToast.error(`Error rejecting leave: ${error?.message || 'Something went wrong'}`);
-      }
-    };
-
-    // If not pending, show dash for completed actions
-    if (!isPending) {
-      return (
-        <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-400">
-          -
-        </span>
-      );
-    }
-
-    return (
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🔥 ACTIONS DROPDOWN CLICKED!');
-            console.log('Current state - isOpen:', isOpen, 'dropdownId:', dropdownId);
-            setOpenDropdown(isOpen ? null : dropdownId);
-          }}
-          disabled={approvalLoading[item?._id]}
-          className={`inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border transition-colors duration-200 min-w-[80px] ${
-            approvalLoading[item?._id]
-              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-          }`}
-        >
-          {approvalLoading[item?._id] ? (
-            <>
-              <div className="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent mr-1"></div>
-              Processing...
-            </>
-          ) : (
-            <>
-              Actions
-              <svg className={`ml-1 h-3 w-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </>
-          )}
-        </button>
-
-        {isOpen && !approvalLoading[item?._id] && (
-          <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-            <div className="py-1">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('🔥 APPROVE BUTTON CLICKED - SIMPLIFIED!');
-                  handleApprove();
-                }}
-                className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-green-50 hover:text-green-800 transition-colors duration-200 flex items-center"
-              >
-                <svg className="w-3 h-3 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Approve
-              </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('🔥 REJECT BUTTON CLICKED - SIMPLIFIED!');
-                  handleReject();
-                }}
-                className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-red-50 hover:text-red-800 transition-colors duration-200 flex items-center"
-              >
-                <svg className="w-3 h-3 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Reject
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
   };
 
+  // Get current data based on active tab
+  const getCurrentData = () => {
+    switch (activeTab) {
+      case "leave":
+        return getFilteredData(leaveRequests);
+      case "compOff":
+        if (!availableFeatures.compOff) return [];
+        return getFilteredData(compOffRequests);
+      case "vendor":
+        if (!availableFeatures.vendor) return [];
+        return getFilteredData(vendorMeetings);
+      case "revert":
+        return []; // Will be implemented when revert data is available
+      default:
+        return [];
+    }
+  };
+
+  const currentData = getCurrentData();
+  
+  // Pagination logic
+  const totalItems = currentData.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = currentData.slice(startIndex, endIndex);
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, viewMode, activeTab]);
+
+  // Render table based on active tab
+  const renderTable = () => {
+    if (currentData.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Calendar className="w-8 h-8 text-gray-400" />
+            </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No {viewMode} {activeTab} requests found
+          </h3>
+          <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+      </div>
+    );
+    }
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Leaves</h2>
-      </div>
-
-      {/* Summary Stats - Calculated from Table Data */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <SummaryBox
-          title="Total Records"
-          count={data?.totalRecords || 0}
-          ringColor="text-white"
-          colorRing="blue-500"
-        />
-        <SummaryBox
-          title="Current Page"
-          count={employeeStatusData.length || 0}
-          ringColor="text-white"
-          colorRing="green-500"
-        />
-        <SummaryBox
-          title="Pending (Page)"
-          count={employeeCount?.pendingReqCount || 0}
-          ringColor="text-white"
-          colorRing="orange-400"
-        />
-        <SummaryBox
-          title="Approved (Page)"
-          count={employeeStatusData.filter(item => item?.status === "Approved").length || 0}
-          ringColor="text-white"
-          colorRing="emerald-500"
-        />
-      </div>
-
-      {/* Employee Leave Management Section */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">Employee Leave Management</h2>
-        
-        {/* Search and Filter Section */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="search"
-              placeholder="Search by employee name, designation, or leave type..."
-              className="w-full pl-12 pr-4 py-3 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 shadow-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          {/* Status Filter */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 shadow-sm min-w-[140px]"
-            >
-              <option value="All">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Results Info */}
-          <div className="text-sm text-gray-600 whitespace-nowrap">
-            Showing {paginatedData.length} of {serverTotalRecords} total results
-          </div>
-        </div>
-
-        {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto bg-white rounded-xl shadow-lg border border-gray-200">
-          <table className="w-full text-sm min-w-full table-fixed">
+      <div className="overflow-x-auto bg-white rounded-xl shadow-lg border border-gray-200">
+        <table className="w-full text-sm">
             <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-4 font-semibold text-gray-700 text-center text-sm w-48">Employee</th>
-                <th className="px-4 py-4 font-semibold text-gray-700 text-center text-sm w-32">Leave Type</th>
-                <th className="px-4 py-4 font-semibold text-gray-700 text-center text-sm w-24">Duration</th>
-                <th className="px-4 py-4 font-semibold text-gray-700 text-center text-sm w-40">Period</th>
-                <th className="px-4 py-4 font-semibold text-gray-700 text-center text-sm w-28">Documents</th>
-                <th className="px-4 py-4 font-semibold text-gray-700 text-center text-sm w-24">Status</th>
-                <th className="px-4 py-4 font-semibold text-gray-700 text-center text-sm w-28">Actions</th>
+              <th className="px-4 py-4 font-semibold text-gray-700 text-left text-sm">Employee</th>
+              <th className="px-4 py-4 font-semibold text-gray-700 text-left text-sm">Type</th>
+              <th className="px-4 py-4 font-semibold text-gray-700 text-left text-sm">Duration</th>
+              <th className="px-4 py-4 font-semibold text-gray-700 text-left text-sm">Period</th>
+              <th className="px-4 py-4 font-semibold text-gray-700 text-left text-sm">Documents</th>
+              <th className="px-4 py-4 font-semibold text-gray-700 text-left text-sm">Status</th>
+              <th className="px-4 py-4 font-semibold text-gray-700 text-left text-sm">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginatedData.map((item, idx) => {
                 const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "U";
-                const statusClass = (() => {
-                  if (item?.status === "Approved") return "bg-green-100 text-green-800";
-                  if (item?.status === "Rejected") return "bg-red-100 text-red-800";
-                  if (item?.status === "Pending") return "bg-yellow-100 text-yellow-800";
-                  return "bg-gray-100 text-gray-800";
-                })();
+              const docData = getDocumentData(item);
 
                 return (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-200">
+                <tr key={idx} className="hover:bg-gray-50 transition-colors duration-200">
                     {/* Employee Column */}
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-start max-w-[200px]">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-blue-600 font-medium text-sm">
                             {employeeInitial}
                           </span>
                         </div>
-                        <div className="text-left min-w-0 flex-1">
-                          <div className="font-medium text-gray-900 text-sm truncate" title={`${item?.employeeInfo?.employeeName || "Unknown Employee"} - ${item?.employeeInfo?.designation || "No designation"}`}>
+                      <div>
+                        <div className="font-medium text-gray-900 text-sm">
                             {item?.employeeInfo?.employeeName || "Unknown Employee"}
+                          </div>
+                        <div className="text-xs text-gray-500">
+                          {item?.employeeInfo?.designation || "No designation"}
                           </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* Leave Type Column */}
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
+                  {/* Type Column */}
+                  <td className="px-4 py-4">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         {getLeaveTypeAbbreviation(item?.leaveType) || "N/A"}
                       </span>
                     </td>
 
                     {/* Duration Column */}
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
+                  <td className="px-4 py-4">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         {item?.totalDays || 0} {(item?.totalDays === 1 || item?.totalDays === "1") ? "Day" : "Days"}
                       </span>
                     </td>
 
                     {/* Period Column */}
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
+                  <td className="px-4 py-4">
                       <div className="text-xs text-gray-900">
                         <div className="font-medium text-gray-800">{item?.leaveStartDate || "--"}</div>
                         <div className="text-gray-500 text-[10px]">to</div>
@@ -598,50 +627,45 @@ const EmployeeLeaveStatus = () => {
                     </td>
 
                     {/* Documents Column */}
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
-                      {(() => {
-                        const docData = getDocumentData(item);
-                        if (docData) {
-                          return (
+                  <td className="px-4 py-4">
+                    {docData ? (
                             <button
                               onClick={() => handleViewDocument(docData.location, docData.originalname)}
                               className="inline-flex items-center px-3 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors duration-200"
                               title={`${docData.originalname || 'Document'} - Click to view`}
                             >
-                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
+                        <Eye className="w-3 h-3 mr-1" />
                               View
                             </button>
-                          );
-                        } else if (item?.leaveType === 'medicalLeave' || item?.leaveType === 'sickLeave') {
-                          return (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              No Document
-                            </span>
-                          );
-                        } else {
-                          return (
+                    ) : (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                               N/A
                             </span>
-                          );
-                        }
-                      })()}
+                    )}
                     </td>
 
                     {/* Status Column */}
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusClass}`}>
-                        {item?.status || "---"}
-                      </span>
+                  <td className="px-4 py-4">
+                    <StatusBadge status={item?.status} />
                     </td>
 
                     {/* Actions Column */}
-                    <td className="px-4 py-4 text-center whitespace-nowrap">
-                      <CustomDropdown 
+                  <td className="px-4 py-4">
+                    <ActionButtons
                         item={item} 
+                      onApprove={(item) => {
+                        if (activeTab === "leave") handleLeaveAction("approve", item);
+                        else if (activeTab === "compOff") handleCompOffAction("approve", item);
+                        else if (activeTab === "vendor") handleVendorAction("approve", item);
+                      }}
+                      onReject={(item) => {
+                        if (activeTab === "leave") handleLeaveAction("reject", item);
+                        else if (activeTab === "compOff") handleCompOffAction("reject", item);
+                        else if (activeTab === "vendor") handleVendorAction("reject", item);
+                      }}
+                      onDelete={activeTab === "vendor" ? handleVendorDelete : null}
+                      loading={approvalLoading[item?._id]}
+                      type={activeTab}
                       />
                     </td>
                   </tr>
@@ -650,175 +674,220 @@ const EmployeeLeaveStatus = () => {
             </tbody>
           </table>
         </div>
+    );
+  };
 
-        {/* Mobile Card Layout */}
-        <div className="lg:hidden space-y-4">
-          {paginatedData.map((item, idx) => {
-            const employeeInitial = item?.employeeInfo?.employeeName?.charAt(0)?.toUpperCase() || "U";
-            const statusClass = (() => {
-              if (item?.status === "Approved") return "bg-green-100 text-green-800";
-              if (item?.status === "Rejected") return "bg-red-100 text-red-800";
-              if (item?.status === "Pending") return "bg-yellow-100 text-yellow-800";
-              return "bg-gray-100 text-gray-800";
-            })();
-
+  // Show loading state
+  if (isLoading) {
             return (
-              <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                {/* Mobile Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-medium text-sm">
-                        {employeeInitial}
-                      </span>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                     </div>
-                    <div>
-                      <div className="font-medium text-gray-900 text-sm">
-                        {item?.employeeInfo?.employeeName || "Unknown Employee"}
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Employee Leave Data</h2>
+          <p className="text-gray-600">Please wait while we fetch the latest information...</p>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {item?.employeeInfo?.designation || "No designation"}
                       </div>
-                    </div>
-                  </div>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusClass}`}>
-                    {item?.status || "---"}
-                  </span>
-                </div>
+    );
+  }
 
-                {/* Mobile Content Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <div className="text-xs text-gray-500 mb-1">Leave Type</div>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {getLeaveTypeAbbreviation(item?.leaveType) || "N/A"}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 mb-1">Duration</div>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {item?.totalDays || 0} {(item?.totalDays === 1 || item?.totalDays === "1") ? "Day" : "Days"}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 mb-1">Start Date</div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {item?.leaveStartDate || "--"}
+  // Show error state
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <XCircle className="w-8 h-8 text-red-600" />
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 mb-1">End Date</div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {item?.leaveEndDate || "--"}
-                    </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Data</h2>
+          <p className="text-gray-600 mb-4">There was an error loading the leave management data.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+          >
+            Refresh Page
+          </button>
                   </div>
                 </div>
+    );
+  }
 
-                {/* Mobile Actions */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                  <div>
-                    {(() => {
-                      const docData = getDocumentData(item);
-                      if (docData) {
-                        return (
-                          <button
-                            onClick={() => handleViewDocument(docData.location, docData.originalname)}
-                            className="inline-flex items-center px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors duration-200"
-                            title={`${docData.originalname || 'Document'} - Click to view`}
-                          >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            View Doc
-                          </button>
-                        );
-                      } else if (item?.leaveType === 'medicalLeave' || item?.leaveType === 'sickLeave') {
-                        return (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            No Document
-                          </span>
-                        );
-                      } else {
-                        return (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            N/A
-                          </span>
-                        );
-                      }
-                    })()}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Calendar className="w-6 h-6 text-white" />
                   </div>
+                  <div>
+            <h1 className="text-3xl font-bold text-gray-800">Employee Leave Management</h1>
+            <p className="text-gray-600">Manage leave requests, comp-off approvals, and vendor meetings</p>
+                  </div>
+                    </div>
+                  </div>
+
+      {/* Enhanced Tabs */}
+      <div className="mb-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
+          <div className="flex flex-wrap gap-1">
+            <Tab
+              active={activeTab === "leave"}
+              onClick={() => handleTabChange("leave")}
+              count={tabCounts.leave}
+              icon={Calendar}
+            >
+              Leave Requests
+            </Tab>
+            {availableFeatures.compOff && (
+              <Tab
+                active={activeTab === "compOff"}
+                onClick={() => handleTabChange("compOff")}
+                count={tabCounts.compOff}
+                icon={Clock}
+              >
+                Comp-Off Approvals
+              </Tab>
+            )}
+            {availableFeatures.vendor && (
+              <Tab
+                active={activeTab === "vendor"}
+                onClick={() => handleTabChange("vendor")}
+                count={tabCounts.vendor}
+                icon={Users}
+              >
+                Vendor Meetings
+              </Tab>
+            )}
+            <Tab
+              active={activeTab === "revert"}
+              onClick={() => handleTabChange("revert")}
+              count={tabCounts.revert}
+              icon={RefreshCw}
+              disabled={true} // Disable until revert functionality is implemented
+            >
+              Revert Status
+            </Tab>
+                    </div>
+                  </div>
+                </div>
+
+      {/* Enhanced Search and Filter */}
+      <div className="mb-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+          <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="search"
+                placeholder={`Search ${viewMode} ${activeTab} requests...`}
+                className="w-full pl-16 pr-6 py-6 text-lg text-gray-900 border border-gray-200 rounded-2xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
                   
-                  {/* Mobile Actions */}
-                  {item?.status === "Pending" ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          console.log('📱 MOBILE APPROVE CLICKED!');
-                          handelChangeStatus("Approved", item?._id, item?.employeeInfo?.employeeName);
-                        }}
-                        disabled={approvalLoading[item?._id]}
-                        className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white text-xs rounded-md hover:bg-green-600 transition-colors duration-200 disabled:opacity-50"
-                      >
-                        {approvalLoading[item?._id] ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border border-white border-t-transparent"></div>
-                        ) : (
-                          <>
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Approve
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          console.log('📱 MOBILE REJECT CLICKED!');
-                          handelChangeStatus("Rejected", item?._id, item?.employeeInfo?.employeeName);
-                        }}
-                        disabled={approvalLoading[item?._id]}
-                        className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white text-xs rounded-md hover:bg-red-600 transition-colors duration-200 disabled:opacity-50"
-                      >
-                        {approvalLoading[item?._id] ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border border-white border-t-transparent"></div>
-                        ) : (
-                          <>
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Reject
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-400">
-                      -
-                    </span>
-                  )}
+            {viewMode === "pending" && (
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="appearance-none bg-gray-50 border border-gray-200 rounded-2xl px-6 py-6 pr-12 text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 shadow-sm min-w-[180px]"
+                >
+                  <option value="All">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-6 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
               </div>
-            );
-          })}
+            )}
+                  
+        {/* Enhanced View Mode Navigation */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2">
+          <div className="flex items-center gap-2">
+                      <button
+              onClick={() => setViewMode("pending")}
+              className={`group relative flex items-center gap-3 px-5 py-3 text-sm font-semibold rounded-lg transition-all duration-300 transform ${
+                viewMode === "pending"
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-105'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:shadow-md hover:scale-105'
+              }`}
+            >
+              <Clock className={`w-4 h-4 transition-all duration-300 ${
+                viewMode === "pending" ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'
+              }`} />
+              <span className="relative">
+                Pending
+                {viewMode === "pending" && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-pulse"></div>
+                )}
+              </span>
+              <span className={`px-2 py-1 text-xs font-bold rounded-full transition-all duration-300 ${
+                viewMode === "pending"
+                  ? 'bg-white/20 text-white border border-white/30'
+                  : 'bg-blue-100 text-blue-700 group-hover:bg-blue-200 group-hover:text-blue-800'
+              }`}>
+                {leaveRequests.filter(item => item?.status === "Pending").length}
+              </span>
+                      </button>
+                      <button
+              onClick={() => setViewMode("approved")}
+              className={`group relative flex items-center gap-3 px-5 py-3 text-sm font-semibold rounded-lg transition-all duration-300 transform ${
+                viewMode === "approved"
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg scale-105'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:shadow-md hover:scale-105'
+              }`}
+            >
+              <CheckCircle className={`w-4 h-4 transition-all duration-300 ${
+                viewMode === "approved" ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'
+              }`} />
+              <span className="relative">
+                Approved
+                {viewMode === "approved" && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-pulse"></div>
+                )}
+              </span>
+              <span className={`px-2 py-1 text-xs font-bold rounded-full transition-all duration-300 ${
+                viewMode === "approved"
+                  ? 'bg-white/20 text-white border border-white/30'
+                  : 'bg-green-100 text-green-700 group-hover:bg-green-200 group-hover:text-green-800'
+              }`}>
+                {leaveRequests.filter(item => item?.status === "Approved").length}
+              </span>
+                      </button>
+                    </div>
+                </div>
+
+          </div>
+        </div>
         </div>
 
-        {/* Server-Side Pagination Controls */}
-        {serverTotalPages > 1 && (
+      {/* Table */}
+      {renderTable()}
+
+      {/* Pagination Navigation */}
+      {totalPages > 1 && (
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4">
             {/* Pagination Info */}
             <div className="text-sm text-gray-600">
-              Page {serverCurrentPage} of {serverTotalPages}
+            Page {currentPage} of {totalPages} ({totalItems} total {viewMode} {activeTab} requests)
             </div>
-            \
 
-1            {/* Pagination Controls */}
+          {/* Pagination Controls */}
             <div className="flex items-center gap-2">
               {/* Previous Button */}
               <button
-                onClick={() => {
-                  const newPage = Math.max(currentPage - 1, 1);
-                  setCurrentPage(newPage);
-                }}
+              onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
                 disabled={currentPage === 1}
                 className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
                   currentPage === 1
@@ -832,7 +901,7 @@ const EmployeeLeaveStatus = () => {
                 Previous
               </button>
 
-              {/* Page Numbers - Show current and nearby pages */}
+            {/* Page Numbers */}
               <div className="flex items-center gap-1">
                 {/* First page */}
                 {currentPage > 3 && (
@@ -848,9 +917,9 @@ const EmployeeLeaveStatus = () => {
                 )}
 
                 {/* Current page and neighbors */}
-                {Array.from({ length: 3 }, (_, i) => {
-                  const pageNum = currentPage - 1 + i;
-                  if (pageNum < 1 || pageNum > serverTotalPages) return null;
+              {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                const pageNum = Math.max(1, Math.min(totalPages, currentPage - 1 + i));
+                if (pageNum < 1 || pageNum > totalPages) return null;
                   
                   const isCurrentPage = pageNum === currentPage;
                   
@@ -870,14 +939,14 @@ const EmployeeLeaveStatus = () => {
                 })}
 
                 {/* Last page */}
-                {currentPage < serverTotalPages - 2 && (
+              {currentPage < totalPages - 2 && (
                   <>
-                    {currentPage < serverTotalPages - 3 && <span className="px-2 text-gray-400">...</span>}
+                  {currentPage < totalPages - 3 && <span className="px-2 text-gray-400">...</span>}
                     <button
-                      onClick={() => setCurrentPage(serverTotalPages)}
+                    onClick={() => setCurrentPage(totalPages)}
                       className="w-8 h-8 text-sm font-medium rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors duration-200"
                     >
-                      {serverTotalPages}
+                    {totalPages}
                     </button>
                   </>
                 )}
@@ -885,13 +954,10 @@ const EmployeeLeaveStatus = () => {
 
               {/* Next Button */}
               <button
-                onClick={() => {
-                  const newPage = Math.min(currentPage + 1, serverTotalPages);
-                  setCurrentPage(newPage);
-                }}
-                disabled={currentPage === serverTotalPages}
+              onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
+              disabled={currentPage === totalPages}
                 className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                  currentPage === serverTotalPages
+                currentPage === totalPages
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500'
                 }`}
@@ -904,7 +970,6 @@ const EmployeeLeaveStatus = () => {
             </div>
           </div>
         )}
-      </div>
 
       {/* Document Viewer Modal */}
       {selectedDocument && (
@@ -919,9 +984,7 @@ const EmployeeLeaveStatus = () => {
                 onClick={closeDocumentViewer}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
               >
-                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <XCircle className="w-6 h-6 text-gray-500" />
               </button>
             </div>
             
@@ -957,9 +1020,9 @@ const EmployeeLeaveStatus = () => {
             <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
               <button
                 onClick={() => handleDownload(selectedDocument.location, selectedDocument.documentName)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium flex items-center gap-2"
               >
-                <FiDownload className="inline mr-2" size={16} />
+                <Download className="w-4 h-4" />
                 Download
               </button>
               <button
@@ -975,52 +1038,5 @@ const EmployeeLeaveStatus = () => {
     </div>
   );
 };
-
-const SummaryBox = ({ title, count, percent, ringColor, colorRing }) => (
-  <div className={`border rounded-xl flex items-center p-4 gap-4 shadow-sm bg-white`}>
-    <div className="flex flex-col items-start">
-      <div className="text-xl font-bold text-gray-900">{count ?? "0"}</div>
-      <div
-        className={`text-sm font-semibold ${
-          colorRing === "blue-500"
-            ? "text-blue-600"
-            : colorRing === "red-500"
-            ? "text-red-500"
-            : colorRing === "sky-400"
-            ? "text-sky-400"
-            : "text-orange-400"
-        }`}
-      >
-        {title}
-      </div>
-    </div>
-    <div className="ml-auto">
-      <div className="relative w-14 h-14">
-        <svg viewBox="0 0 36 36" className="w-full h-full">
-          <path
-            className="text-gray-200"
-            strokeWidth="3"
-            fill="none"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-          <path
-            className={`stroke-current ${ringColor}`}
-            strokeWidth="3"
-            fill="none"
-            strokeDasharray={percent}
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-gray-800">
-          {percent}
-        </div>
-      </div>
-    </div>
-  </div>
-);
 
 export default EmployeeLeaveStatus;

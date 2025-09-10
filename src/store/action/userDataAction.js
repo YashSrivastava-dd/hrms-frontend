@@ -968,14 +968,11 @@ export const getCompoffLeaveRequestAction =
         }, 1000);
       }
     } catch (error) {
-      if (error.response?.data?.statusCode === 404) {
-        return;
-      } else {
-        safeToast.error(error.response?.data?.message || "An error occurred. Please try again.");
-      }
+      console.warn('Comp-off approval action error:', error);
+      // Don't show toast or alert for errors - handle gracefully
       dispatch({
         type: GET_COMPOFF_LEAVE_APPROVAL_FAIL,
-        payload: error.response?.data?.message || "Something went wrong",
+        payload: error.response?.data?.message || "Comp-off feature not available",
       });
     }
   };
@@ -1222,14 +1219,11 @@ export const getEmoployeeDocumentsAction = () => async (dispatch, getState) => {
       }, 1000);
     }
   } catch (error) {
-    if (error.response?.data?.statusCode === 404) {
-      return;
-    } else {
-      alert(error.response?.data?.message || "An error occurred. Please try again.");
-    }
+    console.warn('Public documents API error:', error);
+    // Don't show alert for 404 or other errors - handle gracefully
     dispatch({
       type: GET_PUBLIC_DOCUMENTS_FAIL,
-      payload: error.response?.data?.message || "Something went wrong",
+      payload: error.response?.data?.message || "Public documents not available",
     });
   }
 };
@@ -1417,14 +1411,11 @@ export const postEmployePrivateDocAction = () => async (dispatch, getState) => {
       }, 1000);
     }
   } catch (error) {
-    if (error.response?.data?.statusCode === 404) {
-      return;
-    } else {
-      alert(error.response?.data?.message || "An error occurred. Please try again.");
-    }
+    console.warn('Employee private documents API error:', error);
+    // Don't show alert for 404 or other errors - handle gracefully
     dispatch({
       type: GET_EMPLOYEE_PRIVATE_DOC_FAIL,
-      payload: error.response?.data?.message || "Something went wrong",
+      payload: error.response?.data?.message || "Private documents not available",
     });
   }
 };
@@ -2664,14 +2655,11 @@ export const postAddEmployeeAction =
         }, 1000);
       }
     } catch (error) {
-      if (error.response?.data?.statusCode === 404) {
-        return;
-      } else {
-        alert(error.response?.data?.message || "An error occurred. Please try again.");
-      }
+      console.warn('Comp-off API not available:', error);
+      // Don't show alert for 404 or other errors - handle gracefully
       dispatch({
         type: GET_COMPOFF_LEAVE_APPROVAL_FAIL,
-        payload: error.response?.data?.message || "Something went wrong",
+        payload: error.response?.data?.message || "Comp-off feature not available",
       });
     }
   };
