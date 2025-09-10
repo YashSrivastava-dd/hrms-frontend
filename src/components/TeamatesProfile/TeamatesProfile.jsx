@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getTeammateDataAction, getUserDataAction, getAllUserDataAction } from "../../store/action/userDataAction";
 import SingleTeamatesProfile from './SingleTeamatesProfile';
-import { FaSearch, FaUsers, FaFilter, FaSort } from 'react-icons/fa';
+import { FaSearch, FaUsers, FaFilter, FaChevronDown } from 'react-icons/fa';
 
 const TeammatesProfile = ({selectedTag}) => {
   const { data: teammateData } = useSelector((state) => state.teammateData);
@@ -12,9 +12,8 @@ const TeammatesProfile = ({selectedTag}) => {
   const [employeeTicket, setEmployeeTicket] = useState('');
   const [employeeLeaveBalance, setemployeeLeaveBalance] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'id', 'designation'
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
   const [filterRole, setFilterRole] = useState('all');
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   
   const dispatch = useDispatch();
   
@@ -42,8 +41,8 @@ const TeammatesProfile = ({selectedTag}) => {
     dispatch(getUserDataAction());
   }, [dispatch, isAdminUser]);
   
-  // Filter and sort teammates
-  const filteredAndSortedTeammates = React.useMemo(() => {
+  // Filter teammates
+  const filteredTeammates = React.useMemo(() => {
     if (!employeeData) return [];
     
     let filtered = employeeData.filter(teammate => {
@@ -58,52 +57,34 @@ const TeammatesProfile = ({selectedTag}) => {
       return matchesSearch && matchesRole;
     });
 
-    // Sort the filtered results
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-      
-      switch (sortBy) {
-        case 'name':
-          aValue = a.employeeName?.toLowerCase() || '';
-          bValue = b.employeeName?.toLowerCase() || '';
-          break;
-        case 'id':
-          aValue = a.employeeId || 0;
-          bValue = b.employeeId || 0;
-          break;
-        case 'designation':
-          aValue = a.designation?.toLowerCase() || '';
-          bValue = b.designation?.toLowerCase() || '';
-          break;
-        default:
-          aValue = a.employeeName?.toLowerCase() || '';
-          bValue = b.employeeName?.toLowerCase() || '';
-      }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-
     return filtered;
-  }, [employeeData, searchQuery, sortBy, sortOrder, filterRole]);
+  }, [employeeData, searchQuery, filterRole]);
 
-  const handleSort = (field) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-  };
 
   const getUniqueRoles = () => {
     if (!employeeData) return [];
     const roles = employeeData.map(teammate => teammate.designation).filter(Boolean);
     return ['all', ...Array.from(new Set(roles))];
   };
+
+  const handleRoleSelect = (role) => {
+    setFilterRole(role);
+    setShowRoleDropdown(false);
+  };
+
+  // Handle clicking outside dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showRoleDropdown && !event.target.closest('.role-dropdown')) {
+        setShowRoleDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showRoleDropdown]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -133,7 +114,7 @@ const TeammatesProfile = ({selectedTag}) => {
               
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                  {filteredAndSortedTeammates.length} members
+                  {filteredTeammates.length} members
                 </span>
                 {employeeData && (
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">
@@ -146,7 +127,7 @@ const TeammatesProfile = ({selectedTag}) => {
 
           {/* Search and Filter Section */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Search */}
               <div className="relative">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -159,45 +140,60 @@ const TeammatesProfile = ({selectedTag}) => {
                 />
               </div>
 
-              {/* Role Filter */}
-              <div className="relative">
-                <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white"
+              {/* Custom Role Filter Dropdown */}
+              <div className="relative role-dropdown">
+                <button
+                  onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                  className={`flex items-center justify-between w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors duration-200 ${
+                    filterRole !== 'all'
+                      ? 'border-blue-300 bg-blue-50 text-blue-700' 
+                      : 'border-gray-200 text-gray-700'
+                  }`}
                 >
-                  {getUniqueRoles().map((role) => (
-                    <option key={role} value={role}>
-                      {role === 'all' ? 'All Roles' : role}
-                    </option>
-                  ))}
-                </select>
+                  <div className="flex items-center space-x-2">
+                    <FaFilter className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-700">
+                      {filterRole === 'all' ? 'All Roles' : filterRole}
+                    </span>
+                  </div>
+                  <FaChevronDown className={`w-4 h-4 transition-transform duration-200 ${
+                    showRoleDropdown ? 'rotate-180' : ''
+                  } ${filterRole !== 'all' ? 'text-blue-500' : 'text-gray-400'}`} />
+                </button>
+
+                {showRoleDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div className="p-2 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ maxHeight: '280px' }}>
+                      {getUniqueRoles().map((role) => (
+                        <button
+                          key={role}
+                          onClick={() => handleRoleSelect(role)}
+                          className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
+                            filterRole === role
+                              ? 'bg-blue-500 text-white shadow-lg'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-4 h-4 rounded-full border-2 ${
+                              filterRole === role ? 'border-white bg-white' : 'border-gray-300'
+                            }`}></div>
+                            <div>
+                              <span className="font-medium">
+                                {role === 'all' ? 'All Roles' : role}
+                              </span>
+                              <p className="text-xs opacity-75">
+                                {role === 'all' ? 'Show all team members' : `Filter by ${role} role`}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Sort Options */}
-              <div className="relative">
-                <FaSort className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => handleSort(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white"
-                >
-                  <option value="name">Sort by Name</option>
-                  <option value="id">Sort by ID</option>
-                  <option value="designation">Sort by Role</option>
-                </select>
-              </div>
-
-              {/* Sort Order */}
-              <button
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <span className="text-gray-700 font-medium">
-                  {sortOrder === 'asc' ? '↑ Ascending' : '↓ Descending'}
-                </span>
-              </button>
             </div>
           </div>
 
@@ -258,7 +254,7 @@ const TeammatesProfile = ({selectedTag}) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredAndSortedTeammates?.map((teammate, index) => (
+                    {filteredTeammates?.map((teammate, index) => (
                       <tr
                         key={index}
                         className={`hover:bg-gray-50 transition-all duration-200 ${
@@ -322,7 +318,7 @@ const TeammatesProfile = ({selectedTag}) => {
                       </tr>
                     ))}
                     
-                    {filteredAndSortedTeammates?.length === 0 && (
+                    {filteredTeammates?.length === 0 && (
                       <tr>
                         <td colSpan="7" className="px-6 py-12 text-center">
                           <div className="text-gray-500">

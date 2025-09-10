@@ -482,7 +482,7 @@ export const getEmployeLeaveStatusAction =
 
 //
 export const getHolidaysDataAction = () => async (dispatch, getState) => {
-  const { allUserData } = getState();
+  const { holidaysData } = getState();
   const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
   // const employeId=localStorage.getItem('employeId')
   // If token does not exist, do nothing or handle the case
@@ -494,7 +494,7 @@ export const getHolidaysDataAction = () => async (dispatch, getState) => {
   }
 
   // Prevent duplicate fetch if data already exists
-  if (allUserData.data) return;
+  if (holidaysData.data) return;
 
   try {
     dispatch({ type: GET_HOLIDAYS_DATA_REQUEST });
