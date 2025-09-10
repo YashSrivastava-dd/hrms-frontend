@@ -123,6 +123,68 @@ const Tab = ({ active, onClick, children, count, icon: Icon, disabled = false })
   </button>
 );
 
+// Custom dropdown component
+const CustomDropdown = ({ value, onChange, options, placeholder, className = "" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const selectedOption = options.find(option => option.value === value);
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-4 text-base text-gray-900 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm min-w-[160px]"
+      >
+        <span className="text-left">{selectedOption ? selectedOption.label : placeholder}</span>
+        <svg 
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full px-4 py-3 text-left text-base hover:bg-gray-50 transition-colors duration-200 first:rounded-t-xl last:rounded-b-xl ${
+                value === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Status badge component
 const StatusBadge = ({ status, type = "default" }) => {
   const getStatusConfig = () => {
@@ -285,6 +347,14 @@ const EmployeeLeaveStatus = () => {
     vendor: false
   });
   const [viewMode, setViewMode] = useState("pending"); // "pending" or "approved"
+
+  // Status filter options
+  const statusOptions = [
+    { value: "All", label: "All Status" },
+    { value: "Pending", label: "Pending" },
+    { value: "Approved", label: "Approved" },
+    { value: "Rejected", label: "Rejected" }
+  ];
 
   // Data with safe fallbacks
   const leaveRequests = Array.isArray(leaveData?.data) ? leaveData.data : [];
@@ -775,41 +845,31 @@ const EmployeeLeaveStatus = () => {
 
       {/* Enhanced Search and Filter */}
       <div className="mb-8">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
           <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
             <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-6 pointer-events-none">
-                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
               <input
                 type="search"
                 placeholder={`Search ${viewMode} ${activeTab} requests...`}
-                className="w-full pl-16 pr-6 py-6 text-lg text-gray-900 border border-gray-200 rounded-2xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 shadow-sm"
+                className="w-full pl-12 pr-4 py-4 text-base text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
                   
             {viewMode === "pending" && (
-              <div className="relative">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="appearance-none bg-gray-50 border border-gray-200 rounded-2xl px-6 py-6 pr-12 text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 shadow-sm min-w-[180px]"
-                >
-                  <option value="All">All Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-6 pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
+              <CustomDropdown
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={statusOptions}
+                placeholder="Select Status"
+                className="min-w-[160px]"
+              />
             )}
                   
         {/* Enhanced View Mode Navigation */}
@@ -868,7 +928,7 @@ const EmployeeLeaveStatus = () => {
                     </div>
                 </div>
 
-          </div>
+              </div>
         </div>
         </div>
 
