@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  getCompoffLeaveRequestAction,
   getAllCompoffLeaveRequestAction,
   getLeaveApproveRequestAction,
   getUserDataAction,
@@ -77,7 +76,7 @@ const ManagerApproval = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("leave");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterLeaveType, setFilterLeaveType] = useState("");
@@ -387,76 +386,45 @@ const ManagerApproval = () => {
     }
   }, [activeTab, leaveReqData, vendorDataa, compOffData]);
 
-  // Memoized data processing with error handling
-  const processedData = useMemo(() => {
-    try {
-      if (!filteredData || !Array.isArray(filteredData) || filteredData.length === 0) return [];
-      
-      let processed = [...filteredData]; // Create a copy to avoid mutations
-      
-      // Apply search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        processed = processed.filter(item => {
-          try {
-            const employeeName = item?.employeeInfo?.employeeName;
-            const reason = item?.reason;
-            return (
-              (employeeName && typeof employeeName === 'string' && employeeName.toLowerCase().includes(searchLower)) ||
-              (reason && typeof reason === 'string' && reason.toLowerCase().includes(searchLower))
-            );
-          } catch (filterError) {
-            console.warn('Error filtering item:', filterError, item);
-            return false;
-          }
-        });
-      }
-      
-      // Apply status filter
-      if (filterStatus) {
-        processed = processed.filter(item => {
-          try {
-            return item?.status === filterStatus;
-          } catch (filterError) {
-            console.warn('Error filtering by status:', filterError, item);
-            return false;
-          }
-        });
-      }
-      
-      // Apply leave type filter
-      if (filterLeaveType) {
-        processed = processed.filter(item => {
-          try {
-            const leaveType = item?.leaveType;
-            return leaveType && typeof leaveType === 'string' && 
-                   leaveType.toLowerCase() === filterLeaveType.toLowerCase();
-          } catch (filterError) {
-            console.warn('Error filtering by leave type:', filterError, item);
-            return false;
-          }
-        });
-      }
-      
-      return processed;
-    } catch (error) {
-      console.warn('Error processing data:', error);
-      return [];
+  // Note: Removed processedData logic as we now use raw API data for better pagination
+
+  // Use raw API data for pagination, apply client-side filtering only for search
+  const currentData = useMemo(() => {
+    if (!filteredData || !Array.isArray(filteredData)) return [];
+    
+    // Only apply search filter client-side, let API handle pagination
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return filteredData.filter(item => {
+        try {
+          const employeeName = item?.employeeInfo?.employeeName;
+          const reason = item?.reason;
+          return (
+            (employeeName && typeof employeeName === 'string' && employeeName.toLowerCase().includes(searchLower)) ||
+            (reason && typeof reason === 'string' && reason.toLowerCase().includes(searchLower))
+          );
+        } catch (filterError) {
+          console.warn('Error filtering item:', filterError, item);
+          return false;
+        }
+      });
     }
-  }, [filteredData, searchTerm, filterStatus, filterLeaveType, activeTab]);
+    
+    return filteredData;
+  }, [filteredData, searchTerm]);
 
   // Memoized data checks
   const hasData = useMemo(() => 
-    processedData && Array.isArray(processedData) && processedData.length > 0, 
-    [processedData]
+    currentData && Array.isArray(currentData) && currentData.length > 0, 
+    [currentData]
   );
   
   const hasRevertData = useMemo(() => {
     if (activeTab !== "revert") return hasData;
-    return hasData && processedData.filter(item => 
+    return hasData && currentData.filter(item => 
       item?.revertLeave && item?.revertLeave?.status === "Pending"
     ).length > 0;
-  }, [activeTab, hasData, processedData]);
+  }, [activeTab, hasData, currentData]);
   
   const hasTotalRecords = useCallback(() => {
     if (activeTab === "revert") {
@@ -482,9 +450,6 @@ const ManagerApproval = () => {
     if (activeTab === "vendor") return Math.ceil(totalVendorRecords / itemsPerPage) || 1;
     return 1;
   }, [activeTab, itemsPerPage, totalLeaveRecords, totalCompOffRecords, totalVendorRecords]);
-
-  // Use processed data directly since API returns paginated data
-  const currentData = processedData;
 
   // Optimized event handlers
   const nextPage = useCallback(() => 
@@ -677,7 +642,7 @@ const ManagerApproval = () => {
           const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
           
           if (isCompOff) {
-            dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
+            dispatch(getAllCompoffLeaveRequestAction({ page: currentPage, limit }));
           } else {
             dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
           }
@@ -720,40 +685,32 @@ const ManagerApproval = () => {
     }
   }, [dispatch, loadedAPIs.userData]);
 
+  // Consolidated API call effect for better pagination handling
   useEffect(() => {
     const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
     
-    if (activeTab === "leave" && !loadedAPIs.leave) {
+    // Load data based on active tab
+    if (activeTab === "leave") {
       dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
-      setLoadedAPIs(prev => ({ ...prev, leave: true }));
+      if (!loadedAPIs.leave) {
+        setLoadedAPIs(prev => ({ ...prev, leave: true }));
+      }
     }
     
-    if (activeTab === "compoff" && !loadedAPIs.compOff) {
-      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
-      setLoadedAPIs(prev => ({ ...prev, compOff: true }));
+    if (activeTab === "compoff") {
+      dispatch(getAllCompoffLeaveRequestAction({ page: currentPage, limit }));
+      if (!loadedAPIs.compOff) {
+        setLoadedAPIs(prev => ({ ...prev, compOff: true }));
+      }
     }
     
-    if (activeTab === "vendor" && !loadedAPIs.vendor) {
+    if (activeTab === "vendor") {
       dispatch(getVendorLogsAction({ page: currentPage, limit }));
-      setLoadedAPIs(prev => ({ ...prev, vendor: true }));
+      if (!loadedAPIs.vendor) {
+        setLoadedAPIs(prev => ({ ...prev, vendor: true }));
+      }
     }
   }, [dispatch, activeTab, currentPage, itemsPerPage, loadedAPIs]);
-
-  useEffect(() => {
-    const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
-    
-    if (activeTab === "leave" && loadedAPIs.leave) {
-      dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
-    }
-    
-    if (activeTab === "compoff" && loadedAPIs.compOff) {
-      dispatch(getCompoffLeaveRequestAction({ page: currentPage, limit }));
-    }
-    
-    if (activeTab === "vendor" && loadedAPIs.vendor) {
-      dispatch(getVendorLogsAction({ page: currentPage, limit }));
-    }
-  }, [dispatch, currentPage, itemsPerPage, activeTab, loadedAPIs]);
 
   useEffect(() => {
     setSearchTerm("");

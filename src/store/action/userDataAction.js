@@ -130,6 +130,9 @@ import {
   POST_UPLOAD_PUBLIC_DOCUMENTS_FAIL,
   POST_UPLOAD_PUBLIC_DOCUMENTS_SUCCESS,
   POST_UPLOAD_PUBLIC_DOCUMENTS_REQUEST,
+  POST_S3_UPLOAD_DOC_FAIL,
+  POST_S3_UPLOAD_DOC_SUCCESS,
+  POST_S3_UPLOAD_DOC_REQUEST,
   GET_PAYROLL_AND_PAYSLIP_FAIL,
   GET_PAYROLL_AND_PAYSLIP_SUCCESS,
   GET_PAYROLL_AND_PAYSLIP_REQUEST,
@@ -2107,13 +2110,53 @@ export const updateAnnouncementDataAction =
     }
   };
 
+export const postS3UploadDocAction = (file) => async (dispatch, getState) => {
+  const token = localStorage.getItem("authToken");
+  
+  if (!token) {
+    return dispatch({
+      type: POST_S3_UPLOAD_DOC_FAIL,
+      payload: "Authentication token not found",
+    });
+  }
+
+  try {
+    dispatch({ type: POST_S3_UPLOAD_DOC_REQUEST });
+
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Add token to request headers
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    };
+
+    const { data } = await axios.post(
+      `${process.env.REACT_APP_BASE_URL}/api/s3/upload-doc`,
+      formData,
+      config
+    );
+    
+    dispatch({ type: POST_S3_UPLOAD_DOC_SUCCESS, payload: data });
+    return data;
+  } catch (error) {
+    dispatch({
+      type: POST_S3_UPLOAD_DOC_FAIL,
+      payload: error.response?.data?.message || "File upload failed",
+    });
+    throw error;
+  }
+};
+
 export const postUploadEmployeeDocumentsAction =
   ({ docType, documentName, employeeId, location }) =>
   async (dispatch, getState) => {
-    const { allUserData } = getState();
-    const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
-    // const employeId = localStorage.getItem("employeId");
-    // If token does not exist, do nothing or handle the case
+    const token = localStorage.getItem("authToken");
+    
     if (!token) {
       return dispatch({
         type: POST_UPLOAD_PUBLIC_DOCUMENTS_REQUEST,
@@ -2121,11 +2164,20 @@ export const postUploadEmployeeDocumentsAction =
       });
     }
 
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
-
     try {
       dispatch({ type: POST_UPLOAD_PUBLIC_DOCUMENTS_REQUEST });
+
+      // Prepare payload based on document type
+      const payload = {
+        documentName,
+        docType,
+        location
+      };
+
+      // Only add employeeId for private documents
+      if (docType === 'Private' && employeeId) {
+        payload.employeeId = employeeId;
+      }
 
       // Add token to request headers
       const config = {
@@ -2134,29 +2186,21 @@ export const postUploadEmployeeDocumentsAction =
           "Content-Type": "application/json",
         },
       };
+      
       const { data } = await axios.post(
         `${process.env.REACT_APP_BASE_URL}/api/s3/upload-employee-document`,
-        {
-          docType,
-          documentName,
-          employeeId,
-          location,
-        },
+        payload,
         config
       );
+      
       dispatch({ type: POST_UPLOAD_PUBLIC_DOCUMENTS_SUCCESS, payload: data });
-      if (data?.statusCode === 201) {
-        alert("File uploaded successfully");
-        setTimeout(() => {
-          window.location.reload();
-        }, 100);
-        return;
-      }
+      return data;
     } catch (error) {
       dispatch({
         type: POST_UPLOAD_PUBLIC_DOCUMENTS_FAIL,
-        payload: error.response?.data?.message || "Something went wrong",
+        payload: error.response?.data?.message || "Document metadata save failed",
       });
+      throw error;
     }
   };
 

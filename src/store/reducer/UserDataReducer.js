@@ -141,6 +141,12 @@ import {
   DELETE_LEAVE_COMPOFF_REQUEST,
   DELETE_LEAVE_COMPOFF_SUCCESS,
   DELETE_LEAVE_COMPOFF_FAIL,
+  POST_UPLOAD_PUBLIC_DOCUMENTS_REQUEST,
+  POST_UPLOAD_PUBLIC_DOCUMENTS_SUCCESS,
+  POST_UPLOAD_PUBLIC_DOCUMENTS_FAIL,
+  POST_S3_UPLOAD_DOC_REQUEST,
+  POST_S3_UPLOAD_DOC_SUCCESS,
+  POST_S3_UPLOAD_DOC_FAIL,
 } from "../types/UserDataType";
 
 const initialState = {
@@ -1289,6 +1295,65 @@ const initialRegularizationCountState = {
   loading: false,
   data: null,
   error: null,
+};
+
+// Document Upload Reducers
+export const postS3UploadDocReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case POST_S3_UPLOAD_DOC_REQUEST:
+      return {
+        ...state,
+        loading: true,
+        error: null,
+      };
+
+    case POST_S3_UPLOAD_DOC_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case POST_S3_UPLOAD_DOC_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+export const postUploadEmployeeDocumentsReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case POST_UPLOAD_PUBLIC_DOCUMENTS_REQUEST:
+      return {
+        ...state,
+        loading: true,
+        error: null,
+      };
+
+    case POST_UPLOAD_PUBLIC_DOCUMENTS_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case POST_UPLOAD_PUBLIC_DOCUMENTS_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
 };
 
 export const regularizationCountReducer = (state = initialRegularizationCountState, action) => {
