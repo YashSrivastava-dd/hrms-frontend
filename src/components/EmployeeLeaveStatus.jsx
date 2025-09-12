@@ -7,7 +7,7 @@ import {
   getLeaveApproveRequestAction,
   getUserDataAction,
   putApprovedLeaveByManagerAction,
-  getAllCompoffLeaveRequestAction,
+  getCompoffLeaveRequestAction,
   putCompOffLeaveRequestAction,
   getVendorLogsAction,
   putVendorStatusDataAction,
@@ -395,7 +395,7 @@ const EmployeeLeaveStatus = () => {
         
         // Load optional data with error handling
         try {
-          await dispatch(getAllCompoffLeaveRequestAction({ page: 1, limit: 1000 })); // Fetch all data
+          await dispatch(getCompoffLeaveRequestAction({ page: 1, limit: 10000 })); // Fetch all data
           setAvailableFeatures(prev => ({ ...prev, compOff: true }));
         } catch (error) {
           console.warn('Comp-off API not available:', error);
@@ -513,7 +513,7 @@ const EmployeeLeaveStatus = () => {
     try {
       await dispatch(putCompOffLeaveRequestAction({ status, id: item._id }));
       safeToast.success(`Comp-off request ${status.toLowerCase()} successfully!`);
-      dispatch(getAllCompoffLeaveRequestAction({ page: 1, limit: 1000 }));
+      dispatch(getCompoffLeaveRequestAction({ page: 1, limit: 10000 }));
     } catch (error) {
       safeToast.error(`Failed to ${status.toLowerCase()} comp-off request: ${error?.message || 'Something went wrong'}`);
     } finally {
@@ -568,7 +568,8 @@ const EmployeeLeaveStatus = () => {
                          item?.employeeInfo?.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item?.employeeInfo?.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item?.leaveType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item?.reason?.toLowerCase().includes(searchTerm.toLowerCase());
+          item?.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (activeTab === "compOff" && item?.compOffDate?.toLowerCase().includes(searchTerm.toLowerCase()));
         
         let matchesStatus;
         if (viewMode === "approved") {
@@ -690,9 +691,33 @@ const EmployeeLeaveStatus = () => {
                     {/* Period Column */}
                   <td className="px-4 py-4">
                       <div className="text-xs text-gray-900">
-                        <div className="font-medium text-gray-800">{item?.leaveStartDate || "--"}</div>
-                        <div className="text-gray-500 text-[10px]">to</div>
-                        <div className="font-medium text-gray-800">{item?.leaveEndDate || "--"}</div>
+                        {activeTab === "compOff" ? (
+                          // For comp-off requests, show compOffDate
+                          <div className="font-medium text-gray-800">
+                            {item?.compOffDate ? (() => {
+                              try {
+                                const date = new Date(item.compOffDate);
+                                if (!isNaN(date.getTime())) {
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const year = date.getFullYear();
+                                  return `${day}-${month}-${year}`;
+                                }
+                                return item.compOffDate;
+                              } catch (error) {
+                                console.warn('Error formatting compOffDate:', error);
+                                return item.compOffDate || "--";
+                              }
+                            })() : "--"}
+                          </div>
+                        ) : (
+                          // For regular leave requests, show start and end dates
+                          <>
+                            <div className="font-medium text-gray-800">{item?.leaveStartDate || "--"}</div>
+                            <div className="text-gray-500 text-[10px]">to</div>
+                            <div className="font-medium text-gray-800">{item?.leaveEndDate || "--"}</div>
+                          </>
+                        )}
                       </div>
                     </td>
 
@@ -855,7 +880,9 @@ const EmployeeLeaveStatus = () => {
               </div>
               <input
                 type="search"
-                placeholder={`Search ${viewMode} ${activeTab} requests...`}
+                placeholder={activeTab === "compOff" 
+                  ? `Search ${viewMode} comp-off requests by employee, date, or reason...` 
+                  : `Search ${viewMode} ${activeTab} requests...`}
                 className="w-full pl-12 pr-4 py-4 text-base text-gray-900 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
