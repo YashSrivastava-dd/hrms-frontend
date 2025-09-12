@@ -1937,10 +1937,14 @@ export const putRevertLeaveByManagerAction =
     }
   };
 
+// Add a simple debounce mechanism to prevent rapid successive calls
+let announcementCallTimeout = null;
+let lastAnnouncementCallTime = 0;
+
 export const getAnnouncementDataAction = () => async (dispatch, getState) => {
   const { announcementData } = getState();
   const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
-  // const employeId = localStorage.getItem("employeId");
+  
   // If token does not exist, do nothing or handle the case
   if (!token) {
     return dispatch({
@@ -1949,8 +1953,47 @@ export const getAnnouncementDataAction = () => async (dispatch, getState) => {
     });
   }
 
-  // Prevent duplicate fetch if data already exists
-  if (announcementData?.data) return;
+  // Prevent duplicate fetch if data already exists or is currently loading
+  if (announcementData?.data || announcementData?.loading) {
+    console.log('Announcement data already exists or loading, skipping fetch');
+    return;
+  }
+
+  // Prevent rapid successive calls (within 5 seconds)
+  const now = Date.now();
+  if (now - lastAnnouncementCallTime < 5000) {
+    console.log('Announcement call too recent, skipping to prevent spam');
+    return;
+  }
+
+  // Check localStorage cache to prevent repeated calls across page reloads
+  try {
+    const cacheKey = 'announcement_call_cache';
+    const cachedTime = localStorage.getItem(cacheKey);
+    if (cachedTime && (now - parseInt(cachedTime)) < 30000) { // 30 seconds cache
+      console.log('Announcement call cached, skipping to prevent spam');
+      return;
+    }
+  } catch (error) {
+    console.warn('Error checking announcement cache:', error);
+  }
+
+  // Clear any existing timeout
+  if (announcementCallTimeout) {
+    clearTimeout(announcementCallTimeout);
+  }
+
+  // Debounce the API call by 1 second
+  announcementCallTimeout = setTimeout(async () => {
+    // Update the last call time
+    lastAnnouncementCallTime = Date.now();
+    
+    // Update localStorage cache
+    try {
+      localStorage.setItem('announcement_call_cache', now.toString());
+    } catch (error) {
+      console.warn('Error updating announcement cache:', error);
+    }
 
   try {
     dispatch({ type: GET_ANNOUNCEMENT_DATA_REQUEST });
@@ -1961,18 +2004,33 @@ export const getAnnouncementDataAction = () => async (dispatch, getState) => {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      timeout: 5000, // 5 second timeout
     };
+    // Try the correct endpoint first
     const { data } = await axios.get(
-      `${process.env.REACT_APP_BASE_URL}/api/common/get-event-list`,
+      `${process.env.REACT_APP_BASE_URL}/api/common/get-events`,
       config
     );
     dispatch({ type: GET_ANNOUNCEMENT_DATA_SUCCESS, payload: data });
   } catch (error) {
-    dispatch({
-      type: GET_ANNOUNCEMENT_DATA_FAIL,
-      payload: error.response?.data?.message || "Something went wrong",
-    });
+    console.warn('Announcement API call failed:', error.response?.status, error.message);
+    
+    // Only log warning for 404 errors, not for network issues
+    if (error.response?.status === 404) {
+      console.warn('Announcement endpoint not available, skipping announcement data fetch');
+      dispatch({
+        type: GET_ANNOUNCEMENT_DATA_FAIL,
+        payload: "Announcement feature not available",
+      });
+    } else {
+      console.warn('Failed to fetch announcement data:', error.response?.status, error.response?.statusText);
+      dispatch({
+        type: GET_ANNOUNCEMENT_DATA_FAIL,
+        payload: error.response?.data?.message || "Announcement data not available",
+      });
+    }
   }
+  }, 1000); // 1 second debounce
 };
 
 export const postAnnouncementDataAction =
