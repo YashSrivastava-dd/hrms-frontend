@@ -736,19 +736,6 @@ const ManagerApproval = () => {
     }
   }, [leaveError]);
 
-  useEffect(() => {
-    if (compOffError && 
-        typeof compOffError === 'string' && 
-        compOffError.length > 0 && 
-        !compOffError.includes('No data') && 
-        !compOffError.includes('empty') &&
-        compOffError !== 'null' &&
-        compOffError !== 'undefined' &&
-        !processedErrorMessagesRef.current.has(compOffError)) {
-      processedErrorMessagesRef.current.add(compOffError);
-      safeToast.error(`Comp-Off approval error: ${compOffError}`);
-    }
-  }, [compOffError]);
 
   useEffect(() => {
     if (vendorError && 

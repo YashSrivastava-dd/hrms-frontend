@@ -197,19 +197,100 @@ const PublicDocument = ({ onBack }) => {
                 </div>
               )}
               
-              {/* Simple preview - use Google Docs Viewer for all files */}
-              <iframe
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedDocument.location)}&embedded=true`}
-                className="w-full h-full border border-gray-300 rounded-lg"
-                frameBorder="0"
-                title="Document Preview"
-                onLoad={() => {
-                  setDocumentLoading(false);
-                }}
-                onError={() => {
-                  setDocumentLoading(false);
-                }}
-              />
+              {/* Universal document viewer with multiple fallbacks */}
+              <div className="w-full h-full relative">
+                {/* Try direct image first for common formats */}
+                {(() => {
+                  const isCommonImage = selectedDocument.location && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(selectedDocument.location);
+                  console.log('=== MODAL DEBUG ===');
+                  console.log('Selected document:', selectedDocument);
+                  console.log('Is common image format?', isCommonImage);
+                  console.log('Image URL for direct display:', selectedDocument.location);
+                  
+                  if (isCommonImage) {
+                    return (
+                      <img
+                        src={selectedDocument.location}
+                        alt="Document Preview"
+                        className="direct-image w-full h-full object-contain rounded-lg"
+                        onLoad={(e) => {
+                          console.log('✅ Image loaded successfully');
+                          console.log('Image dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+                          setDocumentLoading(false);
+                        }}
+                        onError={(e) => {
+                          console.log('❌ Direct image loading failed');
+                          console.log('Image error event:', e);
+                          console.log('Image src that failed:', e.target.src);
+                          // Hide the image and show iframe instead
+                          const iframe = document.querySelector('.fallback-iframe');
+                          const image = document.querySelector('.direct-image');
+                          if (iframe) iframe.style.display = 'block';
+                          if (image) image.style.display = 'none';
+                        }}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+                
+                {/* Google Docs Viewer for documents and .heic files */}
+                <iframe
+                  src={(() => {
+                    const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(selectedDocument.location)}&embedded=true`;
+                    console.log('🔍 Google Docs Viewer URL:', googleDocsUrl);
+                    return googleDocsUrl;
+                  })()}
+                  className={`fallback-iframe w-full h-full border border-gray-300 rounded-lg ${
+                    selectedDocument.location && /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(selectedDocument.location) 
+                      ? 'hidden' : 'block'
+                  }`}
+                  frameBorder="0"
+                  title="Document Preview"
+                  onLoad={(e) => {
+                    console.log('✅ Google Docs Viewer loaded successfully');
+                    console.log('Iframe content window:', e.target.contentWindow);
+                    setDocumentLoading(false);
+                  }}
+                  onError={(e) => {
+                    console.log('❌ Google Docs Viewer failed');
+                    console.log('Iframe error event:', e);
+                    console.log('Failed iframe src:', e.target.src);
+                    setDocumentLoading(false);
+                    // Show error message
+                    const errorDiv = document.querySelector('.preview-error');
+                    const iframe = document.querySelector('.fallback-iframe');
+                    if (errorDiv) errorDiv.style.display = 'flex';
+                    if (iframe) iframe.style.display = 'none';
+                  }}
+                />
+                
+                {/* Error fallback - download option */}
+                <div className="preview-error absolute inset-0 hidden flex-col items-center justify-center bg-gray-50 rounded-lg">
+                  <div className="text-center p-8">
+                    <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Preview Not Available</h3>
+                    <p className="text-gray-600 mb-6">This file format cannot be previewed in the browser.</p>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => window.open(selectedDocument.location, '_blank')}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Open in New Tab
+                      </button>
+                      <a
+                        href={selectedDocument.location}
+                        download
+                        className="block w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center"
+                      >
+                        Download File
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             {/* Modal Footer */}

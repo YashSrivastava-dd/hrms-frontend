@@ -235,8 +235,10 @@ const EmployeePayroleTable = () => {
                           <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap truncate max-w-[120px] sm:max-w-[150px]" title={employee?.employee_basic_details?.employee_name || "Unknown Employee"}>{employee?.employee_basic_details?.employee_name || "Unknown Employee"}</td>
                           <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap truncate max-w-[100px] sm:max-w-[120px]" title={employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}>{employee?.employee_basic_details?.department || employee?.employee_basic_details?.designation || "No designation"}</td>
                           <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.pay_slip_month || "--"}</td>
-                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.leave_summary?.payable_days || employee?.leave_summary?.workedDays || "0"}</td>
-                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.leave_summary?.unpaid_days || employee?.leave_summary?.absent || "0"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">{employee?.leave_summary?.payable_days || "0"}</td>
+                          <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap text-xs sm:text-sm">
+                            {Math.max(0, (parseFloat(employee?.leave_summary?.payable_days || 0) - parseFloat(employee?.leave_summary?.workedDays || 0)))}
+                          </td>
                           <td className="py-3 sm:py-4 px-2 sm:px-4 whitespace-nowrap">
                             <button
                               onClick={() => {

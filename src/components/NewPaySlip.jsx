@@ -54,6 +54,29 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
   
   // Use sample data if in preview mode, otherwise use actual data
   const displayData = previewMode ? sampleData : payslipModelData;
+  
+  // Debug: Log the data being used
+  console.log('NewPaySlip displayData:', displayData);
+  console.log('Gross salary from displayData:', displayData?.salary_details?.gross_salary);
+  console.log('Gross salary from payslipModelData:', payslipModelData?.salary_details?.gross_salary);
+  console.log('Total gross salary:', displayData?.salary_details?.total_gross_salary);
+  console.log('Preview mode:', previewMode);
+  console.log('Salary details:', displayData?.salary_details);
+  console.log('Form data from GenerateSalarySlip:', payslipModelData);
+  console.log('Final gross salary value:', displayData?.salary_details?.gross_salary || payslipModelData?.salary_details?.gross_salary || '0.00');
+  
+  // Debug: Check if the data is the same object
+  console.log('Are displayData and payslipModelData the same?', displayData === payslipModelData);
+  console.log('displayData salary_details keys:', Object.keys(displayData?.salary_details || {}));
+  console.log('payslipModelData salary_details keys:', Object.keys(payslipModelData?.salary_details || {}));
+  
+  // Check if gross_salary exists in the data
+  console.log('Does displayData have gross_salary?', 'gross_salary' in (displayData?.salary_details || {}));
+  console.log('Does payslipModelData have gross_salary?', 'gross_salary' in (payslipModelData?.salary_details || {}));
+  
+  // Check the actual values
+  console.log('displayData.salary_details.gross_salary:', displayData?.salary_details?.gross_salary);
+  console.log('payslipModelData.salary_details.gross_salary:', payslipModelData?.salary_details?.gross_salary);
   const generatePDF = () => {
     try {
       const element = document.getElementById("invoice");
@@ -117,7 +140,8 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
       Number(displayData?.salary_details?.employee_pf) +
       Number(displayData?.salary_details?.tds) +
       Number(displayData?.salary_details?.employee_esi) +
-      Number(displayData?.salary_details?.loan_advance));
+      Number(displayData?.salary_details?.loan_advance) +
+      Number(displayData?.salary_details?.penalty));
 
   return (
     <>
@@ -182,7 +206,7 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
         <div className="flex items-center justify-center text-sm font-semibold bg-gray-100 py-1 px-1 border-b border-gray-300 text-center mt-3">
           Payslip for the month of{" "}
           <span className="font-bold ml-1">
-            {moment(displayData?.pay_slip_month).format("MMMM YYYY")}
+            {displayData?.pay_slip_month ? moment(displayData.pay_slip_month, "MMMM YYYY").format("MMMM YYYY") : 'Invalid date'}
           </span>
         </div>
 
@@ -193,11 +217,10 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
               Fixed Gross Salary
             </div>
             <div className="text-lg font-bold text-black mb-1">
-              ₹ {displayData?.salary_details?.total_gross_salary}
+              ₹ {displayData?.salary_details?.fixed_gross_salary || displayData?.salary_details?.gross_salary || payslipModelData?.salary_details?.fixed_gross_salary || payslipModelData?.salary_details?.gross_salary || '0.00'}
             </div>
             <div className="text-xs text-gray-600">
-              Paid Days: {displayData?.leave_summary?.payable_days} | LOP
-              Days: {displayData?.leave_summary?.unpaid_days}
+              Paid Days: {displayData?.leave_summary?.payable_days || 0} | LOP Days: {Math.max(0, (parseFloat(displayData?.leave_summary?.payable_days || 0) - parseFloat(displayData?.leave_summary?.workedDays || 0)))}
             </div>
           </div>
 
@@ -254,22 +277,30 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
               <div className="text-right">AMOUNT</div>
             </div>
 
-            {[...[
-              { label: "Basic", amount: displayData?.salary_details?.basic_salary },
-              { label: "House Rent Allowance", amount: displayData?.salary_details?.hra },
-              { label: "Travel Allowance", amount: displayData?.salary_details?.travel_allowances },
-              { label: "Special Allowance", amount: displayData?.salary_details?.special_allowances }
-            ]].map((item, index) => (
-              <div key={index} className="grid grid-cols-2 gap-4 py-1 px-2 border-l border-r border-b border-gray-300 bg-white">
-                <div className="font-medium text-black">{item.label}</div>
-                <div className="text-right font-semibold text-black">₹{item.amount || "0"}</div>
-              </div>
-            ))}
+            {(() => {
+              const adjustedGross = parseFloat(displayData?.salary_details?.total_gross_salary || 0);
+              const basicSalary = adjustedGross * 0.5; // 50% of adjusted gross
+              const hra = basicSalary * 0.4; // 40% of basic
+              const travelAllowances = basicSalary * 0.2; // 20% of basic
+              const specialAllowances = basicSalary * 0.4; // 40% of basic
+              
+              return [
+                { label: "Basic", amount: basicSalary },
+                { label: "House Rent Allowance", amount: hra },
+                { label: "Travel Allowance", amount: travelAllowances },
+                { label: "Special Allowance", amount: specialAllowances }
+              ].map((item, index) => (
+                <div key={index} className="grid grid-cols-2 gap-4 py-1 px-2 border-l border-r border-b border-gray-300 bg-white">
+                  <div className="font-medium text-black">{item.label}</div>
+                  <div className="text-right font-semibold text-black">₹{parseFloat(item.amount || 0).toFixed(2)}</div>
+                </div>
+              ));
+            })()}
 
             <div className="grid grid-cols-2 gap-4 py-1 px-2 font-bold bg-gray-200 text-black border border-gray-300">
               <div>Gross Earnings - A</div>
               <div className="text-right text-sm">
-                ₹{displayData?.salary_details?.total_gross_salary || "0"}
+                ₹{parseFloat(displayData?.salary_details?.total_gross_salary || 0).toFixed(2)}
               </div>
             </div>
           </div>
@@ -291,7 +322,7 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
             ]].map((item, index) => (
               <div key={index} className="grid grid-cols-2 gap-4 py-1 px-2 border-l border-r border-b border-gray-300 bg-white">
                 <div className="font-medium text-black">{item.label}</div>
-                <div className="text-right font-semibold text-black">₹{item.amount || "0"}</div>
+                <div className="text-right font-semibold text-black">₹{parseFloat(item.amount || 0).toFixed(2)}</div>
               </div>
             ))}
 
@@ -299,7 +330,12 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
               <div>Total Deductions - B</div>
               <div className="text-right text-sm">
                 ₹{(
-                  displayData?.salary_details?.total_gross_salary - netPay
+                  parseFloat(displayData?.salary_details?.employee_pf || 0) +
+                  parseFloat(displayData?.salary_details?.employee_esi || 0) +
+                  parseFloat(displayData?.salary_details?.tds || 0) +
+                  parseFloat(displayData?.salary_details?.loan_advance || 0) +
+                  parseFloat(displayData?.salary_details?.transport_or_others || 0) +
+                  parseFloat(displayData?.salary_details?.penalty || 0)
                 ).toFixed(2)}
               </div>
             </div>
@@ -312,12 +348,17 @@ const NewPaySlip = ({ setPayslipModel, payslipModelData }) => {
           <div className="grid grid-cols-2 gap-4 mb-2">
             <div className="font-bold text-black">Gross Earnings - A</div>
             <div className="text-right font-semibold text-black">
-              ₹{displayData?.salary_details?.total_gross_salary || "0"}
+              ₹{parseFloat(displayData?.salary_details?.total_gross_salary || 0).toFixed(2)}
             </div>
             <div className="font-bold text-black">Total Deductions - B</div>
             <div className="text-right font-semibold text-black">
               (-) ₹{(
-                displayData?.salary_details?.total_gross_salary - netPay
+                parseFloat(displayData?.salary_details?.employee_pf || 0) +
+                parseFloat(displayData?.salary_details?.employee_esi || 0) +
+                parseFloat(displayData?.salary_details?.tds || 0) +
+                parseFloat(displayData?.salary_details?.loan_advance || 0) +
+                parseFloat(displayData?.salary_details?.transport_or_others || 0) +
+                parseFloat(displayData?.salary_details?.penalty || 0)
               ).toFixed(2)}
             </div>
           </div>

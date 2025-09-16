@@ -1,11 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave, FaCalculator, FaFileAlt, FaSearch, FaSpinner, FaChevronDown, FaTimes } from 'react-icons/fa';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import axios from 'axios';
+import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave, FaCalculator, FaFileAlt, FaSearch, FaSpinner, FaChevronDown, FaTimes, FaCheck, FaEye } from 'react-icons/fa';
+import NewPaySlip from './NewPaySlip';
 
   const GenerateSalarySlip = () => {
-    // Store initial scroll position on component mount
-    useEffect(() => {
-      scrollPositionRef.current = window.scrollY;
-    }, []);
   const [formData, setFormData] = useState({
     pay_slip_month: '',
     company_address: 'A1, BLOCK A, SECTOR 83, NOIDA, UTTAR PRADESH 201301',
@@ -27,8 +25,18 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
       month_days: '31',
       unpaid_days: '0',
       payable_days: '31',
+      EL: 0.0,
+      CL: 0.0,
+      ML: 0.0,
+      D_EL: 0.0,
+      D_CL: 0.0,
+      D_ML: 0.0,
+      regularisation: 0.0,
+      shortLeave: 0.0,
+      halfDay: 0.0,
       absent: 0.0,
-      workedDays: 31.0
+      workedDays: 31.0,
+      SD: 0.0
     },
     salary_details: {
       gross_salary: '',
@@ -57,214 +65,48 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
   const [employeeData, setEmployeeData] = useState(null);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showWorkingDaysBreakdown, setShowWorkingDaysBreakdown] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [showPreview, setShowPreview] = useState(false);
+  
+  // Refs for dropdown and click outside detection
   const monthDropdownRef = useRef(null);
-  const scrollPositionRef = useRef(0);
+  const searchInputRef = useRef(null);
 
-  // Function to preserve scroll position during form updates
-  const preserveScrollPosition = (callback) => {
-    const currentScrollY = window.scrollY;
-    scrollPositionRef.current = currentScrollY;
+  // Form validation
+  const validateForm = useCallback(() => {
+    const errors = {};
     
-    // Execute the callback
-    callback();
+    if (!formData.pay_slip_month) errors.pay_slip_month = 'Pay slip month is required';
+    if (!formData.employee_basic_details.employee_name) errors.employee_name = 'Employee name is required';
+    if (!formData.employee_basic_details.employee_code) errors.employee_code = 'Employee code is required';
+    if (!formData.employee_basic_details.designation) errors.designation = 'Designation is required';
+    if (!formData.employee_basic_details.date_of_joining) errors.date_of_joining = 'Date of joining is required';
+    if (!formData.salary_details.gross_salary) errors.gross_salary = 'Gross salary is required';
     
-    // Restore scroll position after a short delay
-    setTimeout(() => {
-      if (window.scrollY !== scrollPositionRef.current) {
-        window.scrollTo({
-          top: scrollPositionRef.current,
-          behavior: 'instant'
-        });
+    // Validate numeric fields
+    const numericFields = ['gross_salary', 'basic_salary', 'hra', 'travel_allowances', 'special_allowances'];
+    numericFields.forEach(field => {
+      const value = formData.salary_details[field];
+      if (value && (isNaN(parseFloat(value)) || parseFloat(value) < 0)) {
+        errors[field] = 'Please enter a valid positive number';
       }
-    }, 100);
-  };
-
-  // Custom scrollbar styles for dropdown and scroll behavior fixes
-  const scrollbarStyles = `
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #f1f5f9;
-      border-radius: 3px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #94a3b8;
-      border-radius: 3px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #64748b;
-    }
-    .custom-scrollbar {
-      scrollbar-width: thin;
-      scrollbar-color: #94a3b8 #f1f5f9;
-    }
-    
-    /* Prevent unwanted scroll jumps */
-    html {
-      scroll-behavior: auto;
-    }
-    
-    /* Ensure form sections don't cause scroll jumps */
-    .form-section {
-      scroll-margin-top: 20px;
-    }
-    
-    /* Smooth transitions for form updates */
-    .form-input {
-      transition: all 0.2s ease-in-out;
-    }
-  `;
-
-  // Handle clicking outside dropdown and prevent scroll jumps
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target)) {
-        setShowMonthDropdown(false);
-      }
-    };
-
-    // Prevent scroll jumps during form interactions
-    const handleScroll = () => {
-      // If scroll position changes significantly without user interaction, restore it
-      if (Math.abs(window.scrollY - scrollPositionRef.current) > 100) {
-        // Only restore if it's not a user-initiated scroll
-        setTimeout(() => {
-          window.scrollTo({
-            top: scrollPositionRef.current,
-            behavior: 'instant'
-          });
-        }, 50);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleScroll);
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  // Calculate totals
-  const calculateTotals = () => {
-    const basic = parseFloat(formData.salary_details.basic_salary) || 0;
-    const hra = parseFloat(formData.salary_details.hra) || 0;
-    const travel = parseFloat(formData.salary_details.travel_allowances) || 0;
-    const special = parseFloat(formData.salary_details.special_allowances) || 0;
-    const arrears = parseFloat(formData.salary_details.arrears) || 0;
-    const bonus = parseFloat(formData.salary_details.bonus_or_others) || 0;
-
-    const gross = basic + hra + travel + special + arrears + bonus;
-
-    const pf = parseFloat(formData.salary_details.employee_pf) || 0;
-    const esi = parseFloat(formData.salary_details.employee_esi) || 0;
-    const tds = parseFloat(formData.salary_details.tds) || 0;
-    const loan = parseFloat(formData.salary_details.loan_advance) || 0;
-    const penalty = parseFloat(formData.salary_details.penalty) || 0;
-    const transport = parseFloat(formData.salary_details.transport_or_others) || 0;
-
-    const deductions = pf + esi + tds + loan + penalty + transport;
-    const net = gross - deductions;
-
-    return { gross, deductions, net };
-  };
-
-  // Automatic salary calculation based on gross salary and employee type
-  const calculateSalaryComponents = (grossSalary) => {
-    if (!grossSalary || grossSalary <= 0) {
-      // Reset all calculated fields if gross salary is invalid
-      setFormData(prev => ({
-        ...prev,
-        salary_details: {
-          ...prev.salary_details,
-          basic_salary: '',
-          hra: '',
-          employee_pf: '',
-          employee_esi: '',
-          tds: ''
-        }
-      }));
-      return;
-    }
-
-    // Store current scroll position
-    const currentScrollY = window.scrollY;
-
-    const gross = parseFloat(grossSalary);
-    const isPermanent = employeeData?.employmentType === 'Permanent';
-    
-    // 1. Basic Salary = 50% of Gross Salary
-    const basicSalary = Math.round(gross * 0.5);
-    
-    // 2. HRA = 40% of Basic Salary
-    const hra = Math.round(basicSalary * 0.4);
-    
-    let pf = 0;
-    let esi = 0;
-    let tds = 0;
-    
-    if (isPermanent) {
-      // 3. For Permanent employees: ESI and PF rules apply
-      
-      // ESI calculation
-      if (gross > 21000) {
-        esi = 0; // No ESI if gross salary > ₹21,000
-      } else {
-        esi = Math.round(gross * 0.0075); // 0.75% of gross salary
-      }
-      
-      // PF calculation
-      const grossMinusHRA = gross - hra;
-      if (grossMinusHRA >= 15000) {
-        pf = 1800; // Fixed PF if (Gross - HRA) >= ₹15,000
-      } else {
-        pf = Math.round(grossMinusHRA * 0.12); // 12% of (Gross - HRA)
-      }
-    } else {
-      // 4. For Non-permanent employees: No PF/ESI, but 1% TDS
-      pf = 0;
-      esi = 0;
-      tds = Math.round(gross * 0.01); // 1% of gross salary
-    }
-    
-    // Update form data with calculated values
-    setFormData(prev => ({
-      ...prev,
-      salary_details: {
-        ...prev.salary_details,
-        basic_salary: basicSalary.toString(),
-        hra: hra.toString(),
-        employee_pf: pf.toString(),
-        employee_esi: esi.toString(),
-        tds: tds.toString()
-      }
-    }));
-    
-    // Restore scroll position after form update to prevent jumping
-    setTimeout(() => {
-      window.scrollTo({
-        top: currentScrollY,
-        behavior: 'instant'
-      });
-    }, 50);
-    
-    console.log('Salary calculation details:', {
-      grossSalary: gross,
-      isPermanent,
-      basicSalary,
-      hra,
-      pf,
-      esi,
-      tds,
-      grossMinusHRA: gross - hra
     });
-  };
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [formData]);
 
-  const handleInputChange = (section, field, value) => {
-    // Store current scroll position for critical fields that might cause jumps
-    const currentScrollY = window.scrollY;
+  // Enhanced form input handler with validation
+  const handleInputChange = useCallback((section, field, value) => {
+    // Clear validation error for this field
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
     
     if (section === 'main') {
       setFormData(prev => ({ ...prev, [field]: value }));
@@ -276,232 +118,32 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
           [field]: value
         }
       }));
+    }
       
       // Auto-calculate salary components when gross salary changes
       if (section === 'salary_details' && field === 'gross_salary') {
-        calculateSalaryComponents(value);
-      }
-    }
-    
-    // Restore scroll position for critical fields to prevent jumping
-    if (field === 'pay_slip_month' || field === 'gross_salary') {
-      setTimeout(() => {
-        window.scrollTo({
-          top: currentScrollY,
-          behavior: 'instant'
-        });
-      }, 50);
-    }
-  };
-
-  // Handle month selection
-  const handleMonthSelect = (month) => {
-    preserveScrollPosition(() => {
-      handleInputChange('main', 'pay_slip_month', month);
-      setShowMonthDropdown(false);
-      
-      // Auto-calculate working days if employee data is available
-      if (employeeData?.workingDays) {
-        updatePayableDays(month, parseInt(employeeData.workingDays));
-      }
-    });
-  };
-
-  const clearMonth = () => {
-    preserveScrollPosition(() => {
-      handleInputChange('main', 'pay_slip_month', '');
-      setShowMonthDropdown(false);
-      
-      // Reset working days calculation
-      setFormData(prev => ({
-        ...prev,
-        leave_summary: {
-          ...prev.leave_summary,
-          month_days: '31',
-          payable_days: '31',
-          workedDays: 31.0
-        }
-      }));
-    });
-  };
-
-  // Month options for dropdown
-  const monthOptions = [
-    'January 2025', 'February 2025', 'March 2025', 'April 2025', 'May 2025', 'June 2025',
-    'July 2025', 'August 2025', 'September 2025', 'October 2025', 'November 2025', 'December 2025',
-    'January 2026', 'February 2026', 'March 2026', 'April 2026', 'May 2026', 'June 2026',
-    'July 2026', 'August 2026', 'September 2026', 'October 2026', 'November 2026', 'December 2026'
-  ];
-
-  // Calculate working days for the selected month based on employee's working schedule
-  const calculateWorkingDaysForMonth = (monthYear, workingDaysPerWeek) => {
-    if (!monthYear || !workingDaysPerWeek) return 0;
-    
-    // Parse month and year from the month string (e.g., "January 2025")
-    const [monthName, yearStr] = monthYear.split(' ');
-    const year = parseInt(yearStr);
-    
-    // Month names to month numbers (0-11)
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const monthIndex = monthNames.indexOf(monthName);
-    
-    if (monthIndex === -1) return 0;
-    
-    // Get the first day of the month
-    const firstDay = new Date(year, monthIndex, 1);
-    // Get the last day of the month
-    const lastDay = new Date(year, monthIndex + 1, 0);
-    
-    let workingDays = 0;
-    const currentDate = new Date(firstDay);
-    const totalDaysInMonth = lastDay.getDate();
-    
-    // Log calculation details for debugging
-    console.log(`Calculating working days for ${monthYear}:`, {
-      year,
-      monthIndex,
-      monthName,
-      firstDay: firstDay.toDateString(),
-      lastDay: lastDay.toDateString(),
-      totalDaysInMonth,
-      workingDaysPerWeek
-    });
-    
-    // Iterate through each day of the month
-    while (currentDate <= lastDay) {
-      const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-      const currentDateStr = currentDate.toDateString();
-      
-      let isWorkingDay = false;
-      
-      if (workingDaysPerWeek === 5) {
-        // Monday to Friday (Monday = 1, Tuesday = 2, ..., Friday = 5)
-        isWorkingDay = dayOfWeek >= 1 && dayOfWeek <= 5;
-      } else if (workingDaysPerWeek === 6) {
-        // Monday to Saturday (Monday = 1, Tuesday = 2, ..., Saturday = 6)
-        isWorkingDay = dayOfWeek >= 1 && dayOfWeek <= 6;
-      } else if (workingDaysPerWeek === 7) {
-        // Monday to Sunday (all days)
-        isWorkingDay = true;
-      }
-      
-      if (isWorkingDay) {
-        workingDays++;
-        console.log(`${currentDateStr} (${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek]}) - Working Day`);
-      } else {
-        console.log(`${currentDateStr} (${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek]}) - Weekend/Non-working Day`);
-      }
-      
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    console.log(`Total working days calculated for ${monthYear}: ${workingDays}`);
-    return workingDays;
-  };
-
-  // Update payable days when month or working days change
-  const updatePayableDays = (monthYear, workingDaysPerWeek) => {
-    if (monthYear && workingDaysPerWeek) {
-      // Store current scroll position
-      const currentScrollY = window.scrollY;
-      
-      const workingDays = calculateWorkingDaysForMonth(monthYear, workingDaysPerWeek);
-      const monthDays = workingDays; // Set month days to working days
+      const grossValue = parseFloat(value) || 0;
+      const basicSalary = grossValue * 0.5; // 50% of gross
+      const hra = basicSalary * 0.4; // 40% of basic
+      const travelAllowances = basicSalary * 0.2; // 20% of basic
+      const specialAllowances = basicSalary * 0.4; // 40% of basic
       
       setFormData(prev => ({
         ...prev,
-        leave_summary: {
-          ...prev.leave_summary,
-          month_days: monthDays.toString(),
-          payable_days: workingDays.toString(),
-          workedDays: workingDays
+        salary_details: {
+          ...prev.salary_details,
+          basic_salary: basicSalary.toString(),
+          hra: hra.toString(),
+          travel_allowances: travelAllowances.toString(),
+          special_allowances: specialAllowances.toString()
         }
       }));
-      
-      // Restore scroll position after form update to prevent jumping
-      setTimeout(() => {
-        window.scrollTo({
-          top: currentScrollY,
-          behavior: 'instant'
-        });
-      }, 50);
     }
-  };
+  }, [validationErrors]);
 
-  // Get detailed working days breakdown for the selected month
-  const getWorkingDaysBreakdown = (monthYear, workingDaysPerWeek) => {
-    if (!monthYear || !workingDaysPerWeek) return null;
-    
-    const [monthName, yearStr] = monthYear.split(' ');
-    const year = parseInt(yearStr);
-    
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const monthIndex = monthNames.indexOf(monthName);
-    
-    if (monthIndex === -1) return null;
-    
-    const firstDay = new Date(year, monthIndex, 1);
-    const lastDay = new Date(year, monthIndex + 1, 0);
-    
-    const breakdown = {
-      month: monthName,
-      year: year,
-      totalDays: lastDay.getDate(),
-      workingDays: 0,
-      weekendDays: 0,
-      workingDayDetails: [],
-      weekendDayDetails: []
-    };
-    
-    const currentDate = new Date(firstDay);
-    
-    while (currentDate <= lastDay) {
-      const dayOfWeek = currentDate.getDay();
-      const dateStr = currentDate.toDateString();
-      const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek];
-      
-      let isWorkingDay = false;
-      if (workingDaysPerWeek === 5) {
-        isWorkingDay = dayOfWeek >= 1 && dayOfWeek <= 5;
-      } else if (workingDaysPerWeek === 6) {
-        isWorkingDay = dayOfWeek >= 1 && dayOfWeek <= 6;
-      } else if (workingDaysPerWeek === 7) {
-        isWorkingDay = true;
-      }
-      
-      if (isWorkingDay) {
-        breakdown.workingDays++;
-        breakdown.workingDayDetails.push({ date: dateStr, day: dayName });
-      } else {
-        breakdown.weekendDays++;
-        breakdown.weekendDayDetails.push({ date: dateStr, day: dayName });
-      }
-      
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    return breakdown;
-  };
-
-  // Auto-calculate working days when month or employee working days change
-  useEffect(() => {
-    if (formData.pay_slip_month && employeeData?.workingDays) {
-      preserveScrollPosition(() => {
-        updatePayableDays(formData.pay_slip_month, parseInt(employeeData.workingDays));
-      });
-    }
-  }, [formData.pay_slip_month, employeeData?.workingDays]);
-
-  // Fetch employee data by ID
-  const fetchEmployeeData = async (employeeId) => {
-    if (!employeeId.trim()) {
+  // Employee search functionality
+  const fetchEmployeeData = useCallback(async (employeeId) => {
+    if (!employeeId?.trim()) {
       setMessage({ type: 'error', text: 'Please enter an employee ID' });
       return;
     }
@@ -510,7 +152,6 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
     setMessage({ type: '', text: '' });
 
     try {
-      // Get auth token from localStorage
       const token = localStorage.getItem('authToken');
       
       if (!token) {
@@ -518,21 +159,20 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
         return;
       }
 
-      const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://localhost:3001'}/api/employee/get-employee-details/${employeeId}`, {
-        method: 'GET',
+      // Use axios like other API calls in the codebase
+      const config = {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-      });
+      };
 
-      if (response.ok) {
-        const result = await response.json();
+      const { data: result } = await axios.get(
+        `${process.env.REACT_APP_BASE_URL}/api/employee/get-employee-details/${employeeId}`,
+        config
+      );
         
         if (result.data) {
-          // Store current scroll position
-          const currentScrollY = window.scrollY;
-          
           setEmployeeData(result.data);
           
           // Auto-populate form with employee data
@@ -572,77 +212,122 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
           }));
           
           setMessage({ type: 'success', text: `Employee data loaded successfully for ${result.data.employeeName}` });
-          
-          // Auto-calculate working days if month is already selected
-          if (formData.pay_slip_month && result.data.workingDays) {
-            updatePayableDays(formData.pay_slip_month, parseInt(result.data.workingDays));
-          }
-          
-          // Auto-calculate salary components if gross salary is available
-          if (result.data.salary_details?.gross_salary) {
-            calculateSalaryComponents(result.data.salary_details.gross_salary);
-          }
-          
-          // Restore scroll position after form update to prevent jumping
-          setTimeout(() => {
-            window.scrollTo({
-              top: currentScrollY,
-              behavior: 'instant'
-            });
-          }, 100);
         } else {
           setMessage({ type: 'error', text: 'Employee data not found' });
-        }
-      } else {
-        const errorData = await response.json();
-        setMessage({ type: 'error', text: errorData.message || 'Failed to fetch employee data' });
       }
     } catch (error) {
       console.error('Error fetching employee data:', error);
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+      const errorMessage = error.response?.data?.message || 'Network error. Please try again.';
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setSearchingEmployee(false);
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  // Month options for dropdown
+  const monthOptions = useMemo(() => [
+    'January 2025', 'February 2025', 'March 2025', 'April 2025', 'May 2025', 'June 2025',
+    'July 2025', 'August 2025', 'September 2025', 'October 2025', 'November 2025', 'December 2025',
+    'January 2026', 'February 2026', 'March 2026', 'April 2026', 'May 2026', 'June 2026',
+    'July 2026', 'August 2026', 'September 2026', 'October 2026', 'November 2026', 'December 2026'
+  ], []);
+
+  // Optimized calculations for display - moved before handleSubmit
+  const { gross, deductions, net, dailyRate, adjustedSalary, calculatedComponents } = useMemo(() => {
+    const grossValue = parseFloat(formData.salary_details.gross_salary) || 0;
+    const deductionsValue = 
+      (parseFloat(formData.salary_details.employee_pf) || 0) + 
+      (parseFloat(formData.salary_details.employee_esi) || 0) + 
+      (parseFloat(formData.salary_details.tds) || 0) + 
+      (parseFloat(formData.salary_details.loan_advance) || 0) + 
+      (parseFloat(formData.salary_details.penalty) || 0) + 
+      (parseFloat(formData.salary_details.transport_or_others) || 0);
+    
+    // Calculate daily rate based on payable days
+    const payableDays = parseFloat(formData.leave_summary.payable_days) || 0;
+    const dailyRate = payableDays > 0 ? grossValue / payableDays : 0;
+    
+    // Calculate adjusted salary based on worked days (including half days)
+    const workedDays = parseFloat(formData.leave_summary.workedDays) || 0;
+    const adjustedSalary = dailyRate * workedDays;
+    
+    // Calculate salary components based on adjusted salary
+    // Standard breakdown: Basic (50%), HRA (40% of Basic), Travel (20% of Basic), Special (40% of Basic)
+    const basicSalary = adjustedSalary * 0.5; // 50% of adjusted salary
+    const hra = basicSalary * 0.4; // 40% of basic
+    const travelAllowances = basicSalary * 0.2; // 20% of basic
+    const specialAllowances = basicSalary * 0.4; // 40% of basic
+    
+    const calculatedComponents = {
+      basic_salary: basicSalary,
+      hra: hra,
+      travel_allowances: travelAllowances,
+      special_allowances: specialAllowances
+    };
+    
+    const netValue = adjustedSalary - deductionsValue;
+    
+    return {
+      gross: grossValue,
+      deductions: deductionsValue,
+      net: netValue,
+      dailyRate: dailyRate,
+      adjustedSalary: adjustedSalary,
+      calculatedComponents: calculatedComponents
+    };
+  }, [formData.salary_details, formData.leave_summary.payable_days, formData.leave_summary.workedDays]);
+
+  // Auto-calculation is handled in useMemo and displayed in form fields
+  // No useEffect needed to prevent infinite loops
+
+  // Enhanced form submit handler with API integration
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage({ type: '', text: '' });
-
-    // Basic validation
-    if (!formData.pay_slip_month || !formData.employee_basic_details.employee_name || 
-        !formData.employee_basic_details.employee_code || !formData.employee_basic_details.designation ||
-        !formData.employee_basic_details.date_of_joining || !formData.salary_details.gross_salary) {
-      setMessage({ type: 'error', text: 'Please fill in all required fields marked with *' });
-      setLoading(false);
+    
+    if (!validateForm()) {
+      setMessage({ type: 'error', text: 'Please fix the validation errors before submitting' });
       return;
     }
 
+    setIsSubmitting(true);
+    setMessage({ type: '', text: '' });
+
     try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        setMessage({ type: 'error', text: 'Authentication token not found. Please login again.' });
+        return;
+      }
+
       // Prepare the data with calculated totals
-      const { gross, deductions, net } = calculateTotals();
       const submitData = {
         ...formData,
         salary_details: {
           ...formData.salary_details,
-          total_gross_salary: gross.toString(),
+          fixed_gross_salary: formData.salary_details.gross_salary || gross.toString() || '0', // Add fixed_gross_salary field
+          total_gross_salary: adjustedSalary.toString(),
           total_deduction: deductions.toString(),
           net_pay: net.toString()
         }
       };
 
-      const response = await fetch('http://172.23.103.207:3001/api/save-salary-data', {
-        method: 'POST',
+      // Use axios like other API calls in the codebase
+      const config = {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(submitData)
-      });
+      };
 
-      if (response.ok) {
-        const result = await response.json();
+      const { data: result } = await axios.post(
+        `${process.env.REACT_APP_BASE_URL}/api/save-salary-data`,
+        submitData,
+        config
+      );
+
         setMessage({ type: 'success', text: 'Salary slip generated successfully!' });
+      
         // Reset form after successful submission
         setFormData({
           pay_slip_month: '',
@@ -665,8 +350,18 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
             month_days: '31',
             unpaid_days: '0',
             payable_days: '31',
+          EL: 0.0,
+          CL: 0.0,
+          ML: 0.0,
+          D_EL: 0.0,
+          D_CL: 0.0,
+          D_ML: 0.0,
+          regularisation: 0.0,
+          shortLeave: 0.0,
+          halfDay: 0.0,
             absent: 0.0,
-            workedDays: 31.0
+          workedDays: 31.0,
+          SD: 0.0
           },
           salary_details: {
             gross_salary: '',
@@ -687,26 +382,146 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
             net_pay: ''
           }
         });
-        // Clear employee search data
         setEmployeeSearchId('');
         setEmployeeData(null);
-      } else {
-        const errorData = await response.json();
-        setMessage({ type: 'error', text: errorData.message || 'Failed to generate salary slip' });
-      }
+      setValidationErrors({});
     } catch (error) {
       console.error('Error submitting salary slip:', error);
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+      const errorMessage = error.response?.data?.message || 'Network error. Please try again.';
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
-  };
+  }, [formData, gross, deductions, net, validateForm]);
 
-  const { gross, deductions, net } = calculateTotals();
+  // Custom dropdown handlers
+  const handleMonthSelect = useCallback((month) => {
+    handleInputChange('main', 'pay_slip_month', month);
+    setShowMonthDropdown(false);
+  }, [handleInputChange]);
+
+  const clearMonth = useCallback(() => {
+    handleInputChange('main', 'pay_slip_month', '');
+    setShowMonthDropdown(false);
+  }, [handleInputChange]);
+
+  // Click outside detection
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target)) {
+        setShowMonthDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Keyboard navigation for dropdown
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape') {
+      setShowMonthDropdown(false);
+    }
+  }, []);
+
+  // Clear employee data
+  const clearEmployeeData = useCallback(() => {
+    setEmployeeSearchId('');
+    setEmployeeData(null);
+    setFormData(prev => ({
+      ...prev,
+      employee_basic_details: {
+        ...prev.employee_basic_details,
+        employee_name: '',
+        employee_code: '',
+        designation: '',
+        date_of_joining: '',
+        employee_pan: '',
+        employee_aadhar: '',
+        bank_name: '',
+        bank_ifsc: '',
+        bank_account: '',
+        employee_uan: '',
+        employee_esic: '',
+        payment_mode: 'Bank Transfer'
+      },
+      salary_details: {
+        ...prev.salary_details,
+        gross_salary: '',
+        basic_salary: '',
+        hra: '',
+        travel_allowances: '',
+        special_allowances: '',
+        arrears: '0',
+        bonus_or_others: '0',
+        employee_pf: '',
+        employee_esi: '',
+        tds: '',
+        loan_advance: '0',
+        penalty: '0',
+        transport_or_others: '0'
+      }
+    }));
+    setMessage({ type: '', text: '' });
+  }, []);
+
+  // Preview handler
+  const handlePreview = useCallback(() => {
+    if (!validateForm()) {
+      setMessage({ type: 'error', text: 'Please fill in all required fields before previewing' });
+      return;
+    }
+    console.log('Form data being passed to preview:', formData);
+    console.log('Gross salary from formData:', formData.salary_details.gross_salary);
+    console.log('Calculated gross value:', gross);
+    console.log('Complete salary_details:', formData.salary_details);
+    console.log('Form data salary_details keys:', Object.keys(formData.salary_details));
+    console.log('Does formData have gross_salary?', 'gross_salary' in formData.salary_details);
+    console.log('Gross value being passed:', gross);
+    console.log('Gross as string:', gross.toString());
+    console.log('Form input gross_salary value:', formData.salary_details.gross_salary);
+    console.log('Final gross_salary being passed:', formData.salary_details.gross_salary || gross.toString() || '0');
+    
+    // Debug the actual data being passed
+    const debugData = {
+      ...formData,
+      salary_details: {
+        ...formData.salary_details,
+        gross_salary: formData.salary_details.gross_salary || gross.toString() || '0',
+        fixed_gross_salary: formData.salary_details.gross_salary || gross.toString() || '0', // Same as gross_salary for now
+        total_gross_salary: adjustedSalary.toString(),
+        total_deduction: deductions.toString(),
+        net_pay: net.toString()
+      }
+    };
+    console.log('Debug data being passed to NewPaySlip:', debugData);
+    console.log('Debug salary_details:', debugData.salary_details);
+    console.log('Debug gross_salary in salary_details:', debugData.salary_details.gross_salary);
+    
+    // Create the actual data to pass
+    const actualPayslipData = {
+      ...formData,
+      salary_details: {
+        ...formData.salary_details,
+        gross_salary: formData.salary_details.gross_salary || gross.toString() || '0',
+        fixed_gross_salary: formData.salary_details.gross_salary || gross.toString() || '0', // Same as gross_salary for now
+        total_gross_salary: adjustedSalary.toString(),
+        total_deduction: deductions.toString(),
+        net_pay: net.toString()
+      }
+    };
+    
+    console.log('Actual payslip data being passed:', actualPayslipData);
+    console.log('Actual salary_details:', actualPayslipData.salary_details);
+    console.log('Actual gross_salary:', actualPayslipData.salary_details.gross_salary);
+    
+    setShowPreview(true);
+  }, [validateForm, formData]);
 
   return (
     <>
-      <style>{scrollbarStyles}</style>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -745,8 +560,18 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                       month_days: '31',
                       unpaid_days: '1',
                       payable_days: '30',
+                      EL: 31.5,
+                      CL: 0.0,
+                      ML: 6.0,
+                      D_EL: 0.0,
+                      D_CL: 2.0,
+                      D_ML: 0.0,
+                      regularisation: 0.0,
+                      shortLeave: 0.0,
+                      halfDay: 11.0,
                       absent: 10.0,
-                      workedDays: 7.5
+                      workedDays: 7.5,
+                      SD: 9.5
                     },
                     salary_details: {
                       gross_salary: '30000',
@@ -767,9 +592,7 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                       net_pay: ''
                     }
                   });
-                  // Clear employee search data
-                  setEmployeeSearchId('');
-                  setEmployeeData(null);
+                  setMessage({ type: 'success', text: 'Demo data loaded successfully!' });
                 }}
                 className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center space-x-2"
               >
@@ -818,12 +641,15 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
               </label>
               <div className="flex space-x-2">
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={employeeSearchId}
                   onChange={(e) => setEmployeeSearchId(e.target.value)}
-                  placeholder="Enter Employee ID (e.g., 495)"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   onKeyPress={(e) => e.key === 'Enter' && fetchEmployeeData(employeeSearchId)}
+                  placeholder="Enter Employee ID (e.g., 495)"
+                  className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                    validationErrors.employee_search ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 />
                 <button
                   onClick={() => fetchEmployeeData(employeeSearchId)}
@@ -844,49 +670,17 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                 </button>
                 {employeeData && (
                   <button
-                    onClick={() => {
-                      setEmployeeSearchId('');
-                      setEmployeeData(null);
-                      setFormData(prev => ({
-                        ...prev,
-                        employee_basic_details: {
-                          ...prev.employee_basic_details,
-                          employee_name: '',
-                          employee_code: '',
-                          designation: '',
-                          date_of_joining: '',
-                          employee_pan: '',
-                          bank_name: '',
-                          bank_ifsc: '',
-                          bank_account: '',
-                          employee_uan: '',
-                          employee_esic: '',
-                          payment_mode: 'Bank Transfer'
-                        },
-                        salary_details: {
-                          ...prev.salary_details,
-                          gross_salary: '',
-                          basic_salary: '',
-                          hra: '',
-                          travel_allowances: '',
-                          special_allowances: '',
-                          arrears: '0',
-                          bonus_or_others: '0',
-                          employee_pf: '',
-                          employee_esi: '',
-                          tds: '',
-                          loan_advance: '0',
-                          penalty: '0',
-                          transport_or_others: '0'
-                        }
-                      }));
-                    }}
+                    onClick={clearEmployeeData}
                     className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center space-x-2 whitespace-nowrap"
                   >
+                    <FaTimes className="text-sm" />
                     <span>Clear</span>
                   </button>
                 )}
               </div>
+              {validationErrors.employee_search && (
+                <p className="mt-1 text-xs text-red-500">{validationErrors.employee_search}</p>
+              )}
               <p className="mt-1 text-xs text-gray-500">
                 Enter the employee ID to auto-populate employee details from the system
               </p>
@@ -954,16 +748,14 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                 </label>
                 <div className="relative" ref={monthDropdownRef}>
                   <button
-                    onClick={() => {
-                      preserveScrollPosition(() => {
-                        setShowMonthDropdown(!showMonthDropdown);
-                      });
-                    }}
+                    type="button"
+                    onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+                    onKeyDown={handleKeyDown}
                     className={`flex items-center justify-between w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white transition-colors duration-200 ${
                       formData.pay_slip_month 
                         ? 'border-green-300 bg-green-50 text-green-700' 
                         : 'border-gray-300 text-gray-700'
-                    }`}
+                    } ${validationErrors.pay_slip_month ? 'border-red-300' : ''}`}
                   >
                     <span className="text-gray-700">
                       {formData.pay_slip_month || "Select Month"}
@@ -987,11 +779,12 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   </button>
 
                   {showMonthDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
                       <div className="p-2">
                         {monthOptions.map((month, index) => (
                           <button
                             key={index}
+                            type="button"
                             onClick={() => handleMonthSelect(month)}
                             className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
                               formData.pay_slip_month === month
@@ -1002,7 +795,11 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                             <div className="flex items-center space-x-3">
                               <div className={`w-4 h-4 rounded-full border-2 ${
                                 formData.pay_slip_month === month ? 'border-white bg-white' : 'border-gray-300'
-                              }`}></div>
+                              }`}>
+                                {formData.pay_slip_month === month && (
+                                  <FaCheck className="w-2 h-2 text-green-500 m-0.5" />
+                                )}
+                              </div>
                               <span className="font-medium">{month}</span>
                             </div>
                           </button>
@@ -1011,6 +808,9 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                     </div>
                   )}
                 </div>
+                {validationErrors.pay_slip_month && (
+                  <p className="mt-1 text-xs text-red-500">{validationErrors.pay_slip_month}</p>
+                )}
               </div>
               
               <div>
@@ -1046,9 +846,14 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   value={formData.employee_basic_details.employee_name}
                   onChange={(e) => handleInputChange('employee_basic_details', 'employee_name', e.target.value)}
                   placeholder="Employee Name"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                    validationErrors.employee_name ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {validationErrors.employee_name && (
+                  <p className="mt-1 text-xs text-red-500">{validationErrors.employee_name}</p>
+                )}
               </div>
               
               <div>
@@ -1060,9 +865,14 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   value={formData.employee_basic_details.employee_code}
                   onChange={(e) => handleInputChange('employee_basic_details', 'employee_code', e.target.value)}
                   placeholder="Employee Code"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                    validationErrors.employee_code ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {validationErrors.employee_code && (
+                  <p className="mt-1 text-xs text-red-500">{validationErrors.employee_code}</p>
+                )}
               </div>
               
               <div>
@@ -1074,9 +884,14 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   value={formData.employee_basic_details.designation}
                   onChange={(e) => handleInputChange('employee_basic_details', 'designation', e.target.value)}
                   placeholder="Designation"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                    validationErrors.designation ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {validationErrors.designation && (
+                  <p className="mt-1 text-xs text-red-500">{validationErrors.designation}</p>
+                )}
               </div>
               
               <div>
@@ -1087,9 +902,14 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   type="date"
                   value={formData.employee_basic_details.date_of_joining}
                   onChange={(e) => handleInputChange('employee_basic_details', 'date_of_joining', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                    validationErrors.date_of_joining ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {validationErrors.date_of_joining && (
+                  <p className="mt-1 text-xs text-red-500">{validationErrors.date_of_joining}</p>
+                )}
               </div>
               
               <div>
@@ -1211,84 +1031,35 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
             
             <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-700">
-                <span className="font-medium">Working Days Calculation:</span> The system automatically calculates payable days based on your working schedule and selected month. 
-                {employeeData?.workingDays === 5 && ' Monday to Friday workers have 5 working days per week.'}
-                {employeeData?.workingDays === 6 && ' Monday to Saturday workers have 6 working days per week.'}
-                {employeeData?.workingDays === 7 && ' Monday to Sunday workers have 7 working days per week.'}
+                <span className="font-medium">Leave Summary:</span> Enter the leave details for the selected month.
                 <br />
                 <span className="text-xs text-blue-600 mt-1 block">
-                  Note: This calculation excludes holidays and public holidays. You may need to manually adjust for specific holidays in your region.
+                  Note: Salary will be calculated based on worked days (including half days like 20.5).
                 </span>
               </p>
             </div>
 
-            {employeeData?.workingDays && (
-              <div className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                <p className="text-sm text-orange-700">
-                  <span className="font-medium">Working Days per Week:</span> {employeeData.workingDays} days
-                </p>
-                {formData.pay_slip_month && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => updatePayableDays(formData.pay_slip_month, parseInt(employeeData.workingDays))}
-                      className="mt-2 px-3 py-1 bg-orange-600 text-white text-xs rounded-md hover:bg-orange-700 transition-colors duration-200"
-                    >
-                      Recalculate Working Days
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowWorkingDaysBreakdown(!showWorkingDaysBreakdown)}
-                      className="mt-2 ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors duration-200"
-                    >
-                      {showWorkingDaysBreakdown ? 'Hide' : 'Show'} Breakdown
-                    </button>
-                    <div className="mt-2 text-xs text-orange-600">
-                      <p><span className="font-medium">Selected Month:</span> {formData.pay_slip_month}</p>
-                      <p><span className="font-medium">Calculated Working Days:</span> {formData.leave_summary.payable_days} days</p>
-                      <p><span className="font-medium">Schedule:</span> {employeeData.workingDays === 5 ? 'Monday to Friday' : employeeData.workingDays === 6 ? 'Monday to Saturday' : 'Monday to Sunday'}</p>
+            {/* Salary Calculation Summary */}
+            {formData.salary_details.gross_salary && formData.leave_summary.payable_days && (
+              <div className="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                <h4 className="font-medium text-green-800 mb-3">Salary Calculation Breakdown</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="text-center">
+                    <p className="text-green-600 font-medium">Daily Rate</p>
+                    <p className="text-lg font-bold text-green-800">₹{dailyRate.toFixed(2)}</p>
+                    <p className="text-xs text-green-600">₹{parseFloat(formData.salary_details.gross_salary).toLocaleString()} ÷ {formData.leave_summary.payable_days} days</p>
                     </div>
-                    
-                    {/* Working Days Breakdown */}
-                    {showWorkingDaysBreakdown && (
-                      <div className="mt-3 p-3 bg-white rounded-lg border border-orange-300">
-                        <h4 className="font-medium text-orange-800 mb-2">Working Days Breakdown for {formData.pay_slip_month}</h4>
-                        {(() => {
-                          const breakdown = getWorkingDaysBreakdown(formData.pay_slip_month, parseInt(employeeData.workingDays));
-                          if (!breakdown) return <p className="text-red-600">Unable to calculate breakdown</p>;
-                          
-                          return (
-                            <div className="text-xs text-orange-700">
-                              <p><span className="font-medium">Total Days:</span> {breakdown.totalDays}</p>
-                              <p><span className="font-medium">Working Days:</span> {breakdown.workingDays}</p>
-                              <p><span className="font-medium">Weekend/Non-working Days:</span> {breakdown.weekendDays}</p>
-                              <div className="mt-2">
-                                <p className="font-medium">Working Days:</p>
-                                <div className="grid grid-cols-2 gap-1 text-xs">
-                                  {breakdown.workingDayDetails.map((day, index) => (
-                                    <span key={index} className="bg-green-100 px-1 py-0.5 rounded">
-                                      {day.date.split(' ').slice(1, 3).join(' ')} ({day.day.slice(0, 3)})
-                                    </span>
-                                  ))}
+                  <div className="text-center">
+                    <p className="text-green-600 font-medium">Worked Days</p>
+                    <p className="text-lg font-bold text-green-800">{formData.leave_summary.workedDays}</p>
+                    <p className="text-xs text-green-600">Including half days (e.g., 20.5)</p>
                                 </div>
+                  <div className="text-center">
+                    <p className="text-green-600 font-medium">Adjusted Gross</p>
+                    <p className="text-lg font-bold text-green-800">₹{adjustedSalary.toFixed(2)}</p>
+                    <p className="text-xs text-green-600">Daily Rate × Worked Days</p>
                               </div>
-                              <div className="mt-2">
-                                <p className="font-medium">Weekend/Non-working Days:</p>
-                                <div className="grid grid-cols-2 gap-1 text-xs">
-                                  {breakdown.weekendDayDetails.map((day, index) => (
-                                    <span key={index} className="bg-red-100 px-1 py-0.5 rounded">
-                                      {day.date.split(' ').slice(1, 3).join(' ')} ({day.day.slice(0, 3)})
-                                    </span>
-                                  ))}
                                 </div>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
             )}
 
@@ -1327,12 +1098,11 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   type="number"
                   value={formData.leave_summary.payable_days}
                   onChange={(e) => handleInputChange('leave_summary', 'payable_days', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-center bg-gray-50"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-center"
                   placeholder="31"
-                  readOnly
                 />
                 <p className="text-xs text-gray-500 mt-1 text-center">
-                  Auto-calculated based on working schedule
+                  Enter the number of payable days
                 </p>
               </div>
               
@@ -1375,38 +1145,13 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
               <h2 className="text-xl font-bold text-gray-900">Salary Details</h2>
             </div>
             
-            {/* Salary Calculation Rules Info */}
+            {/* Salary Information */}
             <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-medium text-green-800">Automatic Salary Calculation Rules</h3>
-                {formData.salary_details.gross_salary && employeeData?.employmentType && (
-                  <button
-                    type="button"
-                    onClick={() => calculateSalaryComponents(formData.salary_details.gross_salary)}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 transition-colors duration-200"
-                  >
-                    Recalculate
-                  </button>
-                )}
-              </div>
-              <div className="text-sm text-green-700 space-y-1">
-                <p><span className="font-medium">• Basic Salary:</span> 50% of Gross Salary</p>
-                <p><span className="font-medium">• HRA:</span> 40% of Basic Salary</p>
-                {employeeData?.employmentType === 'Permanent' ? (
-                  <>
-                    <p><span className="font-medium">• ESI:</span> 0.75% of Gross Salary (if ≤ ₹21,000), 0 if {'>'}{'₹21,000'}</p>
-                    <p><span className="font-medium">• PF:</span> ₹1,800 (if Gross-HRA ≥ ₹15,000), 12% of (Gross-HRA) otherwise</p>
-                    <p><span className="font-medium">• TDS:</span> 0 (for Permanent employees)</p>
-                  </>
-                ) : (
-                  <>
-                    <p><span className="font-medium">• ESI:</span> 0 (for Non-permanent employees)</p>
-                    <p><span className="font-medium">• PF:</span> 0 (for Non-permanent employees)</p>
-                    <p><span className="font-medium">• TDS:</span> 1% of Gross Salary</p>
-                  </>
-                )}
+              <h3 className="font-medium text-green-800 mb-2">Salary Information</h3>
+              <div className="text-sm text-green-700">
+                <p>Enter the salary details for the employee. All fields are manually editable.</p>
                 <p className="text-xs text-green-600 mt-2">
-                  Note: Basic Salary, HRA, ESI, PF, and TDS are automatically calculated and cannot be edited.
+                  <strong>Auto-calculation:</strong> Basic (50% of gross), HRA (40% of basic), Travel Allowances (20% of basic), and Special Allowances (40% of basic) are automatically calculated. You can still manually adjust these values if needed.
                 </p>
               </div>
             </div>
@@ -1421,64 +1166,86 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   value={formData.salary_details.gross_salary}
                   onChange={(e) => handleInputChange('salary_details', 'gross_salary', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                    validationErrors.gross_salary ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   required
                 />
+                {validationErrors.gross_salary && (
+                  <p className="mt-1 text-xs text-red-500">{validationErrors.gross_salary}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Adjusted Gross
+                  <span className="text-xs text-green-600 ml-1">(Auto-calculated based on worked days)</span>
+                </label>
+                <input
+                  type="number"
+                  value={adjustedSalary.toFixed(2)}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-green-50 text-gray-700 cursor-not-allowed"
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Based on {formData.leave_summary.workedDays} worked days
+                </p>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Basic Salary
+                  <span className="text-xs text-blue-600 ml-1">(Auto-calculated: 50% of gross)</span>
                 </label>
                 <input
                   type="number"
-                  value={formData.salary_details.basic_salary}
+                  value={calculatedComponents?.basic_salary?.toFixed(2) || formData.salary_details.basic_salary}
                   onChange={(e) => handleInputChange('salary_details', 'basic_salary', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-center bg-gray-50"
-                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-blue-50"
                 />
-                <p className="text-xs text-gray-500 mt-1 text-center">Auto-calculated (50% of Gross)</p>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   HRA
+                  <span className="text-xs text-blue-600 ml-1">(Auto-calculated: 40% of basic)</span>
                 </label>
                 <input
                   type="number"
-                  value={formData.salary_details.hra}
+                  value={calculatedComponents?.hra?.toFixed(2) || formData.salary_details.hra}
                   onChange={(e) => handleInputChange('salary_details', 'hra', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-center bg-gray-50"
-                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-blue-50"
                 />
-                <p className="text-xs text-gray-500 mt-1 text-center">Auto-calculated (40% of Basic)</p>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Travel Allowances
+                  <span className="text-xs text-blue-600 ml-1">(Auto-calculated: 20% of basic)</span>
                 </label>
                 <input
                   type="number"
-                  value={formData.salary_details.travel_allowances}
+                  value={calculatedComponents?.travel_allowances?.toFixed(2) || formData.salary_details.travel_allowances}
                   onChange={(e) => handleInputChange('salary_details', 'travel_allowances', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-blue-50"
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Special Allowances
+                  <span className="text-xs text-blue-600 ml-1">(Auto-calculated: 40% of basic)</span>
                 </label>
                 <input
                   type="number"
-                  value={formData.salary_details.special_allowances}
+                  value={calculatedComponents?.special_allowances?.toFixed(2) || formData.salary_details.special_allowances}
                   onChange={(e) => handleInputChange('salary_details', 'special_allowances', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-blue-50"
                 />
               </div>
               
@@ -1517,12 +1284,8 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   value={formData.salary_details.employee_pf}
                   onChange={(e) => handleInputChange('salary_details', 'employee_pf', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-center bg-gray-50"
-                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 />
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  {employeeData?.employmentType === 'Permanent' ? 'Auto-calculated based on rules' : '0 for non-permanent'}
-                </p>
               </div>
               
               <div>
@@ -1536,9 +1299,6 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   placeholder="0.00"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 />
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  {employeeData?.employmentType === 'Permanent' ? 'Auto-calculated (0.75% if ≤ ₹21,000)' : '0 for non-permanent'}
-                </p>
               </div>
               
               <div>
@@ -1550,12 +1310,8 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   value={formData.salary_details.tds}
                   onChange={(e) => handleInputChange('salary_details', 'tds', e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors text-center bg-gray-50"
-                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 />
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  {employeeData?.employmentType === 'Permanent' ? '0 for permanent employees' : 'Auto-calculated (1% of Gross)'}
-                </p>
               </div>
               
               <div>
@@ -1594,36 +1350,9 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
                   onChange={(e) => handleInputChange('salary_details', 'transport_or_others', e.target.value)}
                   placeholder="0.00"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  readOnly
                 />
               </div>
             </div>
-            
-            {/* Salary Calculation Summary */}
-            {formData.salary_details.gross_salary && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-medium text-blue-800 mb-3">Current Calculation Summary</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                  <div className="text-center">
-                    <p className="text-blue-600 font-medium">Gross Salary</p>
-                    <p className="text-lg font-bold text-blue-800">₹{parseInt(formData.salary_details.gross_salary).toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-blue-600 font-medium">Basic (50%)</p>
-                    <p className="text-lg font-bold text-blue-800">₹{parseInt(formData.salary_details.basic_salary || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-blue-600 font-medium">HRA (40% of Basic)</p>
-                    <p className="text-lg font-bold text-blue-800">₹{parseInt(formData.salary_details.hra || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-blue-600 font-medium">Total Deductions</p>
-                    <p className="text-lg font-bold text-blue-800">₹{parseInt(formData.salary_details.employee_pf || 0) + parseInt(formData.salary_details.employee_esi || 0) + parseInt(formData.salary_details.tds || 0)}</p>
-                  </div>
-                </div>
-
-              </div>
-            )}
           </div>
 
           {/* Summary */}
@@ -1635,48 +1364,52 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
               <h2 className="text-xl font-bold text-gray-900">Salary Summary</h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h3 className="text-sm font-medium text-gray-600 mb-2">Original Gross</h3>
+                <p className="text-2xl font-bold text-gray-600">₹{gross.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">Monthly salary</p>
+              </div>
+              
               <div className="bg-white rounded-lg p-4 border border-green-200">
-                <h3 className="text-sm font-medium text-gray-600 mb-2">Gross Salary</h3>
-                <p className="text-2xl font-bold text-green-600">₹{gross.toLocaleString()}</p>
+                <h3 className="text-sm font-medium text-gray-600 mb-2">Adjusted Gross</h3>
+                <p className="text-2xl font-bold text-green-600">₹{adjustedSalary.toFixed(2)}</p>
+                <p className="text-xs text-gray-500 mt-1">Based on {formData.leave_summary.workedDays} worked days</p>
               </div>
               
               <div className="bg-white rounded-lg p-4 border border-red-200">
                 <h3 className="text-sm font-medium text-gray-600 mb-2">Total Deductions</h3>
                 <p className="text-2xl font-bold text-red-600">₹{deductions.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">PF, ESI, TDS, etc.</p>
               </div>
               
               <div className="bg-white rounded-lg p-4 border border-blue-200">
                 <h3 className="text-sm font-medium text-gray-600 mb-2">Net Pay</h3>
-                <p className="text-2xl font-bold text-blue-600">₹{net.toLocaleString()}</p>
-                {employeeData?.salary_details?.net_pay && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    API: ₹{parseFloat(employeeData.salary_details.net_pay).toLocaleString()}
-                  </p>
-                )}
+                <p className="text-2xl font-bold text-blue-600">₹{net.toFixed(2)}</p>
+                <p className="text-xs text-gray-500 mt-1">Final take-home amount</p>
               </div>
             </div>
-            
-            {/* {employeeData?.salary_details?.net_pay && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-700">
-                  <span className="font-medium">Note:</span> The net pay shown above is calculated based on the form inputs. 
-                  The API-provided net pay is ₹{parseFloat(employeeData.salary_details.net_pay).toLocaleString()}.
-                </p>
-              </div>
-            )} */}
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-center">
+          {/* Action Buttons */}
+          <div className="flex justify-center space-x-4">
+            <button
+              type="button"
+              onClick={handlePreview}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center space-x-3"
+            >
+              <FaEye className="text-xl" />
+              <span>Preview Payslip</span>
+            </button>
+            
             <button
               type="submit"
-              disabled={loading}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting || loading}
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <>
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  <FaSpinner className="animate-spin text-xl" />
                   <span>Generating Salary Slip...</span>
                 </>
               ) : (
@@ -1690,9 +1423,42 @@ import { FaDownload, FaSave, FaUser, FaBuilding, FaCalendarAlt, FaMoneyBillWave,
         </form>
       </div>
     </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-xl font-bold text-gray-900">Payslip Preview</h2>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4">
+              <NewPaySlip 
+                setPayslipModel={setShowPreview} 
+                payslipModelData={{
+                  ...formData,
+                  salary_details: {
+                    ...formData.salary_details,
+                    gross_salary: formData.salary_details.fixed_gross_salary || formData.salary_details.gross_salary || gross.toString() || '0',
+                    total_gross_salary: adjustedSalary.toString(),
+                    total_deduction: deductions.toString(),
+                    net_pay: net.toString()
+                  }
+                }} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
 
 export default GenerateSalarySlip;
+
 
