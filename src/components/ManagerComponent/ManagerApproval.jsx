@@ -18,6 +18,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { RxCross2 } from "react-icons/rx";
 import safeToast from "../../utils/safeToast";
 import { safeGet, safeIsArray } from "../../utils/safariHelpers";
+import { showDangerConfirmation } from "../../utils/confirmationDialog";
 
 const ManagerApproval = () => {
   const dispatch = useDispatch();
@@ -595,8 +596,9 @@ const ManagerApproval = () => {
     }
 
     // Confirm the revert action
-    const confirmRevert = window.confirm(
-      `Are you sure you want to revert the approved leave for ${item?.employeeInfo?.employeeName}? This action cannot be undone.`
+    const confirmRevert = await showDangerConfirmation(
+      `Are you sure you want to revert the approved leave for ${item?.employeeInfo?.employeeName}? This action cannot be undone.`,
+      "Revert Approved Leave"
     );
 
     if (!confirmRevert) {

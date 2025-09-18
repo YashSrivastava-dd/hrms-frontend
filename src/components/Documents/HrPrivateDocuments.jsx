@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { FiDownload, FiMoreVertical, FiEye, FiFileText, FiSearch, FiUser, FiCalendar } from "react-icons/fi";
 import { IoChevronBackOutline } from "react-icons/io5";
 import { getHrAllPrivateDocsAction } from "../../store/action/userDataAction";
+import { showWarningConfirmation } from "../../utils/confirmationDialog";
 
 const HrPrivateDocuments = ({ onBack }) => {
   const { loading, data, error } = useSelector((state) => state.hrAllPrivateDocs);
@@ -68,9 +69,12 @@ const HrPrivateDocuments = ({ onBack }) => {
     );
   };
 
-  const handleViewDocument = (location, documentName) => {
+  const handleViewDocument = async (location, documentName) => {
     if (!location || location.trim() === '') {
-      alert('Document location not available. The file may not have been uploaded properly.');
+      const confirmed = await showWarningConfirmation(
+        'Document location not available. The file may not have been uploaded properly.',
+        'Document Not Available'
+      );
       return;
     }
 
@@ -87,9 +91,12 @@ const HrPrivateDocuments = ({ onBack }) => {
     setDocumentLoading(false);
   };
 
-  const handleDownload = (location, documentName) => {
+  const handleDownload = async (location, documentName) => {
     if (!location) {
-      alert('Download link not available');
+      const confirmed = await showWarningConfirmation(
+        'Download link not available',
+        'Download Not Available'
+      );
       return;
     }
 

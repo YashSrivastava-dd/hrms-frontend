@@ -16,6 +16,7 @@ import {
   putRevertApprovedLeaveAction,
 } from "../store/action/userDataAction";
 import safeToast from "../utils/safeToast";
+import { showDangerConfirmation } from "../utils/confirmationDialog";
 
 // Function to get leave type abbreviation
 const getLeaveTypeAbbreviation = (leaveType) => {
@@ -533,7 +534,11 @@ const EmployeeLeaveStatus = () => {
 
   // Handle vendor meeting deletion
   const handleVendorDelete = useCallback(async (item) => {
-    if (!window.confirm('Are you sure you want to delete this vendor meeting request?')) {
+    const confirmed = await showDangerConfirmation(
+      'Are you sure you want to delete this vendor meeting request?',
+      'Delete Vendor Meeting'
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -558,8 +563,9 @@ const EmployeeLeaveStatus = () => {
     }
 
     // Confirm the revert action
-    const confirmRevert = window.confirm(
-      `Are you sure you want to revert the approved leave for ${item?.employeeInfo?.employeeName}? This action cannot be undone.`
+    const confirmRevert = await showDangerConfirmation(
+      `Are you sure you want to revert the approved leave for ${item?.employeeInfo?.employeeName}? This action cannot be undone.`,
+      "Revert Approved Leave"
     );
 
     if (!confirmRevert) {
