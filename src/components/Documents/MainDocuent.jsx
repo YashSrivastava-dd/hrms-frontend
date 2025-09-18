@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FiArrowRight } from "react-icons/fi";
 import PrivateIssueDocuments from "./IssueDocuments";
 import PublicDocument from "./PublicDocument";
+import HrPrivateDocuments from "./HrPrivateDocuments";
 import UploadDocumentCard from "./UploadDocumentCard";
 import { getUserDataAction } from "../../store/action/userDataAction";
 import { useDispatch, useSelector } from "react-redux";
@@ -25,6 +26,9 @@ const MainDocument = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4">
       {selectedComponent === "private" && (
         <PrivateIssueDocuments onBack={() => setSelectedComponent(null)} />
+      )}
+      {selectedComponent === "hr-private" && (
+        <HrPrivateDocuments onBack={() => setSelectedComponent(null)} />
       )}
       {selectedComponent === "public" && (
         <PublicDocument onBack={() => setSelectedComponent(null)} />
@@ -73,27 +77,55 @@ const MainDocument = () => {
               </div>
             )}
             
-            <div 
-              className="group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden"
-              onClick={() => setSelectedComponent("private")}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative p-6 h-48 flex flex-col justify-between">
-                <div>
-                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
+            {/* Hide private documents card for HR-Admin - they have access to "All Private Documents" */}
+            {userType !== "HR-Admin" && (
+              <div 
+                className="group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden"
+                onClick={() => setSelectedComponent("private")}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-6 h-48 flex flex-col justify-between">
+                  <div>
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-2">Private Documents</h2>
+                    <p className="text-gray-300 text-sm">Access your confidential documents</p>
                   </div>
-                  <h2 className="text-xl font-bold text-white mb-2">Private Documents</h2>
-                  <p className="text-gray-300 text-sm">Access your confidential documents</p>
-                </div>
-                <div className="flex items-center text-gray-300">
-                  <span className="text-sm font-medium">View documents</span>
-                  <FiArrowRight className="ml-2" size={16} />
+                  <div className="flex items-center text-gray-300">
+                    <span className="text-sm font-medium">View documents</span>
+                    <FiArrowRight className="ml-2" size={16} />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* HR Admin - All Private Documents Card */}
+            {userType === "HR-Admin" && (
+              <div 
+                className="group relative bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden"
+                onClick={() => setSelectedComponent("hr-private")}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-700 to-purple-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative p-6 h-48 flex flex-col justify-between">
+                  <div>
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-2">All Private Documents</h2>
+                    <p className="text-purple-100 text-sm">View and search all employee private documents</p>
+                  </div>
+                  <div className="flex items-center text-purple-100">
+                    <span className="text-sm font-medium">HR Access</span>
+                    <FiArrowRight className="ml-2" size={16} />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div 
               className="group relative bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer overflow-hidden"

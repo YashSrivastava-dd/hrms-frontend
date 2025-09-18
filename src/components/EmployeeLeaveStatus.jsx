@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { FileText, Calendar, Clock, Users, RefreshCw, CheckCircle, XCircle, Eye, Download } from "lucide-react";
+import { FileText, Calendar, Clock, Users, CheckCircle, XCircle, Eye, Download } from "lucide-react";
 import { FiDownload } from "react-icons/fi";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -13,6 +13,7 @@ import {
   putVendorStatusDataAction,
   deleteVendorMeetingAction,
   putRevertLeaveByManagerAction,
+  putRevertApprovedLeaveAction,
 } from "../store/action/userDataAction";
 import safeToast from "../utils/safeToast";
 
@@ -86,7 +87,7 @@ const getDocumentData = (item) => {
 };
 // api/common/get-emp-leaves-count
 // Tab component
-const Tab = ({ active, onClick, children, count, icon: Icon, disabled = false }) => (
+const Tab = ({ active, onClick, children, icon: Icon, disabled = false }) => (
   <button
     onClick={onClick}
     disabled={disabled}
@@ -109,17 +110,6 @@ const Tab = ({ active, onClick, children, count, icon: Icon, disabled = false })
         <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-pulse"></div>
       )}
     </span>
-    {count > 0 && (
-      <span className={`px-3 py-1 text-xs font-bold rounded-full transition-all duration-300 ${
-        active 
-          ? 'bg-white/20 text-white border border-white/30' 
-          : disabled
-          ? 'bg-gray-200 text-gray-500'
-          : 'bg-blue-100 text-blue-700 group-hover:bg-blue-200 group-hover:text-blue-800'
-      }`}>
-        {count}
-      </span>
-    )}
   </button>
 );
 
@@ -212,7 +202,7 @@ const StatusBadge = ({ status, type = "default" }) => {
 };
 
 // Action buttons component
-const ActionButtons = ({ item, onApprove, onReject, onDelete, loading, type = "leave" }) => {
+const ActionButtons = ({ item, onApprove, onReject, onDelete, onRevert, loading, type = "leave" }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -234,6 +224,30 @@ const ActionButtons = ({ item, onApprove, onReject, onDelete, loading, type = "l
 
   if (!isPending) {
     if (isApproved) {
+      // Show revert button for approved leaves
+      if (onRevert && type === "leave") {
+        return (
+          <div className="flex gap-1">
+            <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-600">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Approved
+            </span>
+            <button
+              onClick={() => onRevert(item)}
+              disabled={loading}
+              className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-md transition-colors duration-200 ${
+                loading
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200 hover:text-orange-800'
+              }`}
+              title="Revert this approved leave"
+            >
+              <span className="text-orange-600 mr-1">↶</span>
+              Revert
+            </button>
+          </div>
+        );
+      }
       return (
         <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-600">
           <CheckCircle className="w-3 h-3 mr-1" />
@@ -346,7 +360,7 @@ const EmployeeLeaveStatus = () => {
     compOff: false,
     vendor: false
   });
-  const [viewMode, setViewMode] = useState("pending"); // "pending" or "approved"
+  const [viewMode, setViewMode] = useState("pending"); // "pending", "approved", or "rejected"
 
   // Status filter options
   const statusOptions = [
@@ -361,26 +375,6 @@ const EmployeeLeaveStatus = () => {
   const compOffRequests = Array.isArray(compOffData?.data) ? compOffData.data : [];
   const vendorMeetings = Array.isArray(vendorData?.data) ? vendorData.data : [];
 
-  // Calculate counts for tabs with error handling
-  const tabCounts = (() => {
-    try {
-      return {
-        leave: viewMode === "approved"
-          ? leaveRequests.filter(item => item?.status === "Approved").length
-          : leaveRequests.filter(item => item?.status === "Pending").length,
-        compOff: viewMode === "approved"
-          ? compOffRequests.filter(item => item?.status === "Approved").length
-          : compOffRequests.filter(item => item?.status === "Pending").length,
-        vendor: viewMode === "approved"
-          ? vendorMeetings.filter(item => item?.status === "Approved").length
-          : vendorMeetings.filter(item => item?.status === "Pending").length,
-        revert: 0 // Will be implemented when revert data is available
-      };
-    } catch (error) {
-      console.error('Error calculating tab counts:', error);
-      return { leave: 0, compOff: 0, vendor: 0, revert: 0 };
-    }
-  })();
 
   // Load data on component mount
   useEffect(() => {
@@ -556,6 +550,46 @@ const EmployeeLeaveStatus = () => {
     }
   }, [dispatch]);
 
+  // Handle reverting approved leaves
+  const handleRevertApprovedLeave = useCallback(async (item) => {
+    if (!item?._id) {
+      safeToast.error("Invalid item selected for revert action.");
+      return;
+    }
+
+    // Confirm the revert action
+    const confirmRevert = window.confirm(
+      `Are you sure you want to revert the approved leave for ${item?.employeeInfo?.employeeName}? This action cannot be undone.`
+    );
+
+    if (!confirmRevert) {
+      return;
+    }
+
+    setApprovalLoading(prev => ({ ...prev, [item._id]: true }));
+
+    try {
+      // Call the revert API
+      const result = await dispatch(putRevertApprovedLeaveAction({ 
+        id: item._id,
+        remarks: `Leave reverted by manager on ${new Date().toLocaleDateString()}`
+      }));
+
+      if (result?.success) {
+        safeToast.success("Approved leave reverted successfully!");
+        
+        // Refresh the data to reflect the changes
+        dispatch(getLeaveApproveRequestAction({ page: 1, limit: 1000 }));
+      } else {
+        safeToast.error(`Failed to revert leave: ${result?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      safeToast.error(`Failed to revert leave: ${error?.message || 'Something went wrong'}`);
+    } finally {
+      setApprovalLoading(prev => ({ ...prev, [item._id]: false }));
+    }
+  }, [dispatch]);
+
   // Filter data based on search and status
   const getFilteredData = (data) => {
     try {
@@ -574,6 +608,8 @@ const EmployeeLeaveStatus = () => {
         let matchesStatus;
         if (viewMode === "approved") {
           matchesStatus = item?.status === "Approved";
+        } else if (viewMode === "rejected") {
+          matchesStatus = item?.status === "Rejected";
         } else {
           matchesStatus = statusFilter === "All" || item?.status === statusFilter;
         }
@@ -597,8 +633,6 @@ const EmployeeLeaveStatus = () => {
       case "vendor":
         if (!availableFeatures.vendor) return [];
         return getFilteredData(vendorMeetings);
-      case "revert":
-        return []; // Will be implemented when revert data is available
       default:
         return [];
     }
@@ -759,6 +793,7 @@ const EmployeeLeaveStatus = () => {
                         else if (activeTab === "vendor") handleVendorAction("reject", item);
                       }}
                       onDelete={activeTab === "vendor" ? handleVendorDelete : null}
+                      onRevert={activeTab === "leave" ? handleRevertApprovedLeave : null}
                       loading={approvalLoading[item?._id]}
                       type={activeTab}
                       />
@@ -830,7 +865,6 @@ const EmployeeLeaveStatus = () => {
             <Tab
               active={activeTab === "leave"}
               onClick={() => handleTabChange("leave")}
-              count={tabCounts.leave}
               icon={Calendar}
             >
               Leave Requests
@@ -839,7 +873,6 @@ const EmployeeLeaveStatus = () => {
               <Tab
                 active={activeTab === "compOff"}
                 onClick={() => handleTabChange("compOff")}
-                count={tabCounts.compOff}
                 icon={Clock}
               >
                 Comp-Off Approvals
@@ -849,21 +882,11 @@ const EmployeeLeaveStatus = () => {
               <Tab
                 active={activeTab === "vendor"}
                 onClick={() => handleTabChange("vendor")}
-                count={tabCounts.vendor}
                 icon={Users}
               >
                 Vendor Meetings
               </Tab>
             )}
-            <Tab
-              active={activeTab === "revert"}
-              onClick={() => handleTabChange("revert")}
-              count={tabCounts.revert}
-              icon={RefreshCw}
-              disabled={true} // Disable until revert functionality is implemented
-            >
-              Revert Status
-            </Tab>
                     </div>
                   </div>
                 </div>
@@ -919,13 +942,6 @@ const EmployeeLeaveStatus = () => {
                   <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-pulse"></div>
                 )}
               </span>
-              <span className={`px-2 py-1 text-xs font-bold rounded-full transition-all duration-300 ${
-                viewMode === "pending"
-                  ? 'bg-white/20 text-white border border-white/30'
-                  : 'bg-blue-100 text-blue-700 group-hover:bg-blue-200 group-hover:text-blue-800'
-              }`}>
-                {leaveRequests.filter(item => item?.status === "Pending").length}
-              </span>
                       </button>
                       <button
               onClick={() => setViewMode("approved")}
@@ -944,12 +960,23 @@ const EmployeeLeaveStatus = () => {
                   <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-pulse"></div>
                 )}
               </span>
-              <span className={`px-2 py-1 text-xs font-bold rounded-full transition-all duration-300 ${
-                viewMode === "approved"
-                  ? 'bg-white/20 text-white border border-white/30'
-                  : 'bg-green-100 text-green-700 group-hover:bg-green-200 group-hover:text-green-800'
-              }`}>
-                {leaveRequests.filter(item => item?.status === "Approved").length}
+                      </button>
+                      <button
+              onClick={() => setViewMode("rejected")}
+              className={`group relative flex items-center gap-3 px-5 py-3 text-sm font-semibold rounded-lg transition-all duration-300 transform ${
+                viewMode === "rejected"
+                  ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg scale-105'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:shadow-md hover:scale-105'
+              }`}
+            >
+              <XCircle className={`w-4 h-4 transition-all duration-300 ${
+                viewMode === "rejected" ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'
+              }`} />
+              <span className="relative">
+                Rejected
+                {viewMode === "rejected" && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-pulse"></div>
+                )}
               </span>
                       </button>
                     </div>

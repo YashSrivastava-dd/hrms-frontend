@@ -10,6 +10,7 @@ import {
   putApprovedLeaveByManagerAction,
   putCompOffLeaveRequestAction,
   putRevertLeaveByManagerAction,
+  putRevertApprovedLeaveAction,
   putVendorStatusDataAction,
   postApplyCompOffLeaveAction,
 } from "../../store/action/userDataAction";
@@ -200,13 +201,15 @@ const ManagerApproval = () => {
   }, []);
 
   // Simple Approve/Reject Buttons Component
-  const ApproveRejectButtons = useCallback(({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick }) => {
+  const ApproveRejectButtons = useCallback(({ item, isCompOff = false, actionType = "leave", onAction, onRejectClick, onRevertClick }) => {
     // For revert requests, check the revertLeave status, otherwise check the main status
     const isPending = actionType === "revert" 
       ? item?.revertLeave?.status === "Pending"
       : item?.status === "Pending";
 
-
+    const isApproved = actionType === "revert" 
+      ? item?.revertLeave?.status === "Approved"
+      : item?.status === "Approved";
 
     const handleApprove = useCallback(async () => {
       if (!isPending) {
@@ -260,9 +263,13 @@ const ManagerApproval = () => {
 
     }, [actionType, item, isCompOff, isPending, onAction, onRejectClick]);
 
+    const handleRevert = useCallback(async () => {
+      if (onRevertClick) {
+        await onRevertClick(item);
+      }
+    }, [onRevertClick, item]);
 
-
-    // If not pending, show status instead of dropdown
+    // If not pending, show status with revert option for approved leaves
     if (!isPending) {
       // For revert requests, get status from revertLeave, otherwise from main item
       const currentStatus = actionType === "revert" 
@@ -272,6 +279,26 @@ const ManagerApproval = () => {
       const statusClass = currentStatus === "Approved" ? "bg-green-100 text-green-800" : 
                          currentStatus === "Rejected" ? "bg-red-100 text-red-800" : 
                          "bg-gray-100 text-gray-800";
+      
+      // Show revert button for approved leaves (only for leave action type)
+      if (isApproved && actionType === "leave" && onRevertClick) {
+        return (
+          <div className="flex gap-1 justify-center">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+              {currentStatus || "---"}
+            </span>
+            <button
+              type="button"
+              onClick={handleRevert}
+              className="px-2 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 hover:text-orange-800 rounded-md text-xs font-medium transition-colors duration-200 flex items-center gap-1"
+              title="Revert this approved leave"
+            >
+              <span className="text-orange-600">↶</span>
+              Revert
+            </button>
+          </div>
+        );
+      }
       
       return (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
@@ -559,6 +586,49 @@ const ManagerApproval = () => {
     dispatch(putRevertLeaveByManagerAction({ status, id }));
     safeToast.success(`Revert request ${status.toLowerCase()} successfully!`);
   }, [dispatch]);
+
+  // New handler for directly reverting approved leaves (immediate revert)
+  const handleRevertApprovedLeave = useCallback(async (item) => {
+    if (!item?._id) {
+      safeToast.error("Invalid item selected for revert action.");
+      return;
+    }
+
+    // Confirm the revert action
+    const confirmRevert = window.confirm(
+      `Are you sure you want to revert the approved leave for ${item?.employeeInfo?.employeeName}? This action cannot be undone.`
+    );
+
+    if (!confirmRevert) {
+      return;
+    }
+
+    try {
+      // Show loading notification
+      const loadingToastId = safeToast.loading("Reverting approved leave...");
+
+      // Call the revert API
+      const result = await dispatch(putRevertApprovedLeaveAction({ 
+        id: item._id,
+        remarks: `Leave reverted by manager on ${new Date().toLocaleDateString()}`
+      }));
+
+      // Dismiss loading toast
+      safeToast.dismiss(loadingToastId);
+
+      if (result?.success) {
+        safeToast.success("Approved leave reverted successfully!");
+        
+        // Refresh the data to reflect the changes
+        const limit = itemsPerPage === -1 ? undefined : itemsPerPage;
+        dispatch(getLeaveApproveRequestAction({ page: currentPage, limit }));
+      } else {
+        safeToast.error(`Failed to revert leave: ${result?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      safeToast.error(`Failed to revert leave: ${error?.message || 'Something went wrong'}`);
+    }
+  }, [dispatch, itemsPerPage, currentPage]);
 
   const handleAction = useCallback(async (status, id, isCompOff = false) => {
     if (!id) {
@@ -988,20 +1058,15 @@ const ManagerApproval = () => {
             </td>
             : ''}
           <td className="px-4 py-3 text-center whitespace-nowrap">
-            {item?.status === "Pending" ? (
-              <ApproveRejectButtons 
-                item={item} 
-                isCompOff={isCompOff} 
-                actionType={activeTab === "vendor" ? "vendor" : (isCompOff ? "compoff" : "leave")} 
-                onAction={handleAction} 
-                onRejectClick={handleRejectClick}
-                onDispatch={dispatch}
-              />
-            ) : (
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
-                {item?.status || "---"}
-              </span>
-            )}
+            <ApproveRejectButtons 
+              item={item} 
+              isCompOff={isCompOff} 
+              actionType={activeTab === "vendor" ? "vendor" : (isCompOff ? "compoff" : "leave")} 
+              onAction={handleAction} 
+              onRejectClick={handleRejectClick}
+              onRevertClick={activeTab === "leave" && !isCompOff ? handleRevertApprovedLeave : null}
+              onDispatch={dispatch}
+            />
           </td>
         </tr>
       );
@@ -1079,6 +1144,7 @@ const ManagerApproval = () => {
               actionType="revert" 
               onAction={handleRevertApprovalAction} 
               onRejectClick={handleRejectClick}
+              onRevertClick={null}
               onDispatch={dispatch}
             />
           </td>
@@ -1139,20 +1205,15 @@ const ManagerApproval = () => {
             </span>
           </td>
           <td className="px-4 py-3 text-center whitespace-nowrap">
-            {item?.status === "Pending" ? (
-              <ApproveRejectButtons 
-                item={item} 
-                isCompOff={true}
-                actionType="vendor" 
-                onAction={handleAction} 
-                onRejectClick={handleRejectClick}
-                onDispatch={dispatch}
-              />
-            ) : (
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
-                {item?.status || "---"}
-              </span>
-            )}
+            <ApproveRejectButtons 
+              item={item} 
+              isCompOff={true}
+              actionType="vendor" 
+              onAction={handleAction} 
+              onRejectClick={handleRejectClick}
+              onRevertClick={null}
+              onDispatch={dispatch}
+            />
           </td>
         </tr>
       );

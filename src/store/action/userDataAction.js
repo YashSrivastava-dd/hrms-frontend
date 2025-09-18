@@ -40,6 +40,11 @@ import {
   POST_APPLY_REGULARIZE_REQUEST,
   POST_APPLY_REGULARIZE_SUCCESS,
   GET_EMPLOYEE_PRIVATE_DOC_REQUEST,
+  GET_EMPLOYEE_PRIVATE_DOC_SUCCESS,
+  GET_EMPLOYEE_PRIVATE_DOC_FAIL,
+  GET_HR_ALL_PRIVATE_DOCS_REQUEST,
+  GET_HR_ALL_PRIVATE_DOCS_SUCCESS,
+  GET_HR_ALL_PRIVATE_DOCS_FAIL,
   POST_EMPLOYEE_PRIVATE_DOC_SUCCESS,
   POST_LEAVE_APPLY_BY_EMPLOYEE_FAIL,
   POST_LEAVE_APPLY_BY_EMPLOYEE_REQUEST,
@@ -61,8 +66,6 @@ import {
   SINGLE_USER_DATA_REDUCER,
   SINGLE_USER_DATA_SUCCESS,
   RESET_USER_DATA_STATE,
-  GET_EMPLOYEE_PRIVATE_DOC_SUCCESS,
-  GET_EMPLOYEE_PRIVATE_DOC_FAIL,
   PROFILE_IMAGE_UPDATE_SUCCESS,
   PROFILE_IMAGE_UPDATE_REQUEST,
   PROFILE_IMAGE_UPDATE_FAIL,
@@ -112,6 +115,9 @@ import {
   PUT_REVERT_LEAVE_BY_MANAGER_FAIL,
   PUT_REVERT_LEAVE_BY_MANAGER_SUCCESS,
   PUT_REVERT_LEAVE_BY_MANAGER_REQUEST,
+  PUT_REVERT_APPROVED_LEAVE_REQUEST,
+  PUT_REVERT_APPROVED_LEAVE_SUCCESS,
+  PUT_REVERT_APPROVED_LEAVE_FAIL,
   POST_HOLIDAYS_DATA_REQUEST,
   POST_HOLIDAYS_DATA_SUCCESS,
   POST_HOLIDAYS_DATA_FAIL,
@@ -1423,6 +1429,44 @@ export const postEmployePrivateDocAction = () => async (dispatch, getState) => {
   }
 };
 
+// HR Admin - Get All Private Documents Action
+export const getHrAllPrivateDocsAction = () => async (dispatch, getState) => {
+  const token = localStorage.getItem("authToken");
+  
+  if (!token) {
+    return dispatch({
+      type: GET_HR_ALL_PRIVATE_DOCS_FAIL,
+      payload: "Authentication token not found",
+    });
+  }
+
+  try {
+    dispatch({ type: GET_HR_ALL_PRIVATE_DOCS_REQUEST });
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    };
+    
+    // API endpoint to get all private documents for HR admin
+    const { data } = await axios.get(
+      `${process.env.REACT_APP_BASE_URL}/api/common/get-all-private-documents`,
+      config
+    );
+
+    dispatch({ type: GET_HR_ALL_PRIVATE_DOCS_SUCCESS, payload: data });
+
+  } catch (error) {
+    console.warn('HR All Private Documents API error:', error);
+    dispatch({
+      type: GET_HR_ALL_PRIVATE_DOCS_FAIL,
+      payload: error.response?.data?.message || "Failed to fetch private documents",
+    });
+  }
+};
+
 export const updateProfileImage = (formData) => async (dispatch) => {
   try {
     dispatch({ type: PROFILE_IMAGE_UPDATE_REQUEST });
@@ -1934,6 +1978,55 @@ export const putRevertLeaveByManagerAction =
         type: PUT_REVERT_LEAVE_BY_MANAGER_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
       });
+    }
+  };
+
+// New action for directly reverting approved leaves (immediate revert)
+export const putRevertApprovedLeaveAction =
+  ({ id, remarks = "Leave reverted by manager" }) =>
+  async (dispatch, getState) => {
+    const token = localStorage.getItem("authToken");
+    
+    if (!token) {
+      return dispatch({
+        type: PUT_REVERT_APPROVED_LEAVE_REQUEST,
+        payload: "Authentication token not found",
+      });
+    }
+
+    try {
+      dispatch({ type: PUT_REVERT_APPROVED_LEAVE_REQUEST });
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      };
+
+      // Use the correct API endpoint for leave actions with "Rejected" status to revert the leave
+      const { data } = await axios.put(
+        `${process.env.REACT_APP_BASE_URL}/api/leave/action-for-leave-application/${id}`,
+        {
+          status: "Rejected",
+          remarks: remarks
+        },
+        config
+      );
+
+      dispatch({ type: PUT_REVERT_APPROVED_LEAVE_SUCCESS, payload: data });
+      
+      if (data?.statusCode === 200) {
+        return { success: true, data };
+      } else {
+        return { success: false, error: data?.message || "Unexpected response from server" };
+      }
+    } catch (error) {
+      dispatch({
+        type: PUT_REVERT_APPROVED_LEAVE_FAIL,
+        payload: error.response?.data?.message || "Something went wrong",
+      });
+      return { success: false, error: error.response?.data?.message || "Something went wrong" };
     }
   };
 

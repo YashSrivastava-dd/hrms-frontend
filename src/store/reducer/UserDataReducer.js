@@ -48,6 +48,9 @@ import {
   GET_EMPLOYEE_PRIVATE_DOC_FAIL,
   GET_EMPLOYEE_PRIVATE_DOC_REQUEST,
   GET_EMPLOYEE_PRIVATE_DOC_SUCCESS,
+  GET_HR_ALL_PRIVATE_DOCS_REQUEST,
+  GET_HR_ALL_PRIVATE_DOCS_SUCCESS,
+  GET_HR_ALL_PRIVATE_DOCS_FAIL,
   GET_GRAPH_DATA_EMPLOYEE_FAIL,
   GET_GRAPH_DATA_EMPLOYEE_REQUEST,
   GET_GRAPH_DATA_EMPLOYEE_SUCCESS,
@@ -114,6 +117,9 @@ import {
   POST_REVERT_LEAVE_REQUEST,
   POST_REVERT_LEAVE_SUCCESS,
   RESET_REVERT_LEAVE_STATE,
+  PUT_REVERT_APPROVED_LEAVE_REQUEST,
+  PUT_REVERT_APPROVED_LEAVE_SUCCESS,
+  PUT_REVERT_APPROVED_LEAVE_FAIL,
   POST_VENDOR_MEETING_FAIL,
   POST_VENDOR_MEETING_REQUEST,
   POST_VENDOR_MEETING_SUCCESS,
@@ -1071,6 +1077,30 @@ export const postRevertLeaveReducer = (state = initialState, action) => {
   }
 };
 
+export const putRevertApprovedLeaveReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case PUT_REVERT_APPROVED_LEAVE_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case PUT_REVERT_APPROVED_LEAVE_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+      };
+
+    case PUT_REVERT_APPROVED_LEAVE_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
 export const getEmployeeDataCountReducer = (state = initialState, action) => {
   switch (action.type) {
     case GET_EMPLOYEE_DATA_COUNT_REQUEST:
@@ -1374,6 +1404,31 @@ export const regularizationCountReducer = (state = initialRegularizationCountSta
       };
 
     case GET_REGULARIZATION_COUNT_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// HR All Private Documents Reducer
+export const getHrAllPrivateDocsReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case GET_HR_ALL_PRIVATE_DOCS_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case GET_HR_ALL_PRIVATE_DOCS_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+      };
+
+    case GET_HR_ALL_PRIVATE_DOCS_FAIL:
       return {
         ...state,
         loading: false,
