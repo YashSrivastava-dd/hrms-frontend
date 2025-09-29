@@ -22,6 +22,7 @@ import Finance from "./Finance/Finance";
 import Footer from "./Footer";
 import LogsPage from "./Logs/LogsPage";
 import GenerateSalarySlip from "./GenerateSalarySlip";
+import PunchRecords from "./PunchRecords";
 
 const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -172,7 +173,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         }}
       >
         {/* Mobile header with close button */}
-        <div className="flex items-center justify-between p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden">
+        <div className="flex items-center justify-between p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-sm font-bold">HR</span>
@@ -190,37 +191,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold">HR</span>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
-              <p className="text-sm text-gray-600">{userType || 'Loading...'}</p>
-            </div>
-          </div>
-        </div>
-        {/* Mobile header with close button */}
-        <div className="flex items-center justify-between p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm font-bold">HR</span>
-            </div>
-            <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
-          </div>
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Desktop Header */}
-        <div className="hidden md:block p-4 sm:p-6  bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="hidden md:block p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold">HR</span>
@@ -279,6 +250,15 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
                 icon="📅"
                 isSelected={selectedTag === "attendance"}
                 onClick={() => handleNavigation("attendance")}
+              />
+            )}
+            
+            {userType != "HR-Admin" && userType != "Super-Admin" && (
+              <SidebarLink
+                label="Punch Records"
+                icon="⏰"
+                isSelected={selectedTag === "punchRecords"}
+                onClick={() => handleNavigation("punchRecords")}
               />
             )}
             
@@ -495,6 +475,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               )}
               {selectedTag === "allEmployees" && <EmployeeTable selectedTag={selectedTag} reloadHandel={reloadHandel}/>}
               {selectedTag === "attendance" && <EmployeesAttendanceData />} 
+              {selectedTag === "punchRecords" && <PunchRecords />}
               {selectedTag === "anouncment" && <Announcement reloadHandel={reloadHandel}/>}
               {selectedTag === "employeeLeaveStatus" && <EmployeeLeaveStatus reloadHandel={reloadHandel}/>}
               {selectedTag === "employeeHolidays" && <EmployeeHolidays />}

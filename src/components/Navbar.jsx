@@ -3,17 +3,19 @@ import ddHealthcare from "../assets/Icon/ddHealthcare.png";
 import { IoMdNotifications } from "react-icons/io";
 import { FaBars } from "react-icons/fa";
 import { FaRegClock } from "react-icons/fa";
+import { FaFingerprint } from "react-icons/fa";
 import { IoLogOut } from "react-icons/io5";
 import { CgProfile } from "react-icons/cg";
-import Webcam from "react-webcam";
+// import Webcam from "react-webcam"; // Commented out - no longer needed
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import {
-  getPunchInDataAction,
-  postPunchInDataAction,
-  postPunchOutDataAction,
-} from "../store/action/userAdminAction";
+// Commented out punch in/out actions - no longer needed
+// import {
+//   getPunchInDataAction,
+//   postPunchInDataAction,
+//   postPunchOutDataAction,
+// } from "../store/action/userAdminAction";
 import { 
   putApprovedLeaveByManagerNavbarAction, 
   getLeaveApproveRequestAction,
@@ -31,29 +33,39 @@ import safeToast from "../utils/safeToast";
 function Navbar({ onToggleSidebar }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const webcamRef = useRef(null);
+  // const webcamRef = useRef(null); // Commented out - no longer needed
 
+  // Commented out punch in/out related states - keeping for reference
+  // const [isCameraOpen, setIsCameraOpen] = useState(false);
+  // const [capturedImage, setCapturedImage] = useState(null);
+  // const [showImageOptions, setShowImageOptions] = useState(false);
+  // const [punchInState, setPunchInState] = useState(false);
+  // const [timer, setTimer] = useState(0);
+  // const [intervalId, setIntervalId] = useState(null);
+  // const [locationInfo, setLocationInfo] = useState({
+  //   city: "",
+  //   state: "",
+  //   suburb: "",
+  // });
 
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [showImageOptions, setShowImageOptions] = useState(false);
-  const [punchInState, setPunchInState] = useState(false);
+  // New state for iframe modal
+  const [showPunchModal, setShowPunchModal] = useState(false);
+  const [iframeUrl, setIframeUrl] = useState('');
+  
+  // Timer state for punch in/out tracking
+  const [isPunchedIn, setIsPunchedIn] = useState(false);
+  const [punchInTime, setPunchInTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [timerInterval, setTimerInterval] = useState(null);
+  
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
-  const [timer, setTimer] = useState(0);
-  const [intervalId, setIntervalId] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const [locationInfo, setLocationInfo] = useState({
-    city: "",
-    state: "",
-    suburb: "",
-  });
-
-  const { data: punchInDataRaw } = useSelector((state) => state.punchInDataReducer);
-  const punchInData = punchInDataRaw?.data;
+  // Commented out punch in/out data - keeping for reference
+  // const { data: punchInDataRaw } = useSelector((state) => state.punchInDataReducer);
+  // const punchInData = punchInDataRaw?.data;
 
   const { data: userDataRaw } = useSelector((state) => state.userData);
   const userData = userDataRaw?.data || {};
@@ -133,7 +145,7 @@ function Navbar({ onToggleSidebar }) {
     const employeeId = localStorage.getItem("employeId");
     
     if (token && employeeId && token !== 'null' && token !== 'undefined' && employeeId !== 'null' && employeeId !== 'undefined') {
-      dispatch(getPunchInDataAction());
+      // dispatch(getPunchInDataAction()); // Commented out - no longer needed
       dispatch(getLeaveApproveRequestAction());
       dispatch(getCompoffLeaveRequestAction());
       dispatch(getVendorLogsAction());
@@ -196,87 +208,454 @@ function Navbar({ onToggleSidebar }) {
       if (showLogoutConfirm && !event.target.closest('.logout-confirm-modal')) {
         setShowLogoutConfirm(false);
       }
+      // Close punch modal when clicking outside
+      if (showPunchModal && !event.target.closest('.punch-modal') && !event.target.closest('.punch-modal-content')) {
+        setShowPunchModal(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showProfileDropdown, showNotificationDropdown, showLogoutConfirm]);
+  }, [showProfileDropdown, showNotificationDropdown, showLogoutConfirm, showPunchModal]);
 
   // Cleanup toasts on component unmount
   useEffect(() => {
     return () => {
       // Dismiss all toasts when component unmounts to prevent runtime errors
       safeToast.dismiss();
+      
+      // Cleanup timer interval
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
     };
-  }, []);
+  }, [timerInterval]);
 
-  const startTimer = () => {
-    const id = setInterval(() => setTimer((prev) => prev + 1), 1000);
-    setIntervalId(id);
-  };
+  // Construct dynamic iframe URL with employee information
+  useEffect(() => {
+    const employeeId = userData?.employeeId || '';
+    const employeeName = userData?.employeeName || '';
+    
+    if (employeeId || employeeName) {
+      const params = new URLSearchParams({ 
+        employeeId, 
+        employeeName 
+      });
+      setIframeUrl(`https://greenlivingassociates.com/punch_records/index.html?${params.toString()}`);
+    } else {
+      setIframeUrl('https://greenlivingassociates.com/punch_records/index.html');
+    }
+  }, [userData?.employeeId, userData?.employeeName]);
 
-  const stopTimer = () => {
-    clearInterval(intervalId);
-    setIntervalId(null);
-  };
+  // Listen for messages from iframe (punch in/out events)
+  // 
+  // EXPECTED IFRAME COMMUNICATION PROTOCOL:
+  // ======================================
+  // 
+  // 1. When iframe loads, parent sends 'parentReady' message with current status
+  // 2. When user punches in successfully, iframe should send:
+  //    window.parent.postMessage({
+  //      type: 'punchInSuccess',
+  //      data: {
+  //        employeeId: 'EMP123',
+  //        timestamp: '2025-01-20T09:00:00Z',
+  //        location: 'Office',
+  //        imageUrl: 'base64_image_data'
+  //      }
+  //    }, 'https://your-domain.com');
+  //
+  // 3. When user punches out successfully, iframe should send:
+  //    window.parent.postMessage({
+  //      type: 'punchOutSuccess', 
+  //      data: {
+  //        employeeId: 'EMP123',
+  //        timestamp: '2025-01-20T18:00:00Z',
+  //        totalHours: '09:00',
+  //        location: 'Office'
+  //      }
+  //    }, 'https://your-domain.com');
+  //
+  // 4. Parent will automatically:
+  //    - Close iframe dialog
+  //    - Start/stop timer
+  //    - Show success message
+  //    - Save data to localStorage
+  //
+  useEffect(() => {
+    const handleMessage = (event) => {
+      // Log all messages for debugging
+      console.log('Received message:', event.origin, event.data);
+      
+      // Ensure message is from the attendance system iframe
+      if (event.origin !== 'https://greenlivingassociates.com') {
+        return;
+      }
 
-  const getLocationAndDispatch = async (image) => {
-    const success = async ({ coords }) => {
-      const { latitude, longitude } = coords;
-      try {
-        const res = await fetch(
-          `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=d67b43154d4442638a0648615ec76cbd`
-        );
-        const data = await res.json();
-        const components = data.results[0]?.components || {};
-
-        const city = components.city || components.town || "Unknown city";
-        const state = components.state || "Unknown state";
-        const suburb = components.suburb || components.town || "Unknown suburb";
-
-        setLocationInfo({ city, state, suburb });
-
-        dispatch(
-          postPunchInDataAction({
-            location: `${city}, ${state}`,
-            imageUrl: image,
-          })
-        );
-      } catch (err) {
-        console.error("Location fetch error:", err);
-        setLocationInfo({ city: "Unknown", state: "Unknown", suburb: "Unknown" });
+      const { type, data } = event.data;
+      
+      switch (type) {
+        case 'punch-status-change':
+          // Adapter for iframe implementation in /punch/html
+          // action: 'punch-in' | 'punch-out'
+          if (event?.data?.action === 'punch-in') {
+            console.log('Punch In detected (adapter):', event.data);
+            handlePunchInSuccess({ employeeId: event?.data?.employeeId });
+          } else if (event?.data?.action === 'punch-out') {
+            console.log('Punch Out detected (adapter):', event.data);
+            handlePunchOutSuccess({ employeeId: event?.data?.employeeId });
+          }
+          break;
+        case 'punchInSuccess':
+          console.log('Punch In Success detected:', data);
+          handlePunchInSuccess(data);
+          break;
+        case 'punchOutSuccess':
+          console.log('Punch Out Success detected:', data);
+          handlePunchOutSuccess(data);
+          break;
+        case 'PUNCH_IN':
+          console.log('Punch In detected (legacy):', data);
+          handlePunchInSuccess(data);
+          break;
+        case 'PUNCH_OUT':
+          console.log('Punch Out detected (legacy):', data);
+          handlePunchOutSuccess(data);
+          break;
+        case 'punch_in':
+          console.log('Punch In detected (lowercase):', data);
+          handlePunchInSuccess(data);
+          break;
+        case 'punch_out':
+          console.log('Punch Out detected (lowercase):', data);
+          handlePunchOutSuccess(data);
+          break;
+        case 'statusResponse':
+          console.log('Status response received:', data);
+          if (data.isPunchedOut && isPunchedIn) {
+            console.log('Iframe reports user is punched out, stopping timer');
+            handlePunchOutSuccess(data);
+          }
+          break;
+        default:
+          console.log('Unknown message type:', type, data);
       }
     };
 
-    const error = () => {
-      setLocationInfo({ city: "Denied", state: "Unknown", suburb: "Unknown" });
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
+  // Check if user is already punched in when component mounts
+  useEffect(() => {
+    const checkExistingPunchStatus = () => {
+      // Check localStorage for existing punch status
+      const punchStatus = localStorage.getItem('punchStatus');
+      const punchInTime = localStorage.getItem('punchInTime');
+      
+      if (punchStatus === 'punched_in' && punchInTime) {
+        const punchTime = new Date(punchInTime);
+        const now = new Date();
+        const elapsedSeconds = Math.floor((now - punchTime) / 1000);
+        
+        console.log('Found existing punch in status, starting timer with elapsed time:', elapsedSeconds);
+        setPunchInTime(punchTime);
+        setElapsedTime(elapsedSeconds);
+        setIsPunchedIn(true);
+        
+        // Start the timer from the elapsed time
+        const interval = setInterval(() => {
+          setElapsedTime(prev => prev + 1);
+        }, 1000);
+        
+        setTimerInterval(interval);
+      }
     };
 
-    navigator.geolocation?.getCurrentPosition(success, error);
+    checkExistingPunchStatus();
+  }, []);
+
+  // Fallback: Check iframe content for punch status (if direct communication fails)
+  useEffect(() => {
+    if (showPunchModal) {
+      const checkIframeStatus = () => {
+        try {
+          const iframe = document.querySelector('iframe[src*="greenlivingassociates.com"]');
+          if (iframe && iframe.contentWindow) {
+            // Try to access iframe content (may fail due to CORS)
+            console.log('Checking iframe status...');
+          }
+        } catch (error) {
+          console.log('Cannot access iframe content (expected due to CORS):', error.message);
+        }
+      };
+
+      // Check status when modal opens
+      setTimeout(checkIframeStatus, 1000);
+    }
+  }, [showPunchModal]);
+
+  // Periodic check for iframe communication (fallback)
+  useEffect(() => {
+    if (isPunchedIn) {
+      const checkInterval = setInterval(() => {
+        // Check if modal is closed but timer is still running
+        if (!showPunchModal && isPunchedIn) {
+          console.log('Modal closed while timer running - checking for punch out...');
+          
+          // Send a message to iframe asking for current status
+          try {
+            const iframe = document.querySelector('iframe[src*="greenlivingassociates.com"]');
+            if (iframe && iframe.contentWindow) {
+              // Align with iframe implementation in /punch/html (listens for 'refresh-status')
+              iframe.contentWindow.postMessage('refresh-status', 'https://greenlivingassociates.com');
+            }
+          } catch (error) {
+            console.log('Cannot send status refresh message:', error.message);
+          }
+        }
+      }, 5000); // Check every 5 seconds
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [isPunchedIn, showPunchModal, userData?.employeeId]);
+
+  // Commented out punch in/out handlers - keeping for reference
+  // const startTimer = () => {
+  //   const id = setInterval(() => setTimer((prev) => prev + 1), 1000);
+  //   setIntervalId(id);
+  // };
+
+  // const stopTimer = () => {
+  //   clearInterval(intervalId);
+  //   setIntervalId(null);
+  // };
+
+  // const getLocationAndDispatch = async (image) => {
+  //   const success = async ({ coords }) => {
+  //     const { latitude, longitude } = coords;
+  //     try {
+  //       const res = await fetch(
+  //         `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=d67b43154d4442638a0648615ec76cbd`
+  //       );
+  //       const data = await res.json();
+  //       const components = data.results[0]?.components || {};
+
+  //       const city = components.city || components.town || "Unknown city";
+  //       const state = components.state || "Unknown state";
+  //       const suburb = components.suburb || components.town || "Unknown suburb";
+
+  //       setLocationInfo({ city, state, suburb });
+
+  //       dispatch(
+  //         postPunchInDataAction({
+  //           location: `${city}, ${state}`,
+  //           imageUrl: image,
+  //         })
+  //       );
+  //     } catch (err) {
+  //       console.error("Location fetch error:", err);
+  //       setLocationInfo({ city: "Unknown", state: "Unknown", suburb: "Unknown" });
+  //     }
+  //   };
+
+  //   const error = () => {
+  //     setLocationInfo({ city: "Denied", state: "Unknown", suburb: "Unknown" });
+  //   };
+
+  //   navigator.geolocation?.getCurrentPosition(success, error);
+  // };
+
+  // const handleCapture = () => {
+  //   const image = webcamRef.current.getScreenshot();
+  //   setCapturedImage(image);
+  //   setShowImageOptions(true);
+  // };
+
+  // const handleUploadImage = () => {
+  //   if (capturedImage) {
+  //     getLocationAndDispatch(capturedImage);
+  //     setIsCameraOpen(false);
+  //     setShowImageOptions(false);
+  //     setPunchInState(true);
+  //     startTimer();
+  //   }
+  // };
+
+  // const handlePunchOut = () => {
+  //   dispatch(postPunchOutDataAction({ id: punchInData?._id }));
+  //   setPunchInState(false);
+  //   stopTimer();
+  // };
+
+  // Timer functions
+  const startTimer = () => {
+    const now = new Date();
+    setPunchInTime(now);
+    setIsPunchedIn(true);
+    
+    // Save punch status to localStorage
+    localStorage.setItem('punchStatus', 'punched_in');
+    localStorage.setItem('punchInTime', now.toISOString());
+    
+    const interval = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    
+    setTimerInterval(interval);
+    
+    console.log('Timer started at:', now.toISOString());
   };
 
-  const handleCapture = () => {
-    const image = webcamRef.current.getScreenshot();
-    setCapturedImage(image);
-    setShowImageOptions(true);
+  const stopTimer = () => {
+    setIsPunchedIn(false);
+    setPunchInTime(null);
+    setElapsedTime(0);
+    
+    // Clear punch status from localStorage
+    localStorage.removeItem('punchStatus');
+    localStorage.removeItem('punchInTime');
+    
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+    
+    console.log('Timer stopped');
   };
 
-  const handleUploadImage = () => {
-    if (capturedImage) {
-      getLocationAndDispatch(capturedImage);
-      setIsCameraOpen(false);
-      setShowImageOptions(false);
-      setPunchInState(true);
-      startTimer();
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
   };
 
-  const handlePunchOut = () => {
-    dispatch(postPunchOutDataAction({ id: punchInData?._id }));
-    setPunchInState(false);
-    stopTimer();
+  // New handler for fingerprint button
+  const handleFingerprintClick = () => {
+    setShowPunchModal(true);
+  };
+
+  const handleClosePunchModal = () => {
+    setShowPunchModal(false);
+  };
+
+  // Handle successful punch in from iframe
+  const handlePunchInSuccess = (data) => {
+    console.log('Processing punch in success:', data);
+    
+    // Close the iframe dialog
+    setShowPunchModal(false);
+    
+    // Start the timer
+    const now = new Date();
+    setPunchInTime(now);
+    setIsPunchedIn(true);
+    setElapsedTime(0);
+    
+    // Save punch status to localStorage
+    localStorage.setItem('punchStatus', 'punched_in');
+    localStorage.setItem('punchInTime', now.toISOString());
+    localStorage.setItem('punchInData', JSON.stringify(data));
+    
+    // Start timer interval
+    const interval = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    
+    setTimerInterval(interval);
+    
+    // Show success message
+    safeToast.success('Punched in successfully! Timer started.');
+    
+    console.log('Punch in completed, timer started at:', now.toISOString());
+  };
+
+  // Handle successful punch out from iframe
+  const handlePunchOutSuccess = (data) => {
+    console.log('Processing punch out success:', data);
+    
+    // Close the iframe dialog
+    setShowPunchModal(false);
+    
+    // Stop the timer and record final duration
+    const finalDuration = elapsedTime;
+    const punchInTime = localStorage.getItem('punchInTime');
+    
+    // Clear punch status from localStorage
+    localStorage.removeItem('punchStatus');
+    localStorage.removeItem('punchInTime');
+    localStorage.setItem('lastPunchOutData', JSON.stringify({
+      ...data,
+      finalDuration: finalDuration,
+      punchInTime: punchInTime,
+      punchOutTime: new Date().toISOString()
+    }));
+    
+    // Stop timer
+    setIsPunchedIn(false);
+    setPunchInTime(null);
+    setElapsedTime(0);
+    
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+    
+    // Show success message with duration
+    safeToast.success(`Punched out successfully! Total working time: ${formatTime(finalDuration)}`);
+    
+    console.log('Punch out completed, final duration:', formatTime(finalDuration));
+  };
+
+  // Manual timer start for already punched in users
+  const handleManualStart = () => {
+    // Ask user for their punch in time
+    const punchTimeStr = prompt('Enter your punch in time (HH:MM format, e.g., 09:00):');
+    if (punchTimeStr) {
+      const today = new Date();
+      const [hours, minutes] = punchTimeStr.split(':').map(Number);
+      
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        const punchTime = new Date(today);
+        punchTime.setHours(hours, minutes, 0, 0);
+        
+        const now = new Date();
+        const elapsedSeconds = Math.floor((now - punchTime) / 1000);
+        
+        if (elapsedSeconds > 0) {
+          setPunchInTime(punchTime);
+          setElapsedTime(elapsedSeconds);
+          setIsPunchedIn(true);
+          
+          // Save to localStorage
+          localStorage.setItem('punchStatus', 'punched_in');
+          localStorage.setItem('punchInTime', punchTime.toISOString());
+          
+          // Start timer
+          const interval = setInterval(() => {
+            setElapsedTime(prev => prev + 1);
+          }, 1000);
+          
+          setTimerInterval(interval);
+          
+          console.log('Manual timer started with punch time:', punchTime.toISOString());
+        } else {
+          alert('Punch in time cannot be in the future!');
+        }
+      } else {
+        alert('Invalid time format! Please use HH:MM format.');
+      }
+    }
   };
 
   const handleLogout = () => {
@@ -340,8 +719,9 @@ function Navbar({ onToggleSidebar }) {
     }
   };
 
-  const isPunchedIn = punchInData?.InTime?.length > 0;
-  const isPunchedOut = punchInData?.OutTime === "NA" || punchInState;
+  // Commented out punch status checks - keeping for reference
+  // const isPunchedIn = punchInData?.InTime?.length > 0;
+  // const isPunchedOut = punchInData?.OutTime === "NA" || punchInState;
 
   return (
     <>
@@ -351,9 +731,15 @@ function Navbar({ onToggleSidebar }) {
         {/* Left Section - Menu & Logo */}
         <div className="flex items-center space-x-3 flex-shrink-0">
           <button 
-            onClick={onToggleSidebar} 
-            className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 md:hidden"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Mobile menu button clicked');
+              onToggleSidebar();
+            }} 
+            className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 md:hidden relative z-10"
             aria-label="Toggle menu"
+            style={{ touchAction: 'manipulation' }}
           >
             <FaBars size={20} />
           </button>
@@ -385,8 +771,90 @@ function Navbar({ onToggleSidebar }) {
 
         {/* Right Section - Notifications & Profile */}
         <div className="flex items-center space-x-3 flex-1 justify-end">
-          {/* Mobile Punch Controls - Positioned on the right */}
+          {/* Timer and Fingerprint Button */}
           {userType !== "HR-Admin" && userType !== "Super-Admin" && (
+            <div className="flex items-center space-x-3">
+              {/* Timer Display - Always visible */}
+              <div className="flex items-center space-x-2">
+                {/* Mobile Timer */}
+                <div className="md:hidden">
+                  <div className={`px-3 py-1 rounded-full text-xs font-mono font-semibold border ${
+                    isPunchedIn 
+                      ? 'bg-green-100 text-green-800 border-green-200' 
+                      : 'bg-gray-100 text-gray-600 border-gray-200'
+                  }`}>
+                    {isPunchedIn ? formatTime(elapsedTime) : '00:00'}
+                  </div>
+                </div>
+                
+                {/* Desktop Timer */}
+                <div className="hidden md:block">
+                  <div className={`px-4 py-2 rounded-lg text-sm font-mono font-semibold border shadow-sm transition-all duration-300 ${
+                    isPunchedIn 
+                      ? 'bg-green-100 text-green-800 border-green-200 shadow-green-200' 
+                      : 'bg-gray-100 text-gray-600 border-gray-200'
+                  }`}>
+                    <div className="flex items-center space-x-2">
+                      {isPunchedIn && (
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      )}
+                      <span className="font-bold">{isPunchedIn ? formatTime(elapsedTime) : '00:00'}</span>
+                      {isPunchedIn && (
+                        <span className="text-xs text-green-600 font-normal">
+                          Working
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Fingerprint Button */}
+              <div className="md:hidden flex items-center space-x-1">
+                <button
+                  className={`p-2 text-white rounded-full transition-colors duration-200 shadow-lg flex items-center justify-center relative z-10 ${
+                    isPunchedIn 
+                      ? 'bg-red-500 hover:bg-red-600 active:bg-red-700' 
+                      : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
+                  }`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Mobile fingerprint button clicked');
+                    handleFingerprintClick();
+                  }}
+                  title={isPunchedIn ? "Punch Out" : "Punch In"}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <FaFingerprint size={18} />
+                </button>
+              </div>
+
+              {/* Desktop Fingerprint Button */}
+              <div className="hidden md:flex items-center space-x-2">
+                <button
+                  className={`px-4 py-2 text-white rounded-full text-sm flex items-center justify-center space-x-2 transition-colors duration-200 shadow-lg relative z-10 ${
+                    isPunchedIn 
+                      ? 'bg-red-500 hover:bg-red-600 active:bg-red-700' 
+                      : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
+                  }`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Desktop fingerprint button clicked');
+                    handleFingerprintClick();
+                  }}
+                >
+                  <FaFingerprint />
+                  <span>{isPunchedIn ? 'Punch Out' : 'Punch In'}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Commented out old punch controls - keeping for reference */}
+          {/* Mobile Punch Controls - Positioned on the right */}
+          {/* {userType !== "HR-Admin" && userType !== "Super-Admin" && (
             <div className="flex md:hidden items-center space-x-1 sm:space-x-2">
               {isPunchedOut ? (
                 <button
@@ -404,10 +872,10 @@ function Navbar({ onToggleSidebar }) {
                 </button>
               ) : null}
             </div>
-          )}
+          )} */}
 
           {/* Punch In Button - Desktop */}
-          {userType !== "HR-Admin" && userType !== "Super-Admin" && (
+          {/* {userType !== "HR-Admin" && userType !== "Super-Admin" && (
             <div className="hidden md:block">
               {isPunchedOut ? (
                 <button
@@ -427,15 +895,21 @@ function Navbar({ onToggleSidebar }) {
                 </button>
               ) : null}
             </div>
-          )}
+          )} */}
           
           {/* Notifications for Managers, Super-Admins, and HR-Admins */}
           {(userType === "Manager" || userType === "Super-Admin" || userType === "HR-Admin") && (
             <div className="relative">
               <button
-                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
-                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Manager notification button clicked');
+                  setShowNotificationDropdown(!showNotificationDropdown);
+                }}
+                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative z-10"
                 aria-label="Notifications"
+                style={{ touchAction: 'manipulation' }}
               >
                 <IoMdNotifications size={24} />
                 {pendingNotifications.length > 0 && (
@@ -546,9 +1020,15 @@ function Navbar({ onToggleSidebar }) {
           {(userType !== "Manager" && userType !== "Super-Admin" && userType !== "HR-Admin") && (
             <div className="relative">
               <button
-                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
-                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Employee notification button clicked');
+                  setShowNotificationDropdown(!showNotificationDropdown);
+                }}
+                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative z-10"
                 aria-label="Notifications"
+                style={{ touchAction: 'manipulation' }}
               >
                 <IoMdNotifications size={24} />
                 {employeeNotifications.length > 0 && (
@@ -637,8 +1117,14 @@ function Navbar({ onToggleSidebar }) {
           
           <div className="relative">
             <button
-              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              className="bg-blue-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold hover:bg-blue-600 transition-colors duration-200"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Profile button clicked');
+                setShowProfileDropdown(!showProfileDropdown);
+              }}
+              className="bg-blue-500 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold hover:bg-blue-600 transition-colors duration-200 relative z-10"
+              style={{ touchAction: 'manipulation' }}
             >
               {userData?.employeeName?.charAt(0) || "?"}
             </button>
@@ -677,8 +1163,77 @@ function Navbar({ onToggleSidebar }) {
 
 
 
+      {/* New Punch Modal with iframe */}
+      {showPunchModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4 punch-modal animate-in fade-in duration-300">
+          <div className="bg-white rounded-xl shadow-2xl w-full h-[80vh] max-w-[90vw] md:max-w-[900px] flex flex-col punch-modal-content animate-in zoom-in-95 duration-300">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-900">Punch System</h3>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Modal close button clicked');
+                  handleClosePunchModal();
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200 relative z-10"
+                aria-label="Close modal"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* iframe Container */}
+            <div className="flex-1 p-0 overflow-hidden">
+              <iframe
+                src={iframeUrl}
+                className="w-full h-full border-0 rounded-b-xl"
+                title="Punch System"
+                allow="camera; microphone; geolocation"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+                onLoad={() => {
+                  console.log('Iframe loaded, ready to receive punch events');
+                  
+                  // Send initial message to iframe with current status
+                  try {
+                    const iframe = document.querySelector('iframe[src*="greenlivingassociates.com"]');
+                    if (iframe && iframe.contentWindow) {
+                      iframe.contentWindow.postMessage({
+                        type: 'parentReady',
+                        data: {
+                          isPunchedIn: isPunchedIn,
+                          elapsedTime: elapsedTime,
+                          employeeId: userData?.employeeId,
+                          employeeName: userData?.employeeName
+                        }
+                      }, 'https://greenlivingassociates.com');
+
+                      // Also trigger a status refresh for iframe implementations expecting it
+                      setTimeout(() => {
+                        try {
+                          iframe.contentWindow.postMessage('refresh-status', 'https://greenlivingassociates.com');
+                        } catch (innerErr) {
+                          console.log('Cannot send refresh-status message to iframe:', innerErr?.message);
+                        }
+                      }, 500);
+                    }
+                  } catch (error) {
+                    console.log('Cannot send message to iframe (expected):', error.message);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commented out old camera modal - keeping for reference */}
       {/* Camera Modal */}
-      {isCameraOpen && (
+      {/* {isCameraOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md p-4 rounded-lg shadow-xl flex flex-col items-center gap-4">
             {!capturedImage ? (
@@ -732,7 +1287,7 @@ function Navbar({ onToggleSidebar }) {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (

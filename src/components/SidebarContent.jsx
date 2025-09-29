@@ -16,6 +16,7 @@ import EmployeePayroleTable from "./EmployeePayroleTabel";
 import EmployeeLeaveStatus from "./EmployeeLeaveStatus";
 import DeclarationForm from "./DeclarationForm";
 import Finance from "./Finance/Finance";
+import PunchRecords from "./PunchRecords";
 
 const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
   const [reloadHandel, setReloadHandel] = useState(false);
@@ -86,6 +87,16 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
                 <div className="text-6xl mb-4">🚧</div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Attendance Feature</h2>
                 <p className="text-gray-600">This feature is being reimplemented for HR Admin</p>
+              </div>
+            </div>
+          )}
+          {selectedTag === "punchRecords" && userType !== "HR-Admin" && userType !== "Super-Admin" && <PunchRecords />}
+          {selectedTag === "punchRecords" && (userType === "HR-Admin" || userType === "Super-Admin") && (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="text-6xl mb-4">🚧</div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Punch Records</h2>
+                <p className="text-gray-600">This feature is not available for HR Admin and Super Admin</p>
               </div>
             </div>
           )} 
