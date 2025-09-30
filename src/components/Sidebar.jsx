@@ -30,7 +30,17 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   
   // Safely extract user data with fallbacks using Safari-compatible helpers
   const userData = safeGet(data, 'data', {});
-  const userType = safeGet(userData, 'role', null);
+  const userType = safeGet(userData, 'role', null) || data?.data?.role || data?.role || 'Loading...';
+  
+  // Debug logging
+  console.log('Sidebar userType debug:', {
+    data,
+    userData,
+    userType,
+    hasData: !!data,
+    dataKeys: data ? Object.keys(data) : null,
+    userDataKeys: userData ? Object.keys(userData) : null
+  });
   const [reloadHandel, setReloadHandel] = useState(false);
   const [selectedTag, setSelectedTag] = useState(
     safeGetLocalStorage("selectedTag", "dashboard")
@@ -161,24 +171,28 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed z-20 top-0 left-0 h-full bg-white shadow-xl border-r border-gray-200 transform ${
+        className={`fixed z-20 top-16 left-0 h-[calc(100vh-4rem)] bg-white shadow-xl border-r border-gray-200 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+        } transition-transform duration-300 ease-in-out md:fixed md:translate-x-0 md:top-16 md:h-[calc(100vh-4rem)] flex flex-col`}
         style={{ 
           width: isMobile ? '280px' : `${sidebarWidth}px`,
           maxWidth: isMobile ? '280px' : `${sidebarWidth}px`,
           flexShrink: 0,
-          height: '100vh',
-          position: isMobile ? 'fixed' : 'relative'
+          height: 'calc(100vh - 4rem)',
+          position: 'fixed',
+          minHeight: 'calc(100vh - 4rem)'
         }}
       >
         {/* Mobile header with close button */}
-        <div className="flex items-center justify-between p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden">
+        <div className="flex items-center justify-between p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 md:hidden flex-shrink-0" style={{ minHeight: '80px' }}>
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-sm font-bold">HR</span>
             </div>
-            <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
+              <p className="text-sm text-gray-600">{userType}</p>
+            </div>
           </div>
           <button
             onClick={onToggleSidebar}
@@ -191,19 +205,19 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
         </div>
 
         {/* Desktop Header */}
-        <div className="hidden md:block p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="hidden md:block p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0" style={{ minHeight: '80px' }}>
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold">HR</span>
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">HRMS Portal</h2>
-              <p className="text-sm text-gray-600">{userType || 'Loading...'}</p>
+              <p className="text-sm text-gray-600">{userType}</p>
             </div>
           </div>
         </div>
 
-        <nav className="space-y-2 p-3 sm:p-4 overflow-y-auto max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <nav className="space-y-2 p-3 sm:p-4 overflow-y-auto flex-1 h-0 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-500">
           {/* Main Navigation */}
           <div className="space-y-1">
             <SidebarLink
@@ -420,7 +434,7 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
       {/* Resize Handle - Only visible on desktop */}
       <div
         ref={resizeHandleRef}
-        className="hidden md:block fixed z-30 top-0 h-full w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors duration-200"
+        className="hidden md:block fixed z-20 top-16 h-[calc(100vh-4rem)] w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors duration-200"
         style={{ left: `${sidebarWidth}px` }}
         onMouseDown={handleMouseDown}
       >
@@ -436,7 +450,8 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
           minWidth: '0',
           overflowY: 'auto',
           height: '100vh',
-          paddingTop: '124px',
+          paddingTop: '80px',
+          marginLeft: isMobile ? '0' : `${sidebarWidth}px`,
           display: 'flex',
           flexDirection: 'column'
         }}

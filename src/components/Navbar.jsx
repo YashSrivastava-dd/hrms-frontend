@@ -575,14 +575,14 @@ function Navbar({ onToggleSidebar }) {
     setTimerInterval(interval);
     
     // Show success message
-    safeToast.success('Punched in successfully! Timer started.');
+    safeToast.success('Punched in successfully!');
     
     console.log('Punch in completed, timer started at:', now.toISOString());
   };
 
   // Handle successful punch out from iframe
   const handlePunchOutSuccess = (data) => {
-    console.log('Processing punch out success:', data);
+    console.log('Processing punch out success');
     
     // Close the iframe dialog
     setShowPunchModal(false);
@@ -612,9 +612,8 @@ function Navbar({ onToggleSidebar }) {
     }
     
     // Show success message with duration
-    safeToast.success(`Punched out successfully! Total working time: ${formatTime(finalDuration)}`);
+    safeToast.success(`Punched out successfully!`);
     
-    console.log('Punch out completed, final duration:', formatTime(finalDuration));
   };
 
   // Manual timer start for already punched in users
@@ -725,7 +724,7 @@ function Navbar({ onToggleSidebar }) {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 w-full">
+      <div className="fixed top-0 left-0 right-0 z-[100] bg-white border-b border-gray-200 w-full">
       {/* Main Navbar */}
       <div className="flex items-center justify-between p-4 bg-white relative">
         {/* Left Section - Menu & Logo */}
@@ -921,7 +920,7 @@ function Navbar({ onToggleSidebar }) {
               
               {/* Notification Dropdown */}
               {showNotificationDropdown && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 notification-dropdown">
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-[90] notification-dropdown">
                 <div className="py-3">
                   <div className="px-4 py-3 text-sm text-gray-800 border-b border-gray-100 font-bold bg-gray-50 rounded-t-xl">
                     Notifications ({pendingNotifications.length})
@@ -1040,7 +1039,7 @@ function Navbar({ onToggleSidebar }) {
               
               {/* Employee Notification Dropdown */}
               {showNotificationDropdown && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 notification-dropdown">
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-[90] notification-dropdown">
                 <div className="py-3">
                   <div className="px-4 py-3 text-sm text-gray-800 border-b border-gray-100 font-bold bg-gray-50 rounded-t-xl">
                     Notifications ({employeeNotifications.length})
@@ -1131,7 +1130,7 @@ function Navbar({ onToggleSidebar }) {
             
             {/* Profile Dropdown */}
             {showProfileDropdown && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 profile-dropdown">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-[90] profile-dropdown">
                 <div className="py-3">
                   <div className="px-4 py-3 text-sm text-gray-800 border-b border-gray-100 font-bold bg-gray-50 rounded-t-xl">
                     {userData?.employeeName || "Employee"}
@@ -1165,7 +1164,7 @@ function Navbar({ onToggleSidebar }) {
 
       {/* New Punch Modal with iframe */}
       {showPunchModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4 punch-modal animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[95] flex items-center justify-center p-4 punch-modal animate-in fade-in duration-300">
           <div className="bg-white rounded-xl shadow-2xl w-full h-[80vh] max-w-[90vw] md:max-w-[900px] flex flex-col punch-modal-content animate-in zoom-in-95 duration-300">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
@@ -1234,7 +1233,7 @@ function Navbar({ onToggleSidebar }) {
       {/* Commented out old camera modal - keeping for reference */}
       {/* Camera Modal */}
       {/* {isCameraOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[95] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md p-4 rounded-lg shadow-xl flex flex-col items-center gap-4">
             {!capturedImage ? (
               <>
@@ -1291,7 +1290,7 @@ function Navbar({ onToggleSidebar }) {
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[95] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md p-6 rounded-xl shadow-xl logout-confirm-modal">
             <div className="text-center">
               {/* Icon */}

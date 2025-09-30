@@ -544,8 +544,8 @@ const Dashboard = ({ reloadHandel }) => {
   }, [data, userDataList, loading]);
   
   return (
-    <div className="w-full flex flex-col min-h-full overflow-x-hidden">
-      <main className="space-y-4 sm:space-y-6 flex-1 px-0 sm:px-4 lg:px-6 w-full">
+    <div className="w-full flex flex-col h-full">
+      <main className="space-y-4 sm:space-y-6 flex-1 px-4 lg:px-6">
         {(loading) ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-center">
@@ -624,9 +624,9 @@ const Dashboard = ({ reloadHandel }) => {
 
             {userDataList?.role !== "HR-Admin" && userDataList?.role !== "Super-Admin" && (
               <>
-                <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4 px-0">Monthly Attendance</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-                 <div className="bg-white p-4 sm:p-6 rounded-none sm:rounded-lg shadow-md lg:col-span-2 w-full">
+                <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-4">Monthly Attendance</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                 <div className="bg-white p-4 sm:p-6 rounded-none sm:rounded-lg shadow-md lg:col-span-2">
                     <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-4 text-gray-800">Calendar</h3>
                     {/* <div className="flex flex-wrap gap-4 mb-4 text-sm">
                       {[
@@ -644,8 +644,8 @@ const Dashboard = ({ reloadHandel }) => {
                     </div> */}
                     {attendanceLoading ? <SkeletonCard height="h-40" /> : <Calendar employeeId={employeeId} userRole={userDataList?.role} onDaySelect={handleDaySelection} />}
                   </div>
-                  <div className="lg:col-span-1 w-full">
-                    <div className="h-full w-full">
+                  <div className="lg:col-span-1">
+                    <div className="h-full">
                       <AttendanceCard 
                         attendanceData={selectedDayData || (latestData?.length > 0 ? { 
                           AttendanceStatus: 'Present',
@@ -683,8 +683,8 @@ const Dashboard = ({ reloadHandel }) => {
   } catch (error) {
     console.error('Dashboard: Error in component:', error);
     return (
-      <div className="w-full flex flex-col min-h-full overflow-x-hidden">
-        <main className="space-y-4 sm:space-y-6 flex-1 px-0 sm:px-4 lg:px-6 w-full">
+      <div className="w-full flex flex-col h-full">
+        <main className="space-y-4 sm:space-y-6 flex-1 px-4 lg:px-6">
           <div className="text-center py-8">
             <p className="text-red-600">Error loading dashboard. Please refresh the page.</p>
             <p className="text-sm text-gray-500 mt-2">{error.message}</p>
