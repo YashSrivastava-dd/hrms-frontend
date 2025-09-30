@@ -48,20 +48,17 @@ function Navbar({ onToggleSidebar }) {
   //   suburb: "",
   // });
 
-  // New state for iframe modal
+  // State for punch modal (now opens new tab instead of iframe)
   const [showPunchModal, setShowPunchModal] = useState(false);
   const [iframeUrl, setIframeUrl] = useState('');
   
-  // Timer state for punch in/out tracking
-  const [isPunchedIn, setIsPunchedIn] = useState(false);
-  const [punchInTime, setPunchInTime] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [timerInterval, setTimerInterval] = useState(null);
+  // Timer removed: no punch state tracking in the navbar
   
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const punchWindowRef = useRef(null);
 
   // Commented out punch in/out data - keeping for reference
   // const { data: punchInDataRaw } = useSelector((state) => state.punchInDataReducer);
@@ -225,15 +222,10 @@ function Navbar({ onToggleSidebar }) {
     return () => {
       // Dismiss all toasts when component unmounts to prevent runtime errors
       safeToast.dismiss();
-      
-      // Cleanup timer interval
-      if (timerInterval) {
-        clearInterval(timerInterval);
-      }
     };
-  }, [timerInterval]);
+  }, []);
 
-  // Construct dynamic iframe URL with employee information
+  // Construct dynamic URL for punch system with employee information
   useEffect(() => {
     const employeeId = userData?.employeeId || '';
     const employeeName = userData?.employeeName || '';
@@ -249,13 +241,13 @@ function Navbar({ onToggleSidebar }) {
     }
   }, [userData?.employeeId, userData?.employeeName]);
 
-  // Listen for messages from iframe (punch in/out events)
+  // Listen for messages from the punch system window/tab (punch in/out events)
   // 
   // EXPECTED IFRAME COMMUNICATION PROTOCOL:
   // ======================================
   // 
-  // 1. When iframe loads, parent sends 'parentReady' message with current status
-  // 2. When user punches in successfully, iframe should send:
+  // 1. When the punch window loads, parent sends 'parentReady' message with current status
+  // 2. When user punches in successfully, the punch window should send:
   //    window.parent.postMessage({
   //      type: 'punchInSuccess',
   //      data: {
@@ -266,7 +258,7 @@ function Navbar({ onToggleSidebar }) {
   //      }
   //    }, 'https://your-domain.com');
   //
-  // 3. When user punches out successfully, iframe should send:
+  // 3. When user punches out successfully, the punch window should send:
   //    window.parent.postMessage({
   //      type: 'punchOutSuccess', 
   //      data: {
@@ -288,7 +280,7 @@ function Navbar({ onToggleSidebar }) {
       // Log all messages for debugging
       console.log('Received message:', event.origin, event.data);
       
-      // Ensure message is from the attendance system iframe
+      // Ensure message is from the attendance system window/tab
       if (event.origin !== 'https://greenlivingassociates.com') {
         return;
       }
@@ -297,7 +289,7 @@ function Navbar({ onToggleSidebar }) {
       
       switch (type) {
         case 'punch-status-change':
-          // Adapter for iframe implementation in /punch/html
+          // Adapter for window implementation in /punch/html
           // action: 'punch-in' | 'punch-out'
           if (event?.data?.action === 'punch-in') {
             console.log('Punch In detected (adapter):', event.data);
@@ -350,47 +342,21 @@ function Navbar({ onToggleSidebar }) {
     };
   }, []);
 
-  // Check if user is already punched in when component mounts
-  useEffect(() => {
-    const checkExistingPunchStatus = () => {
-      // Check localStorage for existing punch status
-      const punchStatus = localStorage.getItem('punchStatus');
-      const punchInTime = localStorage.getItem('punchInTime');
-      
-      if (punchStatus === 'punched_in' && punchInTime) {
-        const punchTime = new Date(punchInTime);
-        const now = new Date();
-        const elapsedSeconds = Math.floor((now - punchTime) / 1000);
-        
-        console.log('Found existing punch in status, starting timer with elapsed time:', elapsedSeconds);
-        setPunchInTime(punchTime);
-        setElapsedTime(elapsedSeconds);
-        setIsPunchedIn(true);
-        
-        // Start the timer from the elapsed time
-        const interval = setInterval(() => {
-          setElapsedTime(prev => prev + 1);
-        }, 1000);
-        
-        setTimerInterval(interval);
-      }
-    };
+  // Timer removed: no persisted punch status check
 
-    checkExistingPunchStatus();
-  }, []);
-
-  // Fallback: Check iframe content for punch status (if direct communication fails)
+  // Fallback: Check opened tab/window status (if direct communication fails)
   useEffect(() => {
     if (showPunchModal) {
       const checkIframeStatus = () => {
         try {
-          const iframe = document.querySelector('iframe[src*="greenlivingassociates.com"]');
-          if (iframe && iframe.contentWindow) {
-            // Try to access iframe content (may fail due to CORS)
-            console.log('Checking iframe status...');
+          const win = punchWindowRef.current;
+          if (win && !win.closed) {
+            console.log('Checking punch window status...');
+          } else {
+            console.log('Punch window is not available or was closed.');
           }
         } catch (error) {
-          console.log('Cannot access iframe content (expected due to CORS):', error.message);
+          console.log('Cannot access punch window (expected due to cross-origin):', error.message);
         }
       };
 
@@ -399,30 +365,7 @@ function Navbar({ onToggleSidebar }) {
     }
   }, [showPunchModal]);
 
-  // Periodic check for iframe communication (fallback)
-  useEffect(() => {
-    if (isPunchedIn) {
-      const checkInterval = setInterval(() => {
-        // Check if modal is closed but timer is still running
-        if (!showPunchModal && isPunchedIn) {
-          console.log('Modal closed while timer running - checking for punch out...');
-          
-          // Send a message to iframe asking for current status
-          try {
-            const iframe = document.querySelector('iframe[src*="greenlivingassociates.com"]');
-            if (iframe && iframe.contentWindow) {
-              // Align with iframe implementation in /punch/html (listens for 'refresh-status')
-              iframe.contentWindow.postMessage('refresh-status', 'https://greenlivingassociates.com');
-            }
-          } catch (error) {
-            console.log('Cannot send status refresh message:', error.message);
-          }
-        }
-      }, 5000); // Check every 5 seconds
-
-      return () => clearInterval(checkInterval);
-    }
-  }, [isPunchedIn, showPunchModal, userData?.employeeId]);
+  // Timer removed: no periodic status checks
 
   // Commented out punch in/out handlers - keeping for reference
   // const startTimer = () => {
@@ -492,170 +435,87 @@ function Navbar({ onToggleSidebar }) {
   //   stopTimer();
   // };
 
-  // Timer functions
-  const startTimer = () => {
-    const now = new Date();
-    setPunchInTime(now);
-    setIsPunchedIn(true);
-    
-    // Save punch status to localStorage
-    localStorage.setItem('punchStatus', 'punched_in');
-    localStorage.setItem('punchInTime', now.toISOString());
-    
-    const interval = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
-    }, 1000);
-    
-    setTimerInterval(interval);
-    
-    console.log('Timer started at:', now.toISOString());
-  };
-
-  const stopTimer = () => {
-    setIsPunchedIn(false);
-    setPunchInTime(null);
-    setElapsedTime(0);
-    
-    // Clear punch status from localStorage
-    localStorage.removeItem('punchStatus');
-    localStorage.removeItem('punchInTime');
-    
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      setTimerInterval(null);
-    }
-    
-    console.log('Timer stopped');
-  };
-
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-      return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-  };
+  // Timer removed: no timer utilities
 
   // New handler for fingerprint button
   const handleFingerprintClick = () => {
-    setShowPunchModal(true);
+    // Open the punch system in a new tab (user gesture to avoid popup blockers)
+    try {
+      const newWin = window.open(iframeUrl, '_blank');
+      punchWindowRef.current = newWin;
+      // Do not show modal anymore
+      setShowPunchModal(false);
+
+      // Send initial message to the opened window with current status
+      setTimeout(() => {
+                  try {
+                    if (punchWindowRef.current && !punchWindowRef.current.closed) {
+                      punchWindowRef.current.postMessage({
+                        type: 'parentReady',
+                        data: {
+                          isPunchedIn: false,
+                          elapsedTime: 0,
+                          employeeId: userData?.employeeId,
+                          employeeName: userData?.employeeName
+                        }
+                      }, 'https://greenlivingassociates.com');
+
+            // Also trigger a status refresh for implementations expecting it
+            setTimeout(() => {
+              try {
+                if (punchWindowRef.current && !punchWindowRef.current.closed) {
+                  punchWindowRef.current.postMessage('refresh-status', 'https://greenlivingassociates.com');
+                }
+              } catch (innerErr) {
+                console.log('Cannot send refresh-status to punch window:', innerErr?.message);
+              }
+            }, 500);
+          }
+        } catch (err) {
+          console.log('Cannot send message to opened window (expected):', err.message);
+        }
+      }, 300);
+    } catch (err) {
+      console.log('Failed to open punch window:', err.message);
+    }
   };
 
   const handleClosePunchModal = () => {
     setShowPunchModal(false);
   };
 
-  // Handle successful punch in from iframe
+  // Handle successful punch in from punch window
   const handlePunchInSuccess = (data) => {
     console.log('Processing punch in success:', data);
     
-    // Close the iframe dialog
+    // Close the dialog
     setShowPunchModal(false);
-    
-    // Start the timer
-    const now = new Date();
-    setPunchInTime(now);
-    setIsPunchedIn(true);
-    setElapsedTime(0);
-    
-    // Save punch status to localStorage
-    localStorage.setItem('punchStatus', 'punched_in');
-    localStorage.setItem('punchInTime', now.toISOString());
     localStorage.setItem('punchInData', JSON.stringify(data));
-    
-    // Start timer interval
-    const interval = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
-    }, 1000);
-    
-    setTimerInterval(interval);
-    
+
     // Show success message
     safeToast.success('Punched in successfully!');
     
-    console.log('Punch in completed, timer started at:', now.toISOString());
   };
 
-  // Handle successful punch out from iframe
+  // Handle successful punch out from punch window
   const handlePunchOutSuccess = (data) => {
     console.log('Processing punch out success');
     
-    // Close the iframe dialog
+    // Close the dialog
     setShowPunchModal(false);
-    
-    // Stop the timer and record final duration
-    const finalDuration = elapsedTime;
-    const punchInTime = localStorage.getItem('punchInTime');
-    
-    // Clear punch status from localStorage
-    localStorage.removeItem('punchStatus');
-    localStorage.removeItem('punchInTime');
     localStorage.setItem('lastPunchOutData', JSON.stringify({
       ...data,
-      finalDuration: finalDuration,
-      punchInTime: punchInTime,
+      finalDuration: 0,
+      punchInTime: null,
       punchOutTime: new Date().toISOString()
     }));
-    
-    // Stop timer
-    setIsPunchedIn(false);
-    setPunchInTime(null);
-    setElapsedTime(0);
-    
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      setTimerInterval(null);
-    }
-    
+
     // Show success message with duration
     safeToast.success(`Punched out successfully!`);
     
   };
 
-  // Manual timer start for already punched in users
-  const handleManualStart = () => {
-    // Ask user for their punch in time
-    const punchTimeStr = prompt('Enter your punch in time (HH:MM format, e.g., 09:00):');
-    if (punchTimeStr) {
-      const today = new Date();
-      const [hours, minutes] = punchTimeStr.split(':').map(Number);
-      
-      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
-        const punchTime = new Date(today);
-        punchTime.setHours(hours, minutes, 0, 0);
-        
-        const now = new Date();
-        const elapsedSeconds = Math.floor((now - punchTime) / 1000);
-        
-        if (elapsedSeconds > 0) {
-          setPunchInTime(punchTime);
-          setElapsedTime(elapsedSeconds);
-          setIsPunchedIn(true);
-          
-          // Save to localStorage
-          localStorage.setItem('punchStatus', 'punched_in');
-          localStorage.setItem('punchInTime', punchTime.toISOString());
-          
-          // Start timer
-          const interval = setInterval(() => {
-            setElapsedTime(prev => prev + 1);
-          }, 1000);
-          
-          setTimerInterval(interval);
-          
-          console.log('Manual timer started with punch time:', punchTime.toISOString());
-        } else {
-          alert('Punch in time cannot be in the future!');
-        }
-      } else {
-        alert('Invalid time format! Please use HH:MM format.');
-      }
-    }
-  };
+  // Timer removed: no manual start
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
@@ -770,59 +630,20 @@ function Navbar({ onToggleSidebar }) {
 
         {/* Right Section - Notifications & Profile */}
         <div className="flex items-center space-x-3 flex-1 justify-end">
-          {/* Timer and Fingerprint Button */}
+          {/* Fingerprint Button (timer removed) */}
           {userType !== "HR-Admin" && userType !== "Super-Admin" && (
             <div className="flex items-center space-x-3">
-              {/* Timer Display - Always visible */}
-              <div className="flex items-center space-x-2">
-                {/* Mobile Timer */}
-                <div className="md:hidden">
-                  <div className={`px-3 py-1 rounded-full text-xs font-mono font-semibold border ${
-                    isPunchedIn 
-                      ? 'bg-green-100 text-green-800 border-green-200' 
-                      : 'bg-gray-100 text-gray-600 border-gray-200'
-                  }`}>
-                    {isPunchedIn ? formatTime(elapsedTime) : '00:00'}
-                  </div>
-                </div>
-                
-                {/* Desktop Timer */}
-                <div className="hidden md:block">
-                  <div className={`px-4 py-2 rounded-lg text-sm font-mono font-semibold border shadow-sm transition-all duration-300 ${
-                    isPunchedIn 
-                      ? 'bg-green-100 text-green-800 border-green-200 shadow-green-200' 
-                      : 'bg-gray-100 text-gray-600 border-gray-200'
-                  }`}>
-                    <div className="flex items-center space-x-2">
-                      {isPunchedIn && (
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      )}
-                      <span className="font-bold">{isPunchedIn ? formatTime(elapsedTime) : '00:00'}</span>
-                      {isPunchedIn && (
-                        <span className="text-xs text-green-600 font-normal">
-                          Working
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Mobile Fingerprint Button */}
               <div className="md:hidden flex items-center space-x-1">
                 <button
-                  className={`p-2 text-white rounded-full transition-colors duration-200 shadow-lg flex items-center justify-center relative z-10 ${
-                    isPunchedIn 
-                      ? 'bg-red-500 hover:bg-red-600 active:bg-red-700' 
-                      : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
-                  }`}
+                  className="p-2 text-white rounded-full transition-colors duration-200 shadow-lg flex items-center justify-center relative z-10 bg-green-500 hover:bg-green-600 active:bg-green-700"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     console.log('Mobile fingerprint button clicked');
                     handleFingerprintClick();
                   }}
-                  title={isPunchedIn ? "Punch Out" : "Punch In"}
+                  title="Open Punch"
                   style={{ touchAction: 'manipulation' }}
                 >
                   <FaFingerprint size={18} />
@@ -832,11 +653,7 @@ function Navbar({ onToggleSidebar }) {
               {/* Desktop Fingerprint Button */}
               <div className="hidden md:flex items-center space-x-2">
                 <button
-                  className={`px-4 py-2 text-white rounded-full text-sm flex items-center justify-center space-x-2 transition-colors duration-200 shadow-lg relative z-10 ${
-                    isPunchedIn 
-                      ? 'bg-red-500 hover:bg-red-600 active:bg-red-700' 
-                      : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
-                  }`}
+                  className="px-4 py-2 text-white rounded-full text-sm flex items-center justify-center space-x-2 transition-colors duration-200 shadow-lg relative z-10 bg-green-500 hover:bg-green-600 active:bg-green-700"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -845,7 +662,7 @@ function Navbar({ onToggleSidebar }) {
                   }}
                 >
                   <FaFingerprint />
-                  <span>{isPunchedIn ? 'Punch Out' : 'Punch In'}</span>
+                  <span>Open Punch</span>
                 </button>
               </div>
             </div>
@@ -1162,73 +979,7 @@ function Navbar({ onToggleSidebar }) {
 
 
 
-      {/* New Punch Modal with iframe */}
-      {showPunchModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[95] flex items-center justify-center p-4 punch-modal animate-in fade-in duration-300">
-          <div className="bg-white rounded-xl shadow-2xl w-full h-[80vh] max-w-[90vw] md:max-w-[900px] flex flex-col punch-modal-content animate-in zoom-in-95 duration-300">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-900">Punch System</h3>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('Modal close button clicked');
-                  handleClosePunchModal();
-                }}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200 relative z-10"
-                aria-label="Close modal"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* iframe Container */}
-            <div className="flex-1 p-0 overflow-hidden">
-              <iframe
-                src={iframeUrl}
-                className="w-full h-full border-0 rounded-b-xl"
-                title="Punch System"
-                allow="camera; microphone; geolocation"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-                onLoad={() => {
-                  console.log('Iframe loaded, ready to receive punch events');
-                  
-                  // Send initial message to iframe with current status
-                  try {
-                    const iframe = document.querySelector('iframe[src*="greenlivingassociates.com"]');
-                    if (iframe && iframe.contentWindow) {
-                      iframe.contentWindow.postMessage({
-                        type: 'parentReady',
-                        data: {
-                          isPunchedIn: isPunchedIn,
-                          elapsedTime: elapsedTime,
-                          employeeId: userData?.employeeId,
-                          employeeName: userData?.employeeName
-                        }
-                      }, 'https://greenlivingassociates.com');
-
-                      // Also trigger a status refresh for iframe implementations expecting it
-                      setTimeout(() => {
-                        try {
-                          iframe.contentWindow.postMessage('refresh-status', 'https://greenlivingassociates.com');
-                        } catch (innerErr) {
-                          console.log('Cannot send refresh-status message to iframe:', innerErr?.message);
-                        }
-                      }, 500);
-                    }
-                  } catch (error) {
-                    console.log('Cannot send message to iframe (expected):', error.message);
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Punch modal removed: opening occurs in a new tab directly */}
 
       {/* Commented out old camera modal - keeping for reference */}
       {/* Camera Modal */}
