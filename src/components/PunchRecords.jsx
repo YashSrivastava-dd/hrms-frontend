@@ -33,11 +33,16 @@ const PunchRecords = () => {
         throw new Error('No authentication token found');
       }
 
+      if (!employeeId) {
+        throw new Error('Employee ID not found');
+      }
+
       const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:3001';
-      const url = `${baseUrl}/api/punch-records?employee_id=${employeeId}`;
+      const url = `${baseUrl}/api/get-all-punch-records/${employeeId}`;
       
       console.log('Fetching punch records from:', url);
       console.log('Using token:', token ? 'Token present' : 'No token');
+      console.log('Employee ID:', employeeId);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -54,7 +59,7 @@ const PunchRecords = () => {
       const result = await response.json();
       console.log('Punch records response:', result);
       
-      if (result.success && result.data) {
+      if (result.statusCode === 200 && result.statusValue === 'SUCCESS' && result.data) {
         setPunchRecords(result.data);
       } else {
         throw new Error(result.message || 'Failed to fetch punch records');
@@ -218,7 +223,7 @@ const PunchRecords = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Punch Ins</p>
-                <p className="text-2xl font-bold text-gray-900">{punchRecords.filter(record => record.punch_in_time).length}</p>
+                <p className="text-2xl font-bold text-gray-900">{punchRecords.filter(record => record.InTime).length}</p>
               </div>
             </div>
           </div>
@@ -229,7 +234,7 @@ const PunchRecords = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Punch Outs</p>
-                <p className="text-2xl font-bold text-gray-900">{punchRecords.filter(record => record.punch_out_time).length}</p>
+                <p className="text-2xl font-bold text-gray-900">{punchRecords.filter(record => record.OutTime).length}</p>
               </div>
             </div>
           </div>
@@ -242,17 +247,20 @@ const PunchRecords = () => {
               <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Employee</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Attendance Date</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Punch In Time</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Punch Out Time</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Location</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Duration</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Status</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Source</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 text-center text-sm">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {punchRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
+                    <td colSpan={9} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <Clock className="w-8 h-8 text-gray-400" />
@@ -270,13 +278,21 @@ const PunchRecords = () => {
                         <div className="flex items-center justify-center">
                           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                             <span className="text-blue-600 font-medium text-sm">
-                              {getEmployeeInitials(record.employee_name)}
+                              {getEmployeeInitials(record.employeeId)}
                             </span>
                           </div>
                           <div className="text-left">
-                            <p className="font-semibold text-gray-900 text-sm">{record.employee_name || 'Unknown'}</p>
-                            <p className="text-xs text-gray-500">ID: {record.employee_id || 'N/A'}</p>
+                            <p className="font-semibold text-gray-900 text-sm">{record.employeeId || 'N/A'}</p>
                           </div>
+                        </div>
+                      </td>
+
+                      {/* Attendance Date */}
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm font-medium text-gray-900">
+                            {formatDate(record.AttendanceDate)}
+                          </span>
                         </div>
                       </td>
 
@@ -284,10 +300,10 @@ const PunchRecords = () => {
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center">
                           <span className="text-sm font-medium text-gray-900">
-                            {formatDateTime(record.punch_in_time)}
+                            {formatDateTime(record.InTime)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {formatDate(record.punch_in_time)}
+                            {formatDate(record.InTime)}
                           </span>
                         </div>
                       </td>
@@ -296,10 +312,10 @@ const PunchRecords = () => {
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center">
                           <span className="text-sm font-medium text-gray-900">
-                            {formatDateTime(record.punch_out_time)}
+                            {formatDateTime(record.OutTime)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {formatDate(record.punch_out_time)}
+                            {formatDate(record.OutTime)}
                           </span>
                         </div>
                       </td>
@@ -308,8 +324,8 @@ const PunchRecords = () => {
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-700 max-w-32 truncate" title={record.punch_in_location || record.punch_out_location}>
-                            {record.punch_in_location || record.punch_out_location || 'N/A'}
+                          <span className="text-sm text-gray-700 max-w-32 truncate" title={record.location}>
+                            {record.location ? record.location.split('||')[0] : 'N/A'}
                           </span>
                         </div>
                       </td>
@@ -317,7 +333,29 @@ const PunchRecords = () => {
                       {/* Duration */}
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {calculateDuration(record.punch_in_time, record.punch_out_time)}
+                          {record.Duration || calculateDuration(record.InTime, record.OutTime)}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          record.Status === 'Present' ? 'bg-green-100 text-green-800' : 
+                          record.Status === 'Absent' ? 'bg-red-100 text-red-800' : 
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {record.Status || 'Unknown'}
+                        </span>
+                      </td>
+
+                      {/* Source */}
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          (record.source || '').toLowerCase() === 'app' ? 'bg-purple-100 text-purple-800' :
+                          (record.source || '').toLowerCase() === 'web' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {(record.source || 'Unknown').toString().toUpperCase()}
                         </span>
                       </td>
 
@@ -384,10 +422,10 @@ const PunchRecords = () => {
                         <span className="text-sm font-medium text-gray-600">Time</span>
                       </div>
                       <p className="text-xl font-bold text-blue-600 mb-1">
-                        {formatDateTime(selectedRecord.punch_in_time)}
+                        {formatDateTime(selectedRecord.InTime)}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {formatDate(selectedRecord.punch_in_time)}
+                        {formatDate(selectedRecord.InTime)}
                       </p>
                     </div>
 
@@ -408,15 +446,12 @@ const PunchRecords = () => {
                         )}
                       </div>
                       <p className="text-sm text-gray-700 leading-relaxed">
-                        {selectedRecord.punch_in_location || 'Location not available'}
+                        {selectedRecord.location ? selectedRecord.location.split('||')[0] : 'Location not available'}
                       </p>
-                      {(selectedRecord.punch_in_lat && selectedRecord.punch_in_long) && (
+                      {selectedRecord.location && selectedRecord.location.includes('||') && (
                         <div className="mt-2 p-2 bg-gray-50 rounded-lg">
                           <p className="text-xs text-gray-500">
-                            <span className="font-medium">Lat:</span> {selectedRecord.punch_in_lat}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            <span className="font-medium">Long:</span> {selectedRecord.punch_in_long}
+                            <span className="font-medium">Full Location:</span> {selectedRecord.location}
                           </p>
                         </div>
                       )}
@@ -429,9 +464,9 @@ const PunchRecords = () => {
                         <span className="text-sm font-medium text-gray-600">Image</span>
                       </div>
                       <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        {selectedRecord.punch_in_image_url ? (
+                        {selectedRecord.imageUrl ? (
                           <img
-                            src={selectedRecord.punch_in_image_url}
+                            src={selectedRecord.imageUrl}
                             alt="Punch In"
                             className="w-full h-32 object-cover rounded-lg"
                             onError={(e) => {
@@ -442,7 +477,7 @@ const PunchRecords = () => {
                         ) : null}
                         <div 
                           className="w-full h-32 bg-gray-100 flex items-center justify-center rounded-lg"
-                          style={{ display: selectedRecord.punch_in_image_url ? 'none' : 'flex' }}
+                          style={{ display: selectedRecord.imageUrl ? 'none' : 'flex' }}
                         >
                           <div className="text-center">
                             <Clock className="w-6 h-6 text-gray-400 mx-auto mb-1" />
@@ -472,10 +507,10 @@ const PunchRecords = () => {
                         <span className="text-sm font-medium text-gray-600">Time</span>
                       </div>
                       <p className="text-xl font-bold text-red-600 mb-1">
-                        {formatDateTime(selectedRecord.punch_out_time)}
+                        {formatDateTime(selectedRecord.OutTime)}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {formatDate(selectedRecord.punch_out_time)}
+                        {formatDate(selectedRecord.OutTime)}
                       </p>
                     </div>
 
@@ -496,15 +531,12 @@ const PunchRecords = () => {
                         )}
                       </div>
                       <p className="text-sm text-gray-700 leading-relaxed">
-                        {selectedRecord.punch_out_location || 'Location not available'}
+                        {selectedRecord.location ? selectedRecord.location.split('||')[1] || selectedRecord.location.split('||')[0] : 'Location not available'}
                       </p>
-                      {(selectedRecord.punch_out_lat && selectedRecord.punch_out_long) && (
+                      {selectedRecord.location && selectedRecord.location.includes('||') && (
                         <div className="mt-2 p-2 bg-gray-50 rounded-lg">
                           <p className="text-xs text-gray-500">
-                            <span className="font-medium">Lat:</span> {selectedRecord.punch_out_lat}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            <span className="font-medium">Long:</span> {selectedRecord.punch_out_long}
+                            <span className="font-medium">Full Location:</span> {selectedRecord.location}
                           </p>
                         </div>
                       )}
@@ -517,9 +549,9 @@ const PunchRecords = () => {
                         <span className="text-sm font-medium text-gray-600">Image</span>
                       </div>
                       <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        {selectedRecord.punch_out_image_url ? (
+                        {selectedRecord.imageUrl ? (
                           <img
-                            src={selectedRecord.punch_out_image_url}
+                            src={selectedRecord.imageUrl}
                             alt="Punch Out"
                             className="w-full h-32 object-cover rounded-lg"
                             onError={(e) => {
@@ -530,7 +562,7 @@ const PunchRecords = () => {
                         ) : null}
                         <div 
                           className="w-full h-32 bg-gray-100 flex items-center justify-center rounded-lg"
-                          style={{ display: selectedRecord.punch_out_image_url ? 'none' : 'flex' }}
+                          style={{ display: selectedRecord.imageUrl ? 'none' : 'flex' }}
                         >
                           <div className="text-center">
                             <Clock className="w-6 h-6 text-gray-400 mx-auto mb-1" />
@@ -545,26 +577,36 @@ const PunchRecords = () => {
 
               {/* Summary Bar */}
               <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600 mb-1">Total Duration</p>
                     <p className="text-xl font-bold text-blue-600">
-                      {calculateDuration(selectedRecord.punch_in_time, selectedRecord.punch_out_time)}
+                      {selectedRecord.Duration || calculateDuration(selectedRecord.InTime, selectedRecord.OutTime)}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-sm text-gray-600 mb-1">Employee</p>
                     <p className="text-base font-semibold text-gray-900">
-                      {selectedRecord.employee_name || 'N/A'}
+                      Employee {selectedRecord.employeeId || 'N/A'}
                     </p>
                     <p className="text-xs text-gray-500">
-                      ID: {selectedRecord.employee_id || 'N/A'}
+                      ID: {selectedRecord.employeeId || 'N/A'}
                     </p>
                   </div>
                   <div className="text-center">
                     <p className="text-sm text-gray-600 mb-1">Date</p>
                     <p className="text-base font-semibold text-gray-900">
-                      {formatDate(selectedRecord.punch_in_time || selectedRecord.punch_out_time)}
+                      {formatDate(selectedRecord.AttendanceDate || selectedRecord.InTime || selectedRecord.OutTime)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-1">Source</p>
+                    <p className={`text-base font-semibold ${
+                      (selectedRecord.source || '').toLowerCase() === 'app' ? 'text-purple-700' :
+                      (selectedRecord.source || '').toLowerCase() === 'web' ? 'text-blue-700' :
+                      'text-gray-700'
+                    }`}>
+                      {(selectedRecord.source || 'Unknown').toString().toUpperCase()}
                     </p>
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import { FaRegClock } from "react-icons/fa";
 import { FaFingerprint } from "react-icons/fa";
 import { IoLogOut } from "react-icons/io5";
 import { CgProfile } from "react-icons/cg";
+import { IoRefresh } from "react-icons/io5";
 // import Webcam from "react-webcam"; // Commented out - no longer needed
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -51,6 +52,10 @@ function Navbar({ onToggleSidebar }) {
   // State for punch modal (now opens new tab instead of iframe)
   const [showPunchModal, setShowPunchModal] = useState(false);
   const [iframeUrl, setIframeUrl] = useState('');
+  
+  // Punch status state management
+  const [punchStatus, setPunchStatus] = useState(null); // null = unknown, true = punched in, false = punched out
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   
   // Timer removed: no punch state tracking in the navbar
   
@@ -225,6 +230,52 @@ function Navbar({ onToggleSidebar }) {
     };
   }, []);
 
+  // Function to check punch status
+  const checkPunchStatus = async () => {
+    const employeeId = userData?.employeeId;
+    if (!employeeId) {
+      console.log('No employee ID available for status check');
+      return;
+    }
+
+    setIsCheckingStatus(true);
+    try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const response = await fetch(`https://dsrsolar.in/punch_records/checkstatus.php?employeeId=${employeeId}&v=${timestamp}`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Punch status response:', data);
+      
+      // Assuming the API returns a boolean or status indicating if user is punched in
+      // Adjust this logic based on the actual API response format
+      const isPunchedIn = data?.isPunchedIn || data?.status === 'punched_in' || data?.punchedIn === true;
+      setPunchStatus(isPunchedIn);
+      
+      // Show different colored toast notifications based on punch status
+      if (isPunchedIn) {
+        safeToast.success('You are already punched in!');
+      } else {
+        safeToast.error('Punched Out');
+      }
+    } catch (error) {
+      console.error('Error checking punch status:', error);
+      safeToast.error('Failed to check punch status');
+      setPunchStatus(null);
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
   // Construct dynamic URL for punch system with employee information
   useEffect(() => {
     const employeeId = userData?.employeeId || '';
@@ -235,9 +286,9 @@ function Navbar({ onToggleSidebar }) {
         employeeId, 
         employeeName 
       });
-      setIframeUrl(`https://greenlivingassociates.com/punch_records/index.html?${params.toString()}`);
+      setIframeUrl(`https://dsrsolar.in/punch_records/index.html?${params.toString()}`);
     } else {
-      setIframeUrl('https://greenlivingassociates.com/punch_records/index.html');
+      setIframeUrl('https://dsrsolar.in/punch_records/index.html');
     }
   }, [userData?.employeeId, userData?.employeeName]);
 
@@ -281,7 +332,7 @@ function Navbar({ onToggleSidebar }) {
       console.log('Received message:', event.origin, event.data);
       
       // Ensure message is from the attendance system window/tab
-      if (event.origin !== 'https://greenlivingassociates.com') {
+      if (event.origin !== 'https://dsrsolar.in') {
         return;
       }
 
@@ -458,13 +509,13 @@ function Navbar({ onToggleSidebar }) {
                           employeeId: userData?.employeeId,
                           employeeName: userData?.employeeName
                         }
-                      }, 'https://greenlivingassociates.com');
+                      }, 'https://dsrsolar.in');
 
             // Also trigger a status refresh for implementations expecting it
             setTimeout(() => {
               try {
                 if (punchWindowRef.current && !punchWindowRef.current.closed) {
-                  punchWindowRef.current.postMessage('refresh-status', 'https://greenlivingassociates.com');
+                  punchWindowRef.current.postMessage('refresh-status', 'https://dsrsolar.in');
                 }
               } catch (innerErr) {
                 console.log('Cannot send refresh-status to punch window:', innerErr?.message);
@@ -492,6 +543,9 @@ function Navbar({ onToggleSidebar }) {
     setShowPunchModal(false);
     localStorage.setItem('punchInData', JSON.stringify(data));
 
+    // Update punch status
+    setPunchStatus(true);
+
     // Show success message
     safeToast.success('Punched in successfully!');
     
@@ -509,6 +563,9 @@ function Navbar({ onToggleSidebar }) {
       punchInTime: null,
       punchOutTime: new Date().toISOString()
     }));
+
+    // Update punch status
+    setPunchStatus(false);
 
     // Show success message with duration
     safeToast.success(`Punched out successfully!`);
@@ -630,41 +687,77 @@ function Navbar({ onToggleSidebar }) {
 
         {/* Right Section - Notifications & Profile */}
         <div className="flex items-center space-x-3 flex-1 justify-end">
-          {/* Fingerprint Button (timer removed) */}
+          {/* Punch Controls - Refresh and Fingerprint Buttons */}
           {userType !== "HR-Admin" && userType !== "Super-Admin" && (
-            <div className="flex items-center space-x-3">
-              {/* Mobile Fingerprint Button */}
-              <div className="md:hidden flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
+              {/* Refresh Status Button */}
+              <div className="flex items-center space-x-1">
                 <button
-                  className="p-2 text-white rounded-full transition-colors duration-200 shadow-lg flex items-center justify-center relative z-10 bg-green-500 hover:bg-green-600 active:bg-green-700"
+                  className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative z-10"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Mobile fingerprint button clicked');
-                    handleFingerprintClick();
+                    console.log('Refresh status button clicked');
+                    checkPunchStatus();
                   }}
-                  title="Open Punch"
+                  title="Check Punch Status"
+                  disabled={isCheckingStatus}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <FaFingerprint size={18} />
+                  <IoRefresh 
+                    size={20} 
+                    className={`${isCheckingStatus ? 'animate-spin' : ''}`} 
+                  />
                 </button>
               </div>
 
-              {/* Desktop Fingerprint Button */}
-              <div className="hidden md:flex items-center space-x-2">
-                <button
-                  className="px-4 py-2 text-white rounded-full text-sm flex items-center justify-center space-x-2 transition-colors duration-200 shadow-lg relative z-10 bg-green-500 hover:bg-green-600 active:bg-green-700"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Desktop fingerprint button clicked');
-                    handleFingerprintClick();
-                  }}
-                >
-                  <FaFingerprint />
-                  <span>Open Punch</span>
-                </button>
-              </div>
+              {/* Fingerprint Button - Always visible */}
+              <>
+                {/* Mobile Fingerprint Button */}
+                <div className="md:hidden flex items-center space-x-1">
+                  <button
+                    className="p-2 text-white rounded-full transition-colors duration-200 shadow-lg flex items-center justify-center relative z-10 bg-green-500 hover:bg-green-600 active:bg-green-700"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Mobile fingerprint button clicked');
+                      handleFingerprintClick();
+                    }}
+                    title="Open Punch"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <FaFingerprint size={18} />
+                  </button>
+                </div>
+
+                {/* Desktop Fingerprint Button */}
+                <div className="hidden md:flex items-center space-x-2">
+                  <button
+                    className="px-4 py-2 text-white rounded-full text-sm flex items-center justify-center space-x-2 transition-colors duration-200 shadow-lg relative z-10 bg-green-500 hover:bg-green-600 active:bg-green-700"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Desktop fingerprint button clicked');
+                      handleFingerprintClick();
+                    }}
+                  >
+                    <FaFingerprint />
+                    <span>Open Punch</span>
+                  </button>
+                </div>
+              </>
+
+              {/* Status Indicator */}
+              {punchStatus !== null && (
+                <div className="hidden md:flex items-center space-x-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    punchStatus ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  <span className="text-xs text-gray-600">
+                    {punchStatus ? 'Punched In' : 'Punched Out'}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
