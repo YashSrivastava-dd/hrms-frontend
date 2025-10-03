@@ -23,6 +23,7 @@ import Footer from "./Footer";
 import LogsPage from "./Logs/LogsPage";
 import GenerateSalarySlip from "./GenerateSalarySlip";
 import PunchRecords from "./PunchRecords";
+import AdminPunchRecords from "./AdminPunchRecords";
 
 const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -143,6 +144,17 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
       onToggleSidebar();
     }
     safeSetLocalStorage("selectedTag", tag);
+    
+    // Dispatch navigation event to notify SidebarContent
+    try {
+      const navigationEvent = new CustomEvent('navigationChange', {
+        detail: { tag }
+      });
+      window.dispatchEvent(navigationEvent);
+    } catch (error) {
+      console.error('Error dispatching navigation event:', error);
+    }
+    
     if (tag === 'viewByEmployee') {
       // Don't reload, just navigate to avoid page refresh
       return;
@@ -338,6 +350,16 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
                   handleNavigation("generateSalarySlip")
                 }}
               />
+              
+              <SidebarLink
+                label="Punch Records"
+                icon="⏰"
+                isSelected={selectedTag === "adminPunchRecords"}
+                onClick={() =>{
+                  setReloadHandel(true);
+                  handleNavigation("adminPunchRecords")
+                }}
+              />
             </div>
           )}
 
@@ -502,6 +524,10 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               {selectedTag === "managerApproval" && <ManagerApproval />}
               {selectedTag === "activityLogs" && <LogsPage userRole={userType} />}
               {selectedTag === "generateSalarySlip" && <GenerateSalarySlip />}
+              {selectedTag === "adminPunchRecords" && (() => {
+                console.log('Sidebar: Rendering AdminPunchRecords component');
+                return <AdminPunchRecords />;
+              })()}
               {selectedTag === "taskRecords" && <TotalTask />}
               {selectedTag === "hrmanual" && <ComingSoon />}
               {selectedTag === "coc" && <ComingSoon />}

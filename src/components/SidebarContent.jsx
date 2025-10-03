@@ -16,7 +16,9 @@ import EmployeePayroleTable from "./EmployeePayroleTabel";
 import EmployeeLeaveStatus from "./EmployeeLeaveStatus";
 import DeclarationForm from "./DeclarationForm";
 import Finance from "./Finance/Finance";
+import GenerateSalarySlip from "./GenerateSalarySlip";
 import PunchRecords from "./PunchRecords";
+import AdminPunchRecords from "./AdminPunchRecords";
 
 const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
   const [reloadHandel, setReloadHandel] = useState(false);
@@ -26,6 +28,7 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
   const { data } = useSelector((state) => state.userData);
   const userType = data?.data?.role;
 
+  console.log('SidebarContent Component Mounted/Rendered');
   console.log('SidebarContent Debug:', {
     selectedTag,
     userType,
@@ -43,6 +46,7 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
     // Listen for navigation changes from Sidebar
     const handleNavigationChange = (event) => {
       const { tag } = event.detail;
+      console.log('SidebarContent: Received navigation change event:', tag);
       setSelectedTag(tag);
       if (tag === 'allEmployees') {
         setReloadHandel(true);
@@ -58,7 +62,9 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
   console.log('SidebarContent Render Debug:', {
     userType,
     shouldShowLoading: !userType,
-    selectedTag
+    selectedTag,
+    isAdminPunchRecords: selectedTag === "adminPunchRecords",
+    isInsideUserTypeCondition: !!userType
   });
 
   return (
@@ -74,6 +80,21 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
         </div>
       )}
       
+      {/* Debug: Test AdminPunchRecords rendering */}
+      {selectedTag === "adminPunchRecords" && !userType && (
+        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-4">
+          <p className="text-yellow-800">
+            Debug: AdminPunchRecords route detected but userType is not loaded yet. 
+            SelectedTag: {selectedTag}, UserType: {userType}
+          </p>
+        </div>
+      )}
+
+      {/* Debug: Always show selectedTag state */}
+      <div className="bg-blue-50 border border-blue-200 p-2 rounded mb-2 text-sm">
+        Debug Info: SelectedTag = "{selectedTag}", UserType = "{userType || 'null'}"
+      </div>
+
       {/* Content - Only show when userType is loaded */}
       {userType && (
         <>
@@ -113,7 +134,25 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
           {selectedTag === "coc" && <ComingSoon />}
           {selectedTag === "issuedDoc" && <MainDocuent />}
           {selectedTag === "finance" && <Finance />}
+          {selectedTag === "generateSalarySlip" && <GenerateSalarySlip reloadHandel={reloadHandel}/>}
+          {selectedTag === "adminPunchRecords" && (() => {
+            console.log('Rendering AdminPunchRecords component');
+            return <AdminPunchRecords />;
+          })()}
         </>
+      )}
+      
+      {/* Fallback: Always show AdminPunchRecords if selected */}
+      {selectedTag === "adminPunchRecords" && !userType && (
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 p-4 rounded-lg mb-4">
+            <p className="text-red-800">
+              Fallback: AdminPunchRecords should render here even without userType.
+              SelectedTag: {selectedTag}, UserType: {userType || 'null'}
+            </p>
+            <AdminPunchRecords />
+          </div>
+        </div>
       )}
     </div>
   );
