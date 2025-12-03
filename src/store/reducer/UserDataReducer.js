@@ -153,6 +153,9 @@ import {
   POST_S3_UPLOAD_DOC_REQUEST,
   POST_S3_UPLOAD_DOC_SUCCESS,
   POST_S3_UPLOAD_DOC_FAIL,
+  GET_PUNCH_RECORDS_FOR_ATTENDANCE_REQUEST,
+  GET_PUNCH_RECORDS_FOR_ATTENDANCE_SUCCESS,
+  GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
 } from "../types/UserDataType";
 
 const initialState = {
@@ -1429,6 +1432,31 @@ export const getHrAllPrivateDocsReducer = (state = initialState, action) => {
       };
 
     case GET_HR_ALL_PRIVATE_DOCS_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Punch Records for Attendance Reducer
+export const getPunchRecordsForAttendanceReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case GET_PUNCH_RECORDS_FOR_ATTENDANCE_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case GET_PUNCH_RECORDS_FOR_ATTENDANCE_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+      };
+
+    case GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL:
       return {
         ...state,
         loading: false,

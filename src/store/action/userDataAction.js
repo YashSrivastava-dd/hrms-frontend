@@ -179,6 +179,9 @@ import {
   DELETE_VENDOR_MEETING_REQUEST,
   DELETE_VENDOR_MEETING_SUCCESS,
   DELETE_VENDOR_MEETING_FAIL,
+  GET_PUNCH_RECORDS_FOR_ATTENDANCE_REQUEST,
+  GET_PUNCH_RECORDS_FOR_ATTENDANCE_SUCCESS,
+  GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
 } from "../types/UserDataType";
 export const getUserDataAction = () => async (dispatch, getState) => {
   console.log('getUserDataAction: Action dispatched');
@@ -3156,3 +3159,184 @@ export const resetUserDataState = () => {
     type: RESET_USER_DATA_STATE,
   };
 };
+
+// Get punch records for attendance display - uses punch records data for both attendance table and calendar
+export const getPunchRecordsForAttendanceAction =
+  (employeeId) => async (dispatch, getState) => {
+    const token = localStorage.getItem("authToken");
+    const employeId = employeeId || localStorage.getItem("employeId");
+    
+    if (!token) {
+      return dispatch({
+        type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
+        payload: "Authentication token not found",
+      });
+    }
+
+    if (!employeId) {
+      return dispatch({
+        type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
+        payload: "Employee ID is required",
+      });
+    }
+
+    try {
+      dispatch({ type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_REQUEST });
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      };
+
+      const { data } = await axios.get(
+        `${process.env.REACT_APP_BASE_URL}/api/get-all-punch-records/${employeId}`,
+        config
+      );
+
+      console.log('Punch records API response:', data);
+
+      // Transform punch records to match attendance data format
+      if (data.statusCode === 200 && data.statusValue === 'SUCCESS' && data.data) {
+        const transformedData = data.data.map(record => {
+          // Get the attendance date - API provides it in ISO format or similar
+          const attendanceDate = record.AttendanceDate || record.attendanceDate;
+          
+          // Calculate duration from InTime and OutTime if available
+          let durationInMinutes = 0;
+          
+          // First, try to use the Duration field from API
+          if (record.Duration && typeof record.Duration === 'string' && record.Duration !== '--:--') {
+            const [hours, mins] = record.Duration.split(':').map(Number);
+            if (!isNaN(hours) && !isNaN(mins)) {
+              durationInMinutes = hours * 60 + mins;
+            }
+          }
+          
+          // If duration is 0 or not available, calculate from InTime and OutTime
+          if (durationInMinutes === 0 && record.InTime && record.OutTime) {
+            try {
+              const inTime = new Date(record.InTime);
+              const outTime = new Date(record.OutTime);
+              
+              if (!isNaN(inTime.getTime()) && !isNaN(outTime.getTime())) {
+                const diffMs = outTime - inTime;
+                if (diffMs > 0) {
+                  durationInMinutes = Math.floor(diffMs / (1000 * 60)); // Convert milliseconds to minutes
+                }
+              }
+            } catch (error) {
+              console.warn('Error calculating duration from InTime/OutTime:', error);
+            }
+          }
+          
+          // If still 0, try parsing from PunchRecords
+          if (durationInMinutes === 0 && record.PunchRecords) {
+            try {
+              const punches = record.PunchRecords.split(',').map(p => p.trim()).filter(p => p);
+              const inTimes = [];
+              const outTimes = [];
+              
+              punches.forEach(punch => {
+                // Extract time from formats like "09:05:59 (IN 1)" or "18:31:00 (OUT 1)"
+                const timeMatch = punch.match(/(\d{2}:\d{2}:\d{2})/);
+                if (timeMatch) {
+                  const timeStr = timeMatch[1];
+                  const [h, m, s] = timeStr.split(':').map(Number);
+                  const totalMinutes = h * 60 + m;
+                  
+                  if (punch.toLowerCase().includes('in')) {
+                    inTimes.push(totalMinutes);
+                  } else if (punch.toLowerCase().includes('out')) {
+                    outTimes.push(totalMinutes);
+                  }
+                }
+              });
+              
+              if (inTimes.length > 0 && outTimes.length > 0) {
+                const firstIn = Math.min(...inTimes);
+                const lastOut = Math.max(...outTimes);
+                durationInMinutes = lastOut - firstIn;
+              }
+            } catch (error) {
+              console.warn('Error parsing duration from PunchRecords:', error);
+            }
+          }
+          
+          // Determine attendance status based on duration
+          let attendanceStatus = record.Status || 'Absent';
+          if (durationInMinutes >= 8 * 60) {
+            attendanceStatus = 'Full Day';
+          } else if (durationInMinutes >= 4 * 60) {
+            attendanceStatus = 'Half Day';
+          } else if (durationInMinutes > 0) {
+            attendanceStatus = 'Present';
+          } else if (record.InTime && !record.OutTime) {
+            // Has check-in but no check-out - still present
+            attendanceStatus = 'Present';
+          }
+
+          // Format date for calendar display (e.g., "29 November 2025")
+          const MONTHS = ["January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"];
+          let calendarDate = '';
+          if (attendanceDate) {
+            const dateObj = new Date(attendanceDate);
+            if (!isNaN(dateObj.getTime())) {
+              calendarDate = `${dateObj.getDate()} ${MONTHS[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+            }
+          }
+
+          return {
+            // Original fields from API
+            id: record.id,
+            employeeId: record.employeeId,
+            EmployeeName: record.EmployeeName || `Employee ${record.employeeId}`,
+            
+            // Date fields - keep original for attendance table, add formatted for calendar
+            AttendanceDate: attendanceDate,
+            CalendarDate: calendarDate, // Formatted date for calendar matching
+            
+            // Time fields - use API data directly
+            InTime: record.InTime,
+            OutTime: record.OutTime,
+            
+            // Duration - keep both string and minutes
+            Duration: durationInMinutes,
+            DurationString: record.Duration,
+            
+            // Status fields
+            Status: record.Status || attendanceStatus,
+            AttendanceStatus: attendanceStatus,
+            
+            // Other fields
+            PunchRecords: record.PunchRecords,
+            Location: record.Location || record.location,
+            LeaveType: record.LeaveType || null,
+            leaveType: record.LeaveType || null,
+            isLeaveTaken: record.LeaveType ? true : false,
+            workingDays: record.workingDays || "5",
+          };
+        });
+
+        console.log('Transformed punch records:', transformedData);
+
+        dispatch({
+          type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_SUCCESS,
+          payload: { data: transformedData },
+        });
+      } else {
+        dispatch({
+          type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_SUCCESS,
+          payload: { data: [] },
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching punch records for attendance:', error);
+      dispatch({
+        type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
+        payload: error.response?.data?.message || "Something went wrong",
+      });
+    }
+  };
