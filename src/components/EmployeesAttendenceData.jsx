@@ -96,7 +96,7 @@ const EmployeesAttendanceData = () => {
           const existing = punchByDate.get(dateKey);
           if (!existing || (record.PunchRecords && !existing.PunchRecords)) {
             punchByDate.set(dateKey, record);
-          }
+        }
         }
       });
       
@@ -504,209 +504,193 @@ const EmployeesAttendanceData = () => {
                   )
                   : employees
                     ?.map((employee, index) => {
-                      // Helper function to extract check-in time from PunchRecords
-                      const extractCheckInTime = (punchRecords) => {
-                        if (!punchRecords) return null;
+                      // Helper function to convert a time string to a Date object for comparison
+                      const timeToDate = (timeStr, attendanceDate) => {
+                        if (!timeStr || !attendanceDate) return null;
                         try {
-                          console.log('Extracting check-in from PunchRecords:', punchRecords);
-                          const punches = punchRecords.split(',').map(p => p.trim()).filter(p => p);
-                          console.log('Split punches:', punches);
-                          
-                          const checkInPunches = [];
-                          
-                          punches.forEach(punch => {
-                            const lower = punch.toLowerCase();
-                            // Match patterns like "09:11:in(IN)", "09:11:in (IN)", "#1 + 09:11:in (IN)", "09:11:59:in(IN)", "09:11 in", "09:11 (IN 1)"
-                            // Check if it contains 'in' but not 'out' (to avoid matching "out" in "checkout")
-                            // Also handle formats like "09:11 (IN 1)" where IN is in parentheses
-                            const hasIn = (lower.includes(':in') || 
-                                         lower.includes(' in') || 
-                                         lower.includes('in(') ||
-                                         lower.includes('(in') ||
-                                         (lower.includes('(') && lower.includes('in') && !lower.includes('out'))) && 
-                                         !lower.includes('out');
-                            
-                            if (hasIn) {
-                              checkInPunches.push(punch);
+                          let date;
+                          // Handle ISO format (2025-11-29T09:05:59.000Z)
+                          if (timeStr.includes('T')) {
+                            date = new Date(timeStr);
+                          } else if (timeStr.includes(' ')) {
+                            // Space-separated format (2025-11-29 09:05:59)
+                            date = new Date(timeStr);
+                          } else if (timeStr.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                            // Time-only format (09:11:59) - need to combine with attendance date
+                            const baseDate = new Date(attendanceDate);
+                            if (isNaN(baseDate.getTime())) {
+                              console.warn('Invalid attendance date for time conversion:', attendanceDate);
+                              return null;
                             }
-                          });
-                          
-                          console.log('Check-in punches found:', checkInPunches);
-                          
-                          if (checkInPunches.length === 0) return null;
-                          
-                          // Get the first check-in time (earliest) - sort by time to ensure we get the earliest
-                          const sortedCheckIns = checkInPunches.sort((a, b) => {
-                            const timeA = a.match(/(\d{1,2}):(\d{2})/);
-                            const timeB = b.match(/(\d{1,2}):(\d{2})/);
-                            if (!timeA || !timeB) return 0;
-                            const minutesA = parseInt(timeA[1], 10) * 60 + parseInt(timeA[2], 10);
-                            const minutesB = parseInt(timeB[1], 10) * 60 + parseInt(timeB[2], 10);
-                            return minutesA - minutesB;
-                          });
-                          
-                          const firstCheckIn = sortedCheckIns[0];
-                          console.log('Processing first check-in (earliest):', firstCheckIn);
-                          
-                          // Extract time using regex - handles multiple formats
-                          // Try to match time before "in", ":", or parentheses
-                          let timeMatch = firstCheckIn.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*in|\(|$)/i);
-                          if (!timeMatch) {
-                            // Fallback: match any HH:MM or HH:MM:SS pattern at the start
-                            timeMatch = firstCheckIn.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                            const [h, m, s] = timeStr.split(':');
+                            const hours = parseInt(h, 10);
+                            const mins = parseInt(m, 10);
+                            const secs = s ? parseInt(s, 10) : 0;
+                            
+                            // Validate time values
+                            if (isNaN(hours) || isNaN(mins) || hours < 0 || hours > 23 || mins < 0 || mins > 59) {
+                              console.warn('Invalid time values:', { hours, mins, secs });
+                              return null;
+                            }
+                            
+                            date = new Date(baseDate);
+                            date.setHours(hours, mins, secs, 0);
+                          } else {
+                            // Try parsing as-is
+                            date = new Date(timeStr);
                           }
                           
-                          if (timeMatch) {
-                            const hours = parseInt(timeMatch[1], 10);
-                            const mins = parseInt(timeMatch[2], 10);
-                            const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
-                            
-                            console.log('Extracted time from:', firstCheckIn, '->', { hours, mins, secs });
-                            
-                            if (isNaN(hours) || isNaN(mins)) {
-                              console.warn('Invalid hours or minutes:', { hours, mins });
+                          // Validate the resulting date
+                          if (date && !isNaN(date.getTime())) {
+                            // Check if the year is reasonable (not epoch 1970 or future dates beyond 2100)
+                            const year = date.getFullYear();
+                            if (year < 2000 || year > 2100) {
+                              console.warn('Date has invalid year:', year, 'from timeStr:', timeStr);
                               return null;
                             }
-                            
-                            // Validate hours and minutes
-                            if (hours < 0 || hours > 23 || mins < 0 || mins > 59) {
-                              console.warn('Time out of range:', { hours, mins });
-                              return null;
-                            }
-                            
-                            // Create a date object for the attendance date with this time
-                            if (employee.AttendanceDate) {
-                              try {
-                                const attendanceDate = new Date(employee.AttendanceDate);
-                                if (!isNaN(attendanceDate.getTime())) {
-                                  attendanceDate.setHours(hours, mins, secs || 0, 0);
-                                  const isoString = attendanceDate.toISOString();
-                                  console.log('Created ISO date:', isoString, 'from date:', employee.AttendanceDate, 'and time:', `${hours}:${mins}:${secs}`);
-                                  return isoString;
-                                } else {
-                                  console.warn('Invalid attendance date:', employee.AttendanceDate);
-                                }
-                              } catch (error) {
-                                console.warn('Error creating date:', error);
+                            // Check if time is midnight (00:00:00) - this might indicate missing data
+                            const hours = date.getHours();
+                            const mins = date.getMinutes();
+                            const secs = date.getSeconds();
+                            if (hours === 0 && mins === 0 && secs === 0) {
+                              // Only reject midnight if it's clearly a placeholder
+                              // If the original timeStr was "00:00:00" or similar, reject it
+                              if (timeStr.includes('00:00:00') || timeStr.match(/^0{1,2}:0{1,2}(:0{1,2})?$/)) {
+                                console.warn('Rejecting midnight time as placeholder:', timeStr);
+                                return null;
                               }
                             }
-                            
-                            // Format as HH:MM:SS if we can't create a date
-                            const formattedTime = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                            console.log('Formatted time string (fallback):', formattedTime);
-                            return formattedTime;
+                            return date;
                           }
-                          
-                          console.warn('No time match found in:', firstCheckIn);
                         } catch (error) {
-                          console.error('Error extracting check-in time from PunchRecords:', error, punchRecords);
+                          console.warn('Error converting time to date:', timeStr, error);
                         }
                         return null;
                       };
                       
-                      // Helper function to extract check-out time from PunchRecords
-                      const extractCheckOutTime = (punchRecords) => {
-                        if (!punchRecords) return null;
+                      // Helper function to extract ALL IN times from PunchRecords (both regular and OUT-DUTY)
+                      const extractAllInTimes = (punchRecords, attendanceDate) => {
+                        const allInTimes = [];
+                        if (!punchRecords) return allInTimes;
+                        
                         try {
-                          console.log('Extracting check-out from PunchRecords:', punchRecords);
-                          const punches = punchRecords.split(',').map(p => p.trim()).filter(p => p);
-                          console.log('Split punches:', punches);
+                          console.log('Extracting ALL IN times from PunchRecords:', punchRecords);
                           
-                          const checkOutPunches = [];
+                          // Split by "||" to separate regular punches from OUT-DUTY section
+                          const sections = punchRecords.split('||').map(s => s.trim()).filter(s => s);
                           
-                          punches.forEach(punch => {
-                            const lower = punch.toLowerCase();
-                            // Match patterns like "18:24:out(OUT)", "18:24:out (OUT)", "#2 - 18:24:out (OUT)", "18:24:59:out(OUT)", "18:24 out", "18:24 (OUT 1)"
-                            // Check if it contains 'out' but not 'in' (to avoid matching "in" in "checkin")
-                            // Also handle formats like "18:24 (OUT 1)" where OUT is in parentheses
-                            const hasOut = (lower.includes(':out') || 
-                                          lower.includes(' out') || 
-                                          lower.includes('out(') ||
-                                          lower.includes('(out') ||
-                                          (lower.includes('(') && lower.includes('out') && !lower.includes('in'))) && 
-                                          !lower.includes('in');
+                          sections.forEach(section => {
+                            // Remove "OUT-DUTY:" prefix if present
+                            const cleanSection = section.replace(/^OUT-DUTY:\s*/i, '').trim();
+                            // Split by comma to get individual punches
+                            const punches = cleanSection.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
                             
-                            if (hasOut) {
-                              checkOutPunches.push(punch);
-                            }
-                          });
-                          
-                          console.log('Check-out punches found:', checkOutPunches);
-                          
-                          if (checkOutPunches.length === 0) return null;
-                          
-                          // Get the last check-out time (latest) - sort by time to ensure we get the latest
-                          const sortedCheckOuts = checkOutPunches.sort((a, b) => {
-                            const timeA = a.match(/(\d{1,2}):(\d{2})/);
-                            const timeB = b.match(/(\d{1,2}):(\d{2})/);
-                            if (!timeA || !timeB) return 0;
-                            const minutesA = parseInt(timeA[1], 10) * 60 + parseInt(timeA[2], 10);
-                            const minutesB = parseInt(timeB[1], 10) * 60 + parseInt(timeB[2], 10);
-                            return minutesB - minutesA; // Sort descending to get latest
-                          });
-                          
-                          const lastCheckOut = sortedCheckOuts[0];
-                          console.log('Processing last check-out (latest):', lastCheckOut);
-                          
-                          // Extract time using regex - handles multiple formats
-                          // Try to match time before "out", ":", or parentheses
-                          let timeMatch = lastCheckOut.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*out|\(|$)/i);
-                          if (!timeMatch) {
-                            // Fallback: match any HH:MM or HH:MM:SS pattern at the start
-                            timeMatch = lastCheckOut.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-                          }
-                          
-                          if (timeMatch) {
-                            const hours = parseInt(timeMatch[1], 10);
-                            const mins = parseInt(timeMatch[2], 10);
-                            const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
-                            
-                            console.log('Extracted time from:', lastCheckOut, '->', { hours, mins, secs });
-                            
-                            if (isNaN(hours) || isNaN(mins)) {
-                              console.warn('Invalid hours or minutes:', { hours, mins });
-                              return null;
-                            }
-                            
-                            // Validate hours and minutes
-                            if (hours < 0 || hours > 23 || mins < 0 || mins > 59) {
-                              console.warn('Time out of range:', { hours, mins });
-                              return null;
-                            }
-                            
-                            // Create a date object for the attendance date with this time
-                            if (employee.AttendanceDate) {
-                              try {
-                                const attendanceDate = new Date(employee.AttendanceDate);
-                                if (!isNaN(attendanceDate.getTime())) {
-                                  attendanceDate.setHours(hours, mins, secs || 0, 0);
-                                  const isoString = attendanceDate.toISOString();
-                                  console.log('Created ISO date:', isoString, 'from date:', employee.AttendanceDate, 'and time:', `${hours}:${mins}:${secs}`);
-                                  return isoString;
-                                } else {
-                                  console.warn('Invalid attendance date:', employee.AttendanceDate);
+                            punches.forEach(punch => {
+                              const lower = punch.toLowerCase();
+                              // Match patterns like "09:11:in(IN)", "09:39:in(IN)", "09:11:in (IN)", etc.
+                              // Check if it contains 'in' but not 'out' (to avoid matching "out" in "checkout")
+                              const hasIn = (lower.includes(':in') || 
+                                           lower.includes(' in') || 
+                                           lower.includes('in(') ||
+                                           lower.includes('(in') ||
+                                           (lower.includes('(') && lower.includes('in') && !lower.includes('out'))) && 
+                                           !lower.includes('out');
+                              
+                              if (hasIn) {
+                                // Extract time using regex
+                                let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*in|\(|$)/i);
+                                if (!timeMatch) {
+                                  timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
                                 }
-                              } catch (error) {
-                                console.warn('Error creating date:', error);
+                                
+                                if (timeMatch) {
+                                  const hours = parseInt(timeMatch[1], 10);
+                                  const mins = parseInt(timeMatch[2], 10);
+                                  const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+                                  
+                                  if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
+                                    // Create date object
+                                    if (attendanceDate) {
+                                      const date = new Date(attendanceDate);
+                                      if (!isNaN(date.getTime())) {
+                                        date.setHours(hours, mins, secs || 0, 0);
+                                        allInTimes.push(date);
+                                        console.log('  → Found IN time:', `${hours}:${mins}:${secs}`, 'from punch:', punch);
+                                      }
+                                    }
+                                  }
+                                }
                               }
-                            }
-                            
-                            // Format as HH:MM:SS if we can't create a date
-                            const formattedTime = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                            console.log('Formatted time string (fallback):', formattedTime);
-                            return formattedTime;
-                          }
-                          
-                          console.warn('No time match found in:', lastCheckOut);
+                            });
+                          });
                         } catch (error) {
-                          console.error('Error extracting check-out time from PunchRecords:', error, punchRecords);
+                          console.error('Error extracting IN times from PunchRecords:', error);
                         }
-                        return null;
+                        
+                        return allInTimes;
                       };
                       
-                      // Extract check-in and check-out from PunchRecords if InTime/OutTime are missing
-                      let checkInTime = employee?.InTime;
-                      let checkOutTime = employee?.OutTime;
+                      // Helper function to extract ALL OUT times from PunchRecords (both regular and OUT-DUTY)
+                      const extractAllOutTimes = (punchRecords, attendanceDate) => {
+                        const allOutTimes = [];
+                        if (!punchRecords) return allOutTimes;
+                        
+                        try {
+                          console.log('Extracting ALL OUT times from PunchRecords:', punchRecords);
+                          
+                          // Split by "||" to separate regular punches from OUT-DUTY section
+                          const sections = punchRecords.split('||').map(s => s.trim()).filter(s => s);
+                          
+                          sections.forEach(section => {
+                            // Remove "OUT-DUTY:" prefix if present
+                            const cleanSection = section.replace(/^OUT-DUTY:\s*/i, '').trim();
+                            // Split by comma to get individual punches
+                            const punches = cleanSection.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
+                            
+                            punches.forEach(punch => {
+                              const lower = punch.toLowerCase();
+                              // Match patterns like "18:24:out(OUT)", "18:06:out(OUT)", "18:24:out (OUT)", etc.
+                              // Check if it contains 'out' but not 'in' (to avoid matching "in" in "checkin")
+                              const hasOut = (lower.includes(':out') || 
+                                            lower.includes(' out') || 
+                                            lower.includes('out(') ||
+                                            lower.includes('(out') ||
+                                            (lower.includes('(') && lower.includes('out') && !lower.includes('in'))) && 
+                                            !lower.includes('in');
+                              
+                              if (hasOut) {
+                                // Extract time using regex
+                                let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*out|\(|$)/i);
+                                if (!timeMatch) {
+                                  timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                                }
+                                
+                                if (timeMatch) {
+                                  const hours = parseInt(timeMatch[1], 10);
+                                  const mins = parseInt(timeMatch[2], 10);
+                                  const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+                                  
+                                  if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
+                                    // Create date object
+                                    if (attendanceDate) {
+                                      const date = new Date(attendanceDate);
+                                      if (!isNaN(date.getTime())) {
+                                        date.setHours(hours, mins, secs || 0, 0);
+                                        allOutTimes.push(date);
+                                        console.log('  → Found OUT time:', `${hours}:${mins}:${secs}`, 'from punch:', punch);
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            });
+                          });
+                        } catch (error) {
+                          console.error('Error extracting OUT times from PunchRecords:', error);
+                        }
+                        
+                        return allOutTimes;
+                      };
                       
                       // Helper to check if a time value is actually valid/meaningful
                       const isTimeValid = (time) => {
@@ -744,172 +728,132 @@ const EmployeesAttendanceData = () => {
                         return true;
                       };
                       
-                      // Check if InTime is missing or invalid
-                      const isInTimeMissing = !isTimeValid(checkInTime);
+                      // Collect ALL IN times from both InTime field and PunchRecords
+                      const allInTimes = [];
+                      const allOutTimes = [];
                       
-                      // Check if OutTime is missing or invalid
-                      const isOutTimeMissing = !isTimeValid(checkOutTime);
-                      
-                      // Always try to extract from PunchRecords if available
-                      // Priority: If InTime/OutTime are missing or invalid, extract from PunchRecords
-                      // This ensures we show times from punch records even if attendance data doesn't have them
-                      if (employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
-                        console.log('✓ PunchRecords available for date:', employee.AttendanceDate, 'Value:', employee.PunchRecords);
-                        
-                        // Always try to extract check-in time if missing or invalid
-                        if (isInTimeMissing) {
-                          console.log('→ InTime is missing/invalid, attempting extraction from PunchRecords');
-                          const extractedInTime = extractCheckInTime(employee.PunchRecords);
-                          if (extractedInTime) {
-                            checkInTime = extractedInTime;
-                            console.log('✓✓ Successfully extracted check-in time:', extractedInTime);
-                          } else {
-                            console.log('✗✗ Failed to extract check-in time from PunchRecords');
-                          }
-                        } else {
-                          // Even if InTime exists, check if it's a placeholder and try to extract from PunchRecords
-                          if (checkInTime && typeof checkInTime === 'string') {
-                            const timeStr = checkInTime.trim();
-                            // Check for placeholder patterns
-                            if (timeStr.includes('00:00:00') || 
-                                timeStr === '--' || 
-                                timeStr === '' ||
-                                timeStr.toLowerCase().includes('null')) {
-                              console.log('→ InTime appears to be placeholder, attempting extraction from PunchRecords');
-                              const extractedInTime = extractCheckInTime(employee.PunchRecords);
-                              if (extractedInTime) {
-                                checkInTime = extractedInTime;
-                                console.log('✓✓ Replaced placeholder with extracted check-in time:', extractedInTime);
-                              }
-                            } else {
-                              console.log('→ InTime exists and appears valid:', checkInTime);
-                            }
-                          }
+                      // Add InTime from attendance record if valid
+                      if (isTimeValid(employee?.InTime)) {
+                        const inDate = timeToDate(employee.InTime, employee.AttendanceDate);
+                        if (inDate) {
+                          allInTimes.push(inDate);
+                          console.log('✓ Added InTime from attendance record:', employee.InTime, '→', inDate.toISOString());
                         }
-                        
-                        // Always try to extract check-out time if missing or invalid
-                        if (isOutTimeMissing) {
-                          console.log('→ OutTime is missing/invalid, attempting extraction from PunchRecords');
-                          const extractedOutTime = extractCheckOutTime(employee.PunchRecords);
-                          if (extractedOutTime) {
-                            checkOutTime = extractedOutTime;
-                            console.log('✓✓ Successfully extracted check-out time:', extractedOutTime);
-                          } else {
-                            console.log('✗✗ Failed to extract check-out time from PunchRecords');
-                          }
-                        } else {
-                          // Even if OutTime exists, check if it's a placeholder and try to extract from PunchRecords
-                          if (checkOutTime && typeof checkOutTime === 'string') {
-                            const timeStr = checkOutTime.trim();
-                            // Check for placeholder patterns
-                            if (timeStr.includes('00:00:00') || 
-                                timeStr === '--' || 
-                                timeStr === '' ||
-                                timeStr.toLowerCase().includes('null')) {
-                              console.log('→ OutTime appears to be placeholder, attempting extraction from PunchRecords');
-                              const extractedOutTime = extractCheckOutTime(employee.PunchRecords);
-                              if (extractedOutTime) {
-                                checkOutTime = extractedOutTime;
-                                console.log('✓✓ Replaced placeholder with extracted check-out time:', extractedOutTime);
-                              }
-                            } else {
-                              console.log('→ OutTime exists and appears valid:', checkOutTime);
-                            }
-                          }
-                        }
-                      } else {
-                        console.log('⚠⚠ No PunchRecords available for date:', employee.AttendanceDate, 'Employee:', employee?.EmployeeName);
-                        // Log what data we do have
-                        console.log('Available data:', {
-                          InTime: employee?.InTime,
-                          OutTime: employee?.OutTime,
-                          Duration: employee?.Duration,
-                          Status: employee?.Status,
-                          hasPunchRecords: !!employee?.PunchRecords,
-                          PunchRecordsValue: employee?.PunchRecords
-                        });
                       }
                       
-                      // Handle Duration - can be number (minutes) or string ("08:34")
+                      // Add OutTime from attendance record if valid
+                      if (isTimeValid(employee?.OutTime)) {
+                        const outDate = timeToDate(employee.OutTime, employee.AttendanceDate);
+                        if (outDate) {
+                          allOutTimes.push(outDate);
+                          console.log('✓ Added OutTime from attendance record:', employee.OutTime, '→', outDate.toISOString());
+                        }
+                      }
+                      
+                      // Extract all IN/OUT times from PunchRecords
+                      if (employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
+                        console.log('✓ Processing PunchRecords for date:', employee.AttendanceDate);
+                        const punchInTimes = extractAllInTimes(employee.PunchRecords, employee.AttendanceDate);
+                        const punchOutTimes = extractAllOutTimes(employee.PunchRecords, employee.AttendanceDate);
+                        allInTimes.push(...punchInTimes);
+                        allOutTimes.push(...punchOutTimes);
+                      }
+                      
+                      // Find the EARLIEST IN time (regardless of source - Check In or Punch In)
+                      let checkInTime = null;
+                      if (allInTimes.length > 0) {
+                        allInTimes.sort((a, b) => a.getTime() - b.getTime()); // Sort ascending
+                        checkInTime = allInTimes[0].toISOString();
+                        console.log('✓✓ EARLIEST IN time selected:', checkInTime, 'from', allInTimes.length, 'total IN times');
+                      }
+                      
+                      // Find the LATEST OUT time (regardless of source - Check Out or Punch Out)
+                      let checkOutTime = null;
+                      if (allOutTimes.length > 0) {
+                        allOutTimes.sort((a, b) => b.getTime() - a.getTime()); // Sort descending
+                        checkOutTime = allOutTimes[0].toISOString();
+                        console.log('✓✓ LATEST OUT time selected:', checkOutTime, 'from', allOutTimes.length, 'total OUT times');
+                      }
+                      
+                      if (!checkInTime && !checkOutTime) {
+                        console.log('⚠⚠ No valid IN/OUT times found for date:', employee.AttendanceDate, 'Employee:', employee?.EmployeeName);
+                      }
+                      
+                      // Calculate Effective Hours from resolved IN and OUT times
+                      // Effective Hours = OUT time - IN time (using the earliest IN and latest OUT)
                       let hours = 0;
                       let minutes = 0;
                       let durationInMinutes = 0;
                       
-                      // First, try to get duration from Duration field
-                      if (typeof employee.Duration === 'number' && employee.Duration > 0) {
-                        durationInMinutes = employee.Duration;
-                        hours = Math.floor(durationInMinutes / 60);
-                        minutes = durationInMinutes % 60;
-                      } else if (typeof employee.Duration === 'string' && employee.Duration.includes(':')) {
-                        const [h, m] = employee.Duration.split(':').map(Number);
-                        hours = isNaN(h) ? 0 : h;
-                        minutes = isNaN(m) ? 0 : m;
-                        durationInMinutes = hours * 60 + minutes;
-                      } else if (employee.DurationString && employee.DurationString.includes(':')) {
-                        const [h, m] = employee.DurationString.split(':').map(Number);
-                        hours = isNaN(h) ? 0 : h;
-                        minutes = isNaN(m) ? 0 : m;
-                        durationInMinutes = hours * 60 + minutes;
-                      }
-                      
-                      // If duration is still 0, calculate from checkInTime and checkOutTime (which may be extracted from PunchRecords)
-                      if (durationInMinutes === 0 && checkInTime && checkOutTime) {
+                      if (checkInTime && checkOutTime) {
                         try {
-                          // Handle ISO format (2025-11-29T09:05:59.000Z)
-                          let inTime, outTime;
-                          if (checkInTime.includes('T')) {
-                            inTime = new Date(checkInTime);
-                            outTime = new Date(checkOutTime);
-                          } else if (checkInTime.includes(' ')) {
-                            // Space-separated format (2025-11-29 09:05:59)
-                            inTime = new Date(checkInTime);
-                            outTime = new Date(checkOutTime);
-                          } else if (checkInTime.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
-                            // Time-only format (09:11:59) - need to combine with attendance date
-                            if (employee.AttendanceDate) {
-                              const attendanceDate = new Date(employee.AttendanceDate);
-                              const [h1, m1, s1] = checkInTime.split(':');
-                              const [h2, m2, s2] = checkOutTime.split(':');
-                              inTime = new Date(attendanceDate);
-                              inTime.setHours(parseInt(h1, 10), parseInt(m1, 10), s1 ? parseInt(s1, 10) : 0, 0);
-                              outTime = new Date(attendanceDate);
-                              outTime.setHours(parseInt(h2, 10), parseInt(m2, 10), s2 ? parseInt(s2, 10) : 0, 0);
-                              // If check-out is earlier than check-in, assume it's the next day
-                              if (outTime < inTime) {
-                                outTime.setDate(outTime.getDate() + 1);
-                              }
-                            } else {
-                              // Can't calculate without date
-                              inTime = null;
-                              outTime = null;
-                            }
-                          } else {
-                            // Try parsing as-is
-                            inTime = new Date(checkInTime);
-                            outTime = new Date(checkOutTime);
-                          }
+                          // Both times are in ISO format from our extraction
+                          const inTime = new Date(checkInTime);
+                          const outTime = new Date(checkOutTime);
                           
-                          if (inTime && outTime && !isNaN(inTime.getTime()) && !isNaN(outTime.getTime())) {
+                          // Validate dates
+                          if (isNaN(inTime.getTime()) || isNaN(outTime.getTime())) {
+                            console.warn('⚠ Invalid date objects for duration calculation');
+                          } else {
+                            // Validate years are reasonable
+                            const inYear = inTime.getFullYear();
+                            const outYear = outTime.getFullYear();
+                            if (inYear < 2000 || inYear > 2100 || outYear < 2000 || outYear > 2100) {
+                              console.warn('⚠ Invalid year in date objects:', { inYear, outYear });
+                            } else {
+                              // Check if times are midnight (likely placeholders)
+                              const inHours = inTime.getHours();
+                              const inMins = inTime.getMinutes();
+                              const inSecs = inTime.getSeconds();
+                              const outHours = outTime.getHours();
+                              const outMins = outTime.getMinutes();
+                              const outSecs = outTime.getSeconds();
+                              
+                              if (inHours === 0 && inMins === 0 && inSecs === 0) {
+                                console.warn('⚠ IN time is midnight (00:00:00), skipping duration calculation');
+                              } else if (outHours === 0 && outMins === 0 && outSecs === 0) {
+                                console.warn('⚠ OUT time is midnight (00:00:00), skipping duration calculation');
+                              } else {
                             const diffMs = outTime - inTime;
                             if (diffMs > 0) {
+                                  // Calculate duration in minutes (including seconds)
                               durationInMinutes = Math.floor(diffMs / (1000 * 60));
+                                  
+                                  // Sanity check: duration should be reasonable (not more than 24 hours = 1440 minutes)
+                                  // But allow up to 48 hours for edge cases
+                                  if (durationInMinutes > 48 * 60) {
+                                    console.warn('⚠ Duration seems unreasonably large:', durationInMinutes, 'minutes. Skipping calculation.');
+                                    durationInMinutes = 0;
+                                  } else {
                               hours = Math.floor(durationInMinutes / 60);
                               minutes = durationInMinutes % 60;
+                                    console.log('✓✓ Calculated Effective Hours from resolved times:', 
+                                      `${hours}h ${minutes}m (${durationInMinutes} minutes)`);
+                                    console.log('  → IN:', inTime.toISOString(), 'OUT:', outTime.toISOString());
+                                  }
+                                } else {
+                                  console.warn('⚠ OUT time is earlier than IN time, cannot calculate duration');
+                                }
+                              }
                             }
                           }
                         } catch (error) {
-                          console.warn('Error calculating duration from checkInTime/checkOutTime:', error);
+                          console.warn('Error calculating duration from resolved checkInTime/checkOutTime:', error);
                         }
+                      } else {
+                        console.log('⚠ Cannot calculate duration - missing IN or OUT time');
+                        if (!checkInTime) console.log('  → Missing checkInTime');
+                        if (!checkOutTime) console.log('  → Missing checkOutTime');
                       }
                       
                       // Final summary log (after duration calculation)
                       console.log('=== FINAL TIMES SUMMARY for', employee.AttendanceDate, '===');
                       console.log('Employee:', employee?.EmployeeName);
-                      console.log('Check In Time:', checkInTime, '(was missing:', isInTimeMissing, ')');
-                      console.log('Check Out Time:', checkOutTime, '(was missing:', isOutTimeMissing, ')');
+                      console.log('Resolved Check In Time (earliest):', checkInTime);
+                      console.log('Resolved Check Out Time (latest):', checkOutTime);
                       console.log('Has PunchRecords:', !!employee?.PunchRecords);
                       console.log('PunchRecords value:', employee?.PunchRecords);
-                      console.log('Effective Hours:', hours, 'h', minutes, 'm');
+                      console.log('Effective Hours (calculated):', hours, 'h', minutes, 'm', '(', durationInMinutes, 'minutes)');
                       console.log('==========================================');
                       
                       const hasPunchRecords = !!(checkInTime || employee.PunchRecords);
@@ -1231,19 +1175,36 @@ const EmployeesAttendanceData = () => {
                                   if (checkInTime.includes("T")) {
                                     try {
                                       const date = new Date(checkInTime);
+                                      if (isNaN(date.getTime())) return "--";
+                                      // Check if it's midnight (00:00:00) - likely a placeholder
+                                      const hours = date.getHours();
+                                      const mins = date.getMinutes();
+                                      const secs = date.getSeconds();
+                                      if (hours === 0 && mins === 0 && secs === 0) {
+                                        return "--";
+                                      }
+                                      // Check if year is invalid (epoch 1970 or beyond 2100)
+                                      const year = date.getFullYear();
+                                      if (year < 2000 || year > 2100) {
+                                        return "--";
+                                      }
                                       return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                                     } catch { return "--"; }
                                   }
                                   // Handle space-separated format (2025-11-29 09:05:59)
                                   if (checkInTime.includes(" ")) {
                                     const time = checkInTime.split(" ")[1];
-                                    return time === "00:00:00" ? "--" : time || "--";
+                                  return time === "00:00:00" ? "--" : time || "--";
                                   }
                                   // Handle time-only format (09:11:59)
                                   if (checkInTime.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
                                     const [h, m, s] = checkInTime.split(':');
+                                    const hours = parseInt(h, 10);
+                                    const mins = parseInt(m, 10);
+                                    // Reject midnight times
+                                    if (hours === 0 && mins === 0) return "--";
                                     const date = new Date();
-                                    date.setHours(parseInt(h, 10), parseInt(m, 10), s ? parseInt(s, 10) : 0, 0);
+                                    date.setHours(hours, mins, s ? parseInt(s, 10) : 0, 0);
                                     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                                   }
                                   return checkInTime || "--";
@@ -1261,19 +1222,36 @@ const EmployeesAttendanceData = () => {
                                   if (checkOutTime.includes("T")) {
                                     try {
                                       const date = new Date(checkOutTime);
+                                      if (isNaN(date.getTime())) return "--";
+                                      // Check if it's midnight (00:00:00) - likely a placeholder
+                                      const hours = date.getHours();
+                                      const mins = date.getMinutes();
+                                      const secs = date.getSeconds();
+                                      if (hours === 0 && mins === 0 && secs === 0) {
+                                        return "--";
+                                      }
+                                      // Check if year is invalid (epoch 1970 or beyond 2100)
+                                      const year = date.getFullYear();
+                                      if (year < 2000 || year > 2100) {
+                                        return "--";
+                                      }
                                       return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                                     } catch { return "--"; }
                                   }
                                   // Handle space-separated format (2025-11-29 18:05:59)
                                   if (checkOutTime.includes(" ")) {
                                     const time = checkOutTime.split(" ")[1];
-                                    return time === "00:00:00" ? "--" : time || "--";
+                                  return time === "00:00:00" ? "--" : time || "--";
                                   }
                                   // Handle time-only format (18:24:59)
                                   if (checkOutTime.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
                                     const [h, m, s] = checkOutTime.split(':');
+                                    const hours = parseInt(h, 10);
+                                    const mins = parseInt(m, 10);
+                                    // Reject midnight times
+                                    if (hours === 0 && mins === 0) return "--";
                                     const date = new Date();
-                                    date.setHours(parseInt(h, 10), parseInt(m, 10), s ? parseInt(s, 10) : 0, 0);
+                                    date.setHours(hours, mins, s ? parseInt(s, 10) : 0, 0);
                                     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                                   }
                                   return checkOutTime || "--";

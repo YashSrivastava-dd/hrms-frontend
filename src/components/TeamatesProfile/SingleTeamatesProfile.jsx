@@ -251,18 +251,268 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
                                                     Array(5).fill(0).map((_, idx) => <SkeletonLoader key={idx} />)
                                                 ) : employees?.length > 0 ? (
                                                     employees.map((employee, index) => {
-                                                        const hours = Math.floor(employee.Duration / 60);
-                                                        const minutes = employee.Duration % 60;
+                                                        // Helper function to convert a time string to a Date object for comparison
+                                                        const timeToDate = (timeStr, attendanceDate) => {
+                                                            if (!timeStr || !attendanceDate) return null;
+                                                            try {
+                                                                let date;
+                                                                if (timeStr.includes('T')) {
+                                                                    date = new Date(timeStr);
+                                                                } else if (timeStr.includes(' ')) {
+                                                                    date = new Date(timeStr);
+                                                                } else if (timeStr.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                                                                    const baseDate = new Date(attendanceDate);
+                                                                    if (isNaN(baseDate.getTime())) return null;
+                                                                    const [h, m, s] = timeStr.split(':');
+                                                                    const hours = parseInt(h, 10);
+                                                                    const mins = parseInt(m, 10);
+                                                                    const secs = s ? parseInt(s, 10) : 0;
+                                                                    if (isNaN(hours) || isNaN(mins) || hours < 0 || hours > 23 || mins < 0 || mins > 59) return null;
+                                                                    date = new Date(baseDate);
+                                                                    date.setHours(hours, mins, secs, 0);
+                                                                } else {
+                                                                    date = new Date(timeStr);
+                                                                }
+                                                                if (date && !isNaN(date.getTime())) {
+                                                                    const year = date.getFullYear();
+                                                                    if (year < 2000 || year > 2100) return null;
+                                                                    const hours = date.getHours();
+                                                                    const mins = date.getMinutes();
+                                                                    const secs = date.getSeconds();
+                                                                    if (hours === 0 && mins === 0 && secs === 0) {
+                                                                        if (timeStr.includes('00:00:00') || timeStr.match(/^0{1,2}:0{1,2}(:0{1,2})?$/)) return null;
+                                                                    }
+                                                                    return date;
+                                                                }
+                                                            } catch (error) {
+                                                                return null;
+                                                            }
+                                                            return null;
+                                                        };
+
+                                                        // Helper to check if a time value is valid
+                                                        const isTimeValid = (time) => {
+                                                            if (!time) return false;
+                                                            if (time === '--' || time === null || time === '') return false;
+                                                            if (typeof time === 'string' && time.trim() === '') return false;
+                                                            if (typeof time === 'string') {
+                                                                const timeStr = time.trim();
+                                                                if (timeStr.includes('T')) {
+                                                                    try {
+                                                                        const date = new Date(timeStr);
+                                                                        if (isNaN(date.getTime())) return false;
+                                                                        const hours = date.getHours();
+                                                                        const mins = date.getMinutes();
+                                                                        const secs = date.getSeconds();
+                                                                        if (hours === 0 && mins === 0 && secs === 0) {
+                                                                            const year = date.getFullYear();
+                                                                            if (year < 2000) return false;
+                                                                        }
+                                                                        return true;
+                                                                    } catch {
+                                                                        return false;
+                                                                    }
+                                                                }
+                                                                if (timeStr.match(/^0{1,2}:0{1,2}(:0{1,2})?$/)) return false;
+                                                                if (timeStr.toLowerCase().includes('null') || timeStr.toLowerCase().includes('undefined')) return false;
+                                                            }
+                                                            return true;
+                                                        };
+
+                                                        // Helper function to extract ALL IN times from PunchRecords
+                                                        const extractAllInTimes = (punchRecords, attendanceDate) => {
+                                                            const allInTimes = [];
+                                                            if (!punchRecords) return allInTimes;
+                                                            try {
+                                                                const sections = punchRecords.split('||').map(s => s.trim()).filter(s => s);
+                                                                sections.forEach(section => {
+                                                                    const cleanSection = section.replace(/^OUT-DUTY:\s*/i, '').trim();
+                                                                    const punches = cleanSection.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
+                                                                    punches.forEach(punch => {
+                                                                        const lower = punch.toLowerCase();
+                                                                        const hasIn = (lower.includes(':in') || lower.includes(' in') || lower.includes('in(') || lower.includes('(in') || (lower.includes('(') && lower.includes('in') && !lower.includes('out'))) && !lower.includes('out');
+                                                                        if (hasIn) {
+                                                                            let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*in|\(|$)/i);
+                                                                            if (!timeMatch) timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                                                                            if (timeMatch) {
+                                                                                const hours = parseInt(timeMatch[1], 10);
+                                                                                const mins = parseInt(timeMatch[2], 10);
+                                                                                const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+                                                                                if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
+                                                                                    if (attendanceDate) {
+                                                                                        const date = new Date(attendanceDate);
+                                                                                        if (!isNaN(date.getTime())) {
+                                                                                            date.setHours(hours, mins, secs || 0, 0);
+                                                                                            allInTimes.push(date);
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                });
+                                                            } catch (error) {
+                                                                console.error('Error extracting IN times:', error);
+                                                            }
+                                                            return allInTimes;
+                                                        };
+
+                                                        // Helper function to extract ALL OUT times from PunchRecords
+                                                        const extractAllOutTimes = (punchRecords, attendanceDate) => {
+                                                            const allOutTimes = [];
+                                                            if (!punchRecords) return allOutTimes;
+                                                            try {
+                                                                const sections = punchRecords.split('||').map(s => s.trim()).filter(s => s);
+                                                                sections.forEach(section => {
+                                                                    const cleanSection = section.replace(/^OUT-DUTY:\s*/i, '').trim();
+                                                                    const punches = cleanSection.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
+                                                                    punches.forEach(punch => {
+                                                                        const lower = punch.toLowerCase();
+                                                                        const hasOut = (lower.includes(':out') || lower.includes(' out') || lower.includes('out(') || lower.includes('(out') || (lower.includes('(') && lower.includes('out') && !lower.includes('in'))) && !lower.includes('in');
+                                                                        if (hasOut) {
+                                                                            let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*out|\(|$)/i);
+                                                                            if (!timeMatch) timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                                                                            if (timeMatch) {
+                                                                                const hours = parseInt(timeMatch[1], 10);
+                                                                                const mins = parseInt(timeMatch[2], 10);
+                                                                                const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+                                                                                if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
+                                                                                    if (attendanceDate) {
+                                                                                        const date = new Date(attendanceDate);
+                                                                                        if (!isNaN(date.getTime())) {
+                                                                                            date.setHours(hours, mins, secs || 0, 0);
+                                                                                            allOutTimes.push(date);
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                });
+                                                            } catch (error) {
+                                                                console.error('Error extracting OUT times:', error);
+                                                            }
+                                                            return allOutTimes;
+                                                        };
+
+                                                        // Collect ALL IN times from both InTime field and PunchRecords
+                                                        const allInTimes = [];
+                                                        const allOutTimes = [];
+                                                        
+                                                        if (isTimeValid(employee?.InTime)) {
+                                                            const inDate = timeToDate(employee.InTime, employee.AttendanceDate);
+                                                            if (inDate) allInTimes.push(inDate);
+                                                        }
+                                                        
+                                                        if (isTimeValid(employee?.OutTime)) {
+                                                            const outDate = timeToDate(employee.OutTime, employee.AttendanceDate);
+                                                            if (outDate) allOutTimes.push(outDate);
+                                                        }
+                                                        
+                                                        if (employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
+                                                            const punchInTimes = extractAllInTimes(employee.PunchRecords, employee.AttendanceDate);
+                                                            const punchOutTimes = extractAllOutTimes(employee.PunchRecords, employee.AttendanceDate);
+                                                            allInTimes.push(...punchInTimes);
+                                                            allOutTimes.push(...punchOutTimes);
+                                                        }
+                                                        
+                                                        // Find the EARLIEST IN time
+                                                        let checkInTime = null;
+                                                        if (allInTimes.length > 0) {
+                                                            allInTimes.sort((a, b) => a.getTime() - b.getTime());
+                                                            checkInTime = allInTimes[0].toISOString();
+                                                        }
+                                                        
+                                                        // Find the LATEST OUT time
+                                                        let checkOutTime = null;
+                                                        if (allOutTimes.length > 0) {
+                                                            allOutTimes.sort((a, b) => b.getTime() - a.getTime());
+                                                            checkOutTime = allOutTimes[0].toISOString();
+                                                        }
+                                                        
+                                                        // Calculate Effective Hours from resolved times
+                                                        let hours = 0;
+                                                        let minutes = 0;
+                                                        let durationInMinutes = 0;
+                                                        
+                                                        if (checkInTime && checkOutTime) {
+                                                            try {
+                                                                const inTime = new Date(checkInTime);
+                                                                const outTime = new Date(checkOutTime);
+                                                                if (!isNaN(inTime.getTime()) && !isNaN(outTime.getTime())) {
+                                                                    const inYear = inTime.getFullYear();
+                                                                    const outYear = outTime.getFullYear();
+                                                                    if (inYear >= 2000 && inYear <= 2100 && outYear >= 2000 && outYear <= 2100) {
+                                                                        const inHours = inTime.getHours();
+                                                                        const inMins = inTime.getMinutes();
+                                                                        const inSecs = inTime.getSeconds();
+                                                                        const outHours = outTime.getHours();
+                                                                        const outMins = outTime.getMinutes();
+                                                                        const outSecs = outTime.getSeconds();
+                                                                        if (!(inHours === 0 && inMins === 0 && inSecs === 0) && !(outHours === 0 && outMins === 0 && outSecs === 0)) {
+                                                                            const diffMs = outTime - inTime;
+                                                                            if (diffMs > 0) {
+                                                                                durationInMinutes = Math.floor(diffMs / (1000 * 60));
+                                                                                if (durationInMinutes <= 48 * 60) {
+                                                                                    hours = Math.floor(durationInMinutes / 60);
+                                                                                    minutes = durationInMinutes % 60;
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            } catch (error) {
+                                                                console.warn('Error calculating duration:', error);
+                                                            }
+                                                        }
+                                                        
+                                                        // Use calculated duration or fall back to employee.Duration
+                                                        if (durationInMinutes === 0 && employee.Duration > 0) {
+                                                            durationInMinutes = employee.Duration;
+                                                            hours = Math.floor(durationInMinutes / 60);
+                                                            minutes = durationInMinutes % 60;
+                                                        }
+                                                        
                                                         let dayType = "Off Day";
                                                         let dayTypeColor = "bg-gray-100 text-gray-800";
                                                         
-                                                        if (employee.Duration >= 4 * 60 && employee.Duration < 8 * 60 + 20) {
+                                                        if (durationInMinutes >= 4 * 60 && durationInMinutes < 8 * 60 + 20) {
                                                             dayType = "Half Day";
                                                             dayTypeColor = "bg-yellow-100 text-yellow-800";
-                                                        } else if (employee.Duration >= 8 * 60 + 20) {
+                                                        } else if (durationInMinutes >= 8 * 60 + 20) {
                                                             dayType = "Full Day";
                                                             dayTypeColor = "bg-green-100 text-green-800";
                                                         }
+
+                                                        // Format time for display
+                                                        const formatTime = (timeStr) => {
+                                                            if (!timeStr) return "--";
+                                                            if (timeStr.includes("T")) {
+                                                                try {
+                                                                    const date = new Date(timeStr);
+                                                                    if (isNaN(date.getTime())) return "--";
+                                                                    const hours = date.getHours();
+                                                                    const mins = date.getMinutes();
+                                                                    const secs = date.getSeconds();
+                                                                    if (hours === 0 && mins === 0 && secs === 0) return "--";
+                                                                    const year = date.getFullYear();
+                                                                    if (year < 2000 || year > 2100) return "--";
+                                                                    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                                                                } catch { return "--"; }
+                                                            }
+                                                            if (timeStr.includes(" ")) {
+                                                                const time = timeStr.split(" ")[1];
+                                                                return time === "00:00:00" ? "--" : time || "--";
+                                                            }
+                                                            if (timeStr.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                                                                const [h, m] = timeStr.split(':');
+                                                                if (parseInt(h, 10) === 0 && parseInt(m, 10) === 0) return "--";
+                                                                const date = new Date();
+                                                                date.setHours(parseInt(h, 10), parseInt(m, 10), timeStr.split(':')[2] ? parseInt(timeStr.split(':')[2], 10) : 0, 0);
+                                                                return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                                                            }
+                                                            return timeStr || "--";
+                                                        };
 
                                                         return (
                                                             <tr key={employee.id || index} className="hover:bg-gray-50 transition-colors duration-200">
@@ -270,13 +520,13 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
                                                                     {employee.AttendanceDate?.split("T")[0] || '--'}
                                                                 </td>
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                    {employee.InTime?.split(" ")[1] === "00:00:00" ? "--" : employee.InTime?.split(" ")[1] || '--'}
+                                                                    {formatTime(checkInTime)}
                                                                 </td>
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                    {employee.OutTime?.split(" ")[1] === "00:00:00" ? "--" : employee.OutTime?.split(" ")[1] || '--'}
+                                                                    {formatTime(checkOutTime)}
                                                                 </td>
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                    {employee.Duration > 0 ? `${hours} Hours ${minutes} Minutes` : '--'}
+                                                                    {durationInMinutes > 0 ? `${hours} Hours ${minutes} Minutes` : '--'}
                                                                 </td>
                                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${dayTypeColor}`}>
