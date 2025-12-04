@@ -1674,130 +1674,96 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     return "00:00";
   }, [calculateTotalHours, formatTime, isWeekend, getWeekendCompOffEligibility]);
 
-  // Calculate working days for the current month including regularization
+  // Helper function to parse date from various formats
+  const parseAttendanceDate = useCallback((dateStr) => {
+    if (!dateStr) return null;
+    try {
+      // If already in calendar format (e.g., "3 November 2025")
+      if (typeof dateStr === 'string' && dateStr.match(/^\d{1,2}\s+\w+\s+\d{4}$/)) {
+        const parts = dateStr.split(' ');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const monthName = parts[1];
+          const year = parseInt(parts[2], 10);
+          const monthIndex = MONTHS.indexOf(monthName);
+          if (monthIndex !== -1) {
+            return new Date(year, monthIndex, day);
+          }
+        }
+      }
+      // Try parsing as standard date
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    } catch (error) {
+      console.warn('Error parsing date:', dateStr, error);
+    }
+    return null;
+  }, []);
+
+  // Calculate working days for the current month
+  // Working days = All weekdays (Mon-Fri for 5-day, Mon-Sat for 6-day) + Holidays
   const calculateWorkingDays = useCallback(() => {
-    if (!safeDayLogs || safeDayLogs.length === 0) return 0;
-    
-    const currentMonthLogs = safeDayLogs.filter(log => {
-      // Filter logs for current month
-      const logDate = new Date(log.AttendanceDate);
-      return logDate.getMonth() === currentMonth && logDate.getFullYear() === currentYear;
-    });
-    
-    let workingDays = 0;
-    let debugInfo = []; // For debugging purposes
-    
-    for (let i = 0; i < currentMonthLogs.length; i++) {
-      const log = currentMonthLogs[i];
-      const { AttendanceStatus, isLeaveTaken, leaveType } = log;
-      const date = log.AttendanceDate;
-      
-      // Debug: Log what we're processing
-      debugInfo.push({
-        date,
-        AttendanceStatus,
-        isLeaveTaken,
-        leaveType,
-        counted: false
-      });
-      
-      // Count as working day if ANY of these conditions are met:
-      
-      // 1. Weekend comp-off work (check first as it has priority)
-      const dayDate = new Date(log.AttendanceDate);
-      if (isWeekend(dayDate.getDate()) && log.PunchRecords) {
-        const compOffEligibility = getWeekendCompOffEligibility(log);
-        if (compOffEligibility === 'fullDay') {
-          workingDays++;
-          debugInfo[debugInfo.length - 1].counted = true;
-          debugInfo[debugInfo.length - 1].reason = "Weekend Full Day Comp-Off";
-          continue;
-        } else if (compOffEligibility === 'halfDay') {
-          workingDays++;
-          debugInfo[debugInfo.length - 1].counted = true;
-          debugInfo[debugInfo.length - 1].reason = "Weekend Half Day Comp-Off";
-          continue;
-        }
-      }
-      
-      // 2. Full Day or Half Day attendance (definitely working)
-      if (AttendanceStatus === "Full Day" || AttendanceStatus === "Half Day") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Full/Half Day";
-        continue;
-      }
-      
-      // 3. Regularization applied (RL) - this is a working day
-      if (leaveType === "regularized" || leaveType === "RL" ||
-          (isLeaveTaken === true && AttendanceStatus === "Absent") ||
-          log?.RegularizationStatus === "Approved" ||
-          log?.IsRegularized === true ||
-          log?.RegularizationType === "RL") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Regularization";
-        continue;
-      }
-      
-      // 4. Short Leave (SL) - this is a working day (partial)
-      if (leaveType === "shortLeave" || leaveType === "SL") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Short Leave";
-        continue;
-      }
-      
-      // 5. Comp-Off Leave - this is a working day
-      if (leaveType === "compOffLeave" || leaveType === "C-Off") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Comp-Off";
-        continue;
-      }
-      
-      // 6. Present attendance status
-      if (AttendanceStatus === "Present") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Attendance Present";
-        continue;
-      }
-      
-      // 7. Leave taken but not marked as absent (approved leaves)
-      if (isLeaveTaken === true && AttendanceStatus !== "Absent") {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Approved Leave";
-        continue;
-      }
-      
-      // 8. Other approved leave types (medical, casual, earned, etc.)
-      if (leaveType && leaveType !== "regularized" && leaveType !== "RL" && 
-          leaveType !== "shortLeave" && leaveType !== "SL" && 
-          leaveType !== "compOffLeave" && leaveType !== "C-Off") {
-        // Check if this is an approved leave type
-        if (isLeaveTaken === true || AttendanceStatus === "Present") {
-          workingDays++;
-          debugInfo[debugInfo.length - 1].counted = true;
-          debugInfo[debugInfo.length - 1].reason = `Other Leave: ${leaveType}`;
-          continue;
-        }
-      }
-      
-      // 9. Special case: If attendance status shows "Present" in any form
-      if (AttendanceStatus && AttendanceStatus.toLowerCase().includes("present")) {
-        workingDays++;
-        debugInfo[debugInfo.length - 1].counted = true;
-        debugInfo[debugInfo.length - 1].reason = "Attendance Present (variation)";
-        continue;
+    // Get working days configuration (5 or 6)
+    let workingDaysConfig = "5"; // Default to 5
+    if (safeDayLogs && safeDayLogs.length > 0) {
+      const dayWithConfig = safeDayLogs.find(log => log.workingDays);
+      if (dayWithConfig) {
+        workingDaysConfig = dayWithConfig.workingDays.toString();
       }
     }
     
-
+    // Get total days in the current month
+    const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    let workingDays = 0;
+    const holidaysSet = new Set(); // Track holidays to avoid double counting
+    
+    // Create a map of attendance data by date for quick lookup
+    const attendanceByDate = new Map();
+    if (safeDayLogs && safeDayLogs.length > 0) {
+      safeDayLogs.forEach(log => {
+        const logDate = parseAttendanceDate(log.AttendanceDate);
+        if (logDate && !isNaN(logDate.getTime()) && 
+            logDate.getMonth() === currentMonth && 
+            logDate.getFullYear() === currentYear) {
+          const day = logDate.getDate();
+          attendanceByDate.set(day, log);
+          
+          // Track holidays
+          if (log.AttendanceStatus === "Holiday" || log.isHoliday || log.IsHoliday) {
+            holidaysSet.add(day);
+          }
+        }
+      });
+    }
+    
+    // Loop through all days in the month
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(currentYear, currentMonth, day);
+      const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      
+      // Check if it's a weekday based on working days configuration
+      let isWeekday = false;
+      if (workingDaysConfig === "6") {
+        // 6 working days: Monday to Saturday (exclude only Sunday)
+        isWeekday = dayOfWeek !== 0; // Sunday = 0
+      } else {
+        // 5 working days: Monday to Friday (exclude Saturday and Sunday)
+        isWeekday = dayOfWeek !== 0 && dayOfWeek !== 6; // Sunday = 0, Saturday = 6
+      }
+      
+      // Count as working day if:
+      // 1. It's a weekday (Mon-Fri for 5-day, Mon-Sat for 6-day), OR
+      // 2. It's a holiday (holidays count as working days even if on weekend)
+      if (isWeekday || holidaysSet.has(day)) {
+        workingDays++;
+      }
+    }
     
     return workingDays;
-  }, [safeDayLogs, currentMonth, currentYear, isWeekend, getWeekendCompOffEligibility]);
+  }, [safeDayLogs, currentMonth, currentYear, parseAttendanceDate]);
 
   // Get detailed working days breakdown for debugging
   const getWorkingDaysBreakdown = useCallback(() => {
@@ -1824,8 +1790,8 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       const { AttendanceStatus, isLeaveTaken, leaveType } = log;
       
       // Check for weekend comp-off first
-      const dayDate = new Date(log.AttendanceDate);
-      if (isWeekend(dayDate.getDate()) && log.PunchRecords) {
+      const dayDate = parseAttendanceDate(log.AttendanceDate);
+      if (dayDate && !isNaN(dayDate.getTime()) && isWeekend(dayDate.getDate()) && log.PunchRecords) {
         const compOffEligibility = getWeekendCompOffEligibility(log);
         if (compOffEligibility === 'fullDay' || compOffEligibility === 'halfDay') {
           breakdown.weekendCompOff++;
@@ -1859,7 +1825,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     });
     
     return breakdown;
-  }, [safeDayLogs, currentMonth, currentYear, isWeekend, getWeekendCompOffEligibility]);
+  }, [safeDayLogs, currentMonth, currentYear, isWeekend, getWeekendCompOffEligibility, parseAttendanceDate]);
 
   // Get attendance summary for selected day
   const getAttendanceSummary = useCallback(() => {
