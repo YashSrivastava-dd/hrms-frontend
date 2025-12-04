@@ -53,7 +53,26 @@ const PunchRecords = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Get error details from response
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          console.error('Error response data:', errorData);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          
+          // Log detailed error for 400 errors
+          if (response.status === 400) {
+            console.error('=== 400 Bad Request Details ===');
+            console.error('Full error response:', JSON.stringify(errorData, null, 2));
+            console.error('Employee ID used:', employeeId);
+            console.error('Employee ID type:', typeof employeeId);
+            console.error('URL:', url);
+            console.error('================================');
+          }
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -66,6 +85,12 @@ const PunchRecords = () => {
       }
     } catch (err) {
       console.error('Error fetching punch records:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        employeeId: employeeId,
+        url: url
+      });
       setError(err.message);
     } finally {
       setLoading(false);

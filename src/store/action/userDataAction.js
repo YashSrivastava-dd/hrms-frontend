@@ -432,10 +432,22 @@ export const getAttendenceLogsOfEmploye =
       let newdateTo = dateToo ? dateToo : "";
       let newPage = page ? page : "";
       
-      const { data } = await axios.get(
-        `${process.env.REACT_APP_BASE_URL}/api/attendance-logs/${employeeId}?page=${newPage}&dateFrom=${newdateFrom}&dateTo=${newdateTo}`,
-        config
-      );
+      const url = `${process.env.REACT_APP_BASE_URL}/api/attendance-logs/${employeeId}?page=${newPage}&dateFrom=${newdateFrom}&dateTo=${newdateTo}`;
+      console.log('Fetching attendance logs from:', url);
+      console.log('Employee ID:', employeeId);
+      
+      const { data } = await axios.get(url, config);
+
+      console.log('Attendance logs API response:', data);
+      
+      // Log if PunchRecords are missing in the response
+      if (data?.data && Array.isArray(data.data)) {
+        const recordsWithoutPunchRecords = data.data.filter(record => !record.PunchRecords || record.PunchRecords === '');
+        if (recordsWithoutPunchRecords.length > 0) {
+          console.warn(`Warning: ${recordsWithoutPunchRecords.length} attendance records are missing PunchRecords field`);
+          console.warn('Sample record without PunchRecords:', recordsWithoutPunchRecords[0]);
+        }
+      }
 
       dispatch({
         type: GET_ATTENDANCE_LOGS_OF_EMPLOYEES_SUCCESS,
@@ -443,9 +455,11 @@ export const getAttendenceLogsOfEmploye =
       });
     } catch (error) {
       console.error('Error fetching attendance logs:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       dispatch({
         type: GET_ATTENDANCE_LOGS_OF_EMPLOYEES_FAIL,
-        payload: error.response?.data?.message || "Something went wrong",
+        payload: error.response?.data?.message || error.message || "Something went wrong",
       });
     }
   };
@@ -3164,7 +3178,14 @@ export const resetUserDataState = () => {
 export const getPunchRecordsForAttendanceAction =
   (employeeId) => async (dispatch, getState) => {
     const token = localStorage.getItem("authToken");
-    const employeId = employeeId || localStorage.getItem("employeId");
+    let employeId = employeeId || localStorage.getItem("employeId");
+    
+    // Clean and validate employee ID
+    if (employeId) {
+      employeId = String(employeId).trim();
+      // Remove any whitespace or special characters that might cause issues
+      employeId = employeId.replace(/[^a-zA-Z0-9]/g, '');
+    }
     
     if (!token) {
       return dispatch({
@@ -3179,6 +3200,15 @@ export const getPunchRecordsForAttendanceAction =
         payload: "Employee ID is required",
       });
     }
+    
+    // Log employee ID details for debugging
+    console.log('getPunchRecordsForAttendanceAction - Employee ID details:', {
+      originalEmployeeId: employeeId,
+      finalEmployeId: employeId,
+      employeIdType: typeof employeId,
+      employeIdLength: employeId?.length,
+      isNumeric: !isNaN(employeId) && !isNaN(parseFloat(employeId))
+    });
 
     try {
       dispatch({ type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_REQUEST });
@@ -3190,10 +3220,13 @@ export const getPunchRecordsForAttendanceAction =
         },
       };
 
-      const { data } = await axios.get(
-        `${process.env.REACT_APP_BASE_URL}/api/get-all-punch-records/${employeId}`,
-        config
-      );
+      const url = `${process.env.REACT_APP_BASE_URL}/api/get-all-punch-records/${employeId}`;
+      console.log('Fetching punch records from:', url);
+      console.log('Employee ID:', employeId);
+      console.log('Employee ID type:', typeof employeId);
+      console.log('Token present:', !!token);
+
+      const { data } = await axios.get(url, config);
 
       console.log('Punch records API response:', data);
 
@@ -3334,9 +3367,25 @@ export const getPunchRecordsForAttendanceAction =
       }
     } catch (error) {
       console.error('Error fetching punch records for attendance:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error status text:', error.response?.statusText);
+      console.error('Request URL:', error.config?.url);
+      console.error('Request method:', error.config?.method);
+      
+      // Log detailed error information for 400 errors
+      if (error.response?.status === 400) {
+        console.error('=== 400 Bad Request Details ===');
+        console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
+        console.error('Employee ID used:', employeId);
+        console.error('Employee ID length:', employeId?.length);
+        console.error('Employee ID trimmed:', employeId?.trim());
+        console.error('================================');
+      }
+      
       dispatch({
         type: GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
-        payload: error.response?.data?.message || "Something went wrong",
+        payload: error.response?.data?.message || error.response?.data?.error || error.message || "Something went wrong",
       });
     }
   };

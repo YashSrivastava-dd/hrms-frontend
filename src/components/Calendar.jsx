@@ -1860,14 +1860,92 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       return {
         date: formattedDate,
         totalHours: "00:00",
-        firstIn: "00:00",
-        lastOut: "00:00",
+        firstIn: "--",
+        lastOut: "--",
         status: isWeekendDay ? "Off Day" : "No Data",
         punchRecords: null
       };
     }
     
-    const effectiveHours = calculateEffectiveHours(dayData);
+    // Resolve times from all sources (InTime, OutTime, and PunchRecords)
+    const { resolvedInTime, resolvedOutTime } = resolveTimes(dayData);
+    
+    // Calculate effective hours from resolved times
+    let effectiveHours = "00:00";
+    if (resolvedInTime && resolvedOutTime) {
+      try {
+        const inTime = new Date(resolvedInTime);
+        const outTime = new Date(resolvedOutTime);
+        
+        if (!isNaN(inTime.getTime()) && !isNaN(outTime.getTime())) {
+          const diffMs = outTime - inTime;
+          if (diffMs > 0) {
+            const durationInMinutes = Math.floor(diffMs / (1000 * 60));
+            // Sanity check: duration should be reasonable (not more than 48 hours)
+            if (durationInMinutes <= 48 * 60) {
+              const hours = Math.floor(durationInMinutes / 60);
+              const minutes = durationInMinutes % 60;
+              effectiveHours = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error calculating effective hours from resolved times:', error);
+      }
+    }
+    
+    // If we couldn't calculate from resolved times, use the existing calculateEffectiveHours function
+    if (effectiveHours === "00:00") {
+      effectiveHours = calculateEffectiveHours(dayData);
+    }
+    
+    // Format resolved times for display
+    let firstIn = "--";
+    let lastOut = "--";
+    
+    if (resolvedInTime) {
+      try {
+        const inDate = new Date(resolvedInTime);
+        if (!isNaN(inDate.getTime())) {
+          const hours = inDate.getHours();
+          const mins = inDate.getMinutes();
+          const secs = inDate.getSeconds();
+          // Check if it's midnight (likely placeholder)
+          if (!(hours === 0 && mins === 0 && secs === 0)) {
+            firstIn = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}${secs > 0 ? `:${secs.toString().padStart(2, '0')}` : ''}`;
+          }
+        }
+      } catch (error) {
+        console.warn('Error formatting resolved in time:', error);
+      }
+    }
+    
+    if (resolvedOutTime) {
+      try {
+        const outDate = new Date(resolvedOutTime);
+        if (!isNaN(outDate.getTime())) {
+          const hours = outDate.getHours();
+          const mins = outDate.getMinutes();
+          const secs = outDate.getSeconds();
+          // Check if it's midnight (likely placeholder)
+          if (!(hours === 0 && mins === 0 && secs === 0)) {
+            lastOut = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}${secs > 0 ? `:${secs.toString().padStart(2, '0')}` : ''}`;
+          }
+        }
+      } catch (error) {
+        console.warn('Error formatting resolved out time:', error);
+      }
+    }
+    
+    // Fallback to formatTime if resolved times are not available
+    if (firstIn === "--" && dayData?.InTime) {
+      firstIn = formatTime(dayData.InTime);
+      if (firstIn === '--:--') firstIn = "--";
+    }
+    if (lastOut === "--" && dayData?.OutTime) {
+      lastOut = formatTime(dayData.OutTime);
+      if (lastOut === '--:--') lastOut = "--";
+    }
     
     // Check if this is a holiday
     const isHolidayDay = dayData?.isHoliday || 
@@ -1904,8 +1982,8 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     return {
       date: formattedDate,
       totalHours: effectiveHours,
-      firstIn: dayData?.InTime ? formatTime(dayData.InTime) : "00:00",
-      lastOut: dayData?.OutTime ? formatTime(dayData.OutTime) : "00:00",
+      firstIn: firstIn,
+      lastOut: lastOut,
       status: displayStatus,
       punchRecords: dayData?.PunchRecords || null,
       leaveType: dayData?.leaveType || dayData?.LeaveType || null,
@@ -1913,7 +1991,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       holidayName: holidayName,
       isHoliday: isHolidayDay
     };
-  }, [hoveredDay, currentMonth, currentYear, safeDayLogs, calculateEffectiveHours, formatTime, isWeekend, getWeekendCompOffEligibility]);
+  }, [hoveredDay, currentMonth, currentYear, safeDayLogs, calculateEffectiveHours, formatTime, isWeekend, getWeekendCompOffEligibility, resolveTimes]);
 
   // Calculate total effective hours for the current month
   const calculateTotalEffectiveHours = useCallback(() => {
@@ -2280,14 +2358,14 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
                 <span className="font-medium text-gray-800">{getHoveredDaySummary().totalHours}</span>
               </div>
               
-              {getHoveredDaySummary().firstIn !== "00:00" && (
+              {getHoveredDaySummary().firstIn && getHoveredDaySummary().firstIn !== "--" && getHoveredDaySummary().firstIn !== "00:00" && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">In:</span>
                   <span className="font-medium text-gray-800">{getHoveredDaySummary().firstIn}</span>
                 </div>
               )}
 
-              {getHoveredDaySummary().lastOut !== "00:00" && (
+              {getHoveredDaySummary().lastOut && getHoveredDaySummary().lastOut !== "--" && getHoveredDaySummary().lastOut !== "00:00" && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Out:</span>
                   <span className="font-medium text-gray-800">{getHoveredDaySummary().lastOut}</span>
