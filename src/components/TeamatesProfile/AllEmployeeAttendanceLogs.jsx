@@ -1,12 +1,12 @@
 import { IoChevronBackOutline } from 'react-icons/io5'
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Modal from "@mui/material/Modal";
 import Box from "@mui/material/Box";
-import { getAttendenceLogsOfEmploye } from '../../store/action/userDataAction';
+import { getAttendenceLogsOfEmploye, getAllUserDataAction } from '../../store/action/userDataAction';
 import Calendar from '../Calendar';
 import { FaLongArrowAltLeft } from "react-icons/fa";
 import { FaLongArrowAltRight } from "react-icons/fa";
@@ -28,7 +28,15 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
     const userDataList = userData?.data?.role || [];
     const { loading, data, error } = useSelector((state) => state.attendanceLogs);
     const employees = data?.data || [];
+    // Get employee data to access shift timing
+    const { data: allUserData } = useSelector((state) => state.allUserData);
+    const allEmployees = allUserData?.data || [];
     const dispatch = useDispatch();
+    
+    // Fetch employee data to get shift timing
+    useEffect(() => {
+        dispatch(getAllUserDataAction({ page: 1, limit: 1000 }));
+    }, [dispatch]);
     
     useEffect(() => {
         if (employeeTicket) {
@@ -38,6 +46,13 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
             dispatch(getAttendenceLogsOfEmploye(employeeTicket, dateFrom, dateTo, count));
         }
     }, [employeeTicket, date.startDate, date.endDate, count, dispatch]);
+    
+    // Get employee shift timing from allEmployees data
+    const employeeShiftTiming = useMemo(() => {
+        if (!employeeTicket || !allEmployees || allEmployees.length === 0) return null;
+        const employee = allEmployees.find(emp => emp.employeeId === employeeTicket);
+        return employee?.shiftTime || null;
+    }, [employeeTicket, allEmployees]);
 
     const handleOpenModal = (employee) => {
         setSelectedEmployee(employee);
@@ -484,12 +499,82 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
                                                             checkOutTime = allOutTimes[0].toISOString();
                                                         }
                                                         
-                                                        // Calculate Effective Hours from resolved times
+                                                        // Calculate Effective Hours by summing all IN-OUT pairs (actual time in office)
+                                                        // This accounts for breaks - e.g., IN 9am, OUT 1pm, IN 2pm, OUT 6pm = 4+4 = 8 hours
                                                         let hours = 0;
                                                         let minutes = 0;
                                                         let durationInMinutes = 0;
                                                         
-                                                        if (checkInTime && checkOutTime) {
+                                                        // If we have PunchRecords, calculate from all IN-OUT pairs
+                                                        if (employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
+                                                            try {
+                                                                const punchRecords = employee.PunchRecords;
+                                                                // Split by comma and clean
+                                                                const punches = punchRecords.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
+                                                                
+                                                                // Extract all IN and OUT times with their order
+                                                                const punchPairs = [];
+                                                                punches.forEach(punch => {
+                                                                    const lower = punch.toLowerCase();
+                                                                    const isIn = (lower.includes(':in') || lower.includes(' in') || lower.includes('in(') || lower.includes('(in')) && !lower.includes('out');
+                                                                    const isOut = (lower.includes(':out') || lower.includes(' out') || lower.includes('out(') || lower.includes('(out')) && !lower.includes('in');
+                                                                    
+                                                                    if (isIn || isOut) {
+                                                                        // Extract time from punch record
+                                                                        let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*(in|out)|\(|$)/i);
+                                                                        if (!timeMatch) {
+                                                                            timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                                                                        }
+                                                                        
+                                                                        if (timeMatch) {
+                                                                            const h = parseInt(timeMatch[1], 10);
+                                                                            const m = parseInt(timeMatch[2], 10);
+                                                                            
+                                                                            if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+                                                                                const totalMinutes = h * 60 + m;
+                                                                                punchPairs.push({
+                                                                                    time: totalMinutes,
+                                                                                    type: isIn ? 'IN' : 'OUT'
+                                                                                });
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                });
+                                                                
+                                                                // Sort by time
+                                                                punchPairs.sort((a, b) => a.time - b.time);
+                                                                
+                                                                // Calculate total by summing all IN-OUT pairs
+                                                                let currentIn = null;
+                                                                punchPairs.forEach(punch => {
+                                                                    if (punch.type === 'IN') {
+                                                                        if (currentIn === null) {
+                                                                            currentIn = punch.time;
+                                                                        }
+                                                                    } else if (punch.type === 'OUT') {
+                                                                        if (currentIn !== null) {
+                                                                            const duration = punch.time - currentIn;
+                                                                            if (duration > 0) {
+                                                                                durationInMinutes += duration;
+                                                                            }
+                                                                            currentIn = null;
+                                                                        }
+                                                                    }
+                                                                });
+                                                                
+                                                                hours = Math.floor(durationInMinutes / 60);
+                                                                minutes = durationInMinutes % 60;
+                                                                
+                                                                console.log('✓✓ Calculated Effective Hours from all IN-OUT pairs:', 
+                                                                    `${hours}h ${minutes}m (${durationInMinutes} minutes)`, 
+                                                                    `from ${punchPairs.length} punch records`);
+                                                            } catch (error) {
+                                                                console.warn('Error calculating duration from PunchRecords:', error);
+                                                            }
+                                                        }
+                                                        
+                                                        // Fallback: If no PunchRecords or calculation failed, use resolved times (earliest IN - latest OUT)
+                                                        if (durationInMinutes === 0 && checkInTime && checkOutTime) {
                                                             try {
                                                                 const inTime = new Date(checkInTime);
                                                                 const outTime = new Date(checkOutTime);
@@ -516,24 +601,108 @@ function AllEmployeeAttendanceLogs({ onBack, employeeTicket, employeeName, emplo
                                                                     }
                                                                 }
                                                             } catch (error) {
-                                                                console.warn('Error calculating duration:', error);
+                                                                console.warn('Error calculating duration from resolved times:', error);
                                                             }
                                                         }
                                                         
-                                                        // Use calculated duration or fall back to employee.Duration
+                                                        // Final fallback: Use employee.Duration if available
                                                         if (durationInMinutes === 0 && employee.Duration > 0) {
                                                             durationInMinutes = employee.Duration;
                                                             hours = Math.floor(durationInMinutes / 60);
                                                             minutes = durationInMinutes % 60;
                                                         }
                                                         
+                                                        // Calculate shift duration to determine Full Day vs Half Day
+                                                        // Try to get shift timing from employeeShiftTiming (from allEmployees), employee record, or first employee record
+                                                        let shiftDurationMinutes = 8 * 60; // Default 8 hours
+                                                        let shiftStartTime = null;
+                                                        let shiftEndTime = null;
+                                                        
+                                                        // Priority 1: Use employeeShiftTiming from allEmployees (most reliable)
+                                                        if (employeeShiftTiming?.startAt && employeeShiftTiming?.endAt) {
+                                                            shiftStartTime = employeeShiftTiming.startAt;
+                                                            shiftEndTime = employeeShiftTiming.endAt;
+                                                        }
+                                                        // Priority 2: Check if shift timing is available in current employee record
+                                                        else if (employee?.shiftTime?.startAt && employee?.shiftTime?.endAt) {
+                                                            shiftStartTime = employee.shiftTime.startAt;
+                                                            shiftEndTime = employee.shiftTime.endAt;
+                                                        } 
+                                                        // Priority 3: Try to get from first employee record (all records are for same employee)
+                                                        else if (employees && employees.length > 0) {
+                                                            const firstEmployee = employees[0];
+                                                            if (firstEmployee?.shiftTime?.startAt && firstEmployee?.shiftTime?.endAt) {
+                                                                shiftStartTime = firstEmployee.shiftTime.startAt;
+                                                                shiftEndTime = firstEmployee.shiftTime.endAt;
+                                                            }
+                                                        }
+                                                        
+                                                        // Calculate shift duration from start and end times
+                                                        if (shiftStartTime && shiftEndTime) {
+                                                            try {
+                                                                // Parse shift times (format: "10:00" or "10:00 AM" or "10:00:00")
+                                                                const parseTime = (timeStr) => {
+                                                                    if (!timeStr) return null;
+                                                                    // Remove AM/PM and extract hours:minutes
+                                                                    const cleaned = timeStr.replace(/\s*(AM|PM|am|pm)\s*/i, '').trim();
+                                                                    const parts = cleaned.split(':');
+                                                                    if (parts.length >= 2) {
+                                                                        let h = parseInt(parts[0], 10);
+                                                                        const m = parseInt(parts[1], 10);
+                                                                        
+                                                                        // Handle 12-hour format
+                                                                        if (timeStr.toLowerCase().includes('pm') && h !== 12) {
+                                                                            h += 12;
+                                                                        } else if (timeStr.toLowerCase().includes('am') && h === 12) {
+                                                                            h = 0;
+                                                                        }
+                                                                        
+                                                                        return { hours: h, minutes: m || 0 };
+                                                                    }
+                                                                    return null;
+                                                                };
+                                                                
+                                                                const start = parseTime(shiftStartTime);
+                                                                const end = parseTime(shiftEndTime);
+                                                                
+                                                                if (start && end) {
+                                                                    const startMinutes = start.hours * 60 + start.minutes;
+                                                                    let endMinutes = end.hours * 60 + end.minutes;
+                                                                    
+                                                                    // Handle case where end time is next day (e.g., night shift)
+                                                                    if (endMinutes < startMinutes) {
+                                                                        endMinutes += 24 * 60; // Add 24 hours
+                                                                    }
+                                                                    
+                                                                    shiftDurationMinutes = endMinutes - startMinutes;
+                                                                    
+                                                                    console.log('Shift timing calculated:', {
+                                                                        startAt: shiftStartTime,
+                                                                        endAt: shiftEndTime,
+                                                                        shiftDurationMinutes,
+                                                                        shiftDurationHours: shiftDurationMinutes / 60
+                                                                    });
+                                                                }
+                                                            } catch (error) {
+                                                                console.warn('Error calculating shift duration:', error);
+                                                                // Fall back to default 8 hours
+                                                                shiftDurationMinutes = 8 * 60;
+                                                            }
+                                                        }
+                                                        
+                                                        // Determine Full Day and Half Day thresholds based on shift duration
+                                                        // Full Day = >= 80% of shift duration
+                                                        // Half Day = >= 50% but < 80% of shift duration
+                                                        const fullDayThreshold = Math.floor(shiftDurationMinutes * 0.8); // 80% of shift
+                                                        const halfDayThreshold = Math.floor(shiftDurationMinutes * 0.5); // 50% of shift
+                                                        
                                                         let dayType = "Off Day";
                                                         let dayTypeColor = "bg-gray-100 text-gray-800";
                                                         
-                                                        if (durationInMinutes >= 4 * 60 && durationInMinutes < 8 * 60 + 20) {
+                                                        if (durationInMinutes >= halfDayThreshold && durationInMinutes < fullDayThreshold) {
                                                             dayType = "Half Day";
                                                             dayTypeColor = "bg-yellow-100 text-yellow-800";
-                                                        } else if (durationInMinutes >= 8 * 60 + 20) {
+                                                        } else if (durationInMinutes >= fullDayThreshold) {
                                                             dayType = "Full Day";
                                                             dayTypeColor = "bg-green-100 text-green-800";
                                                         }

@@ -221,21 +221,66 @@ const AttendanceCard = React.memo(({ attendanceData, date, isLoading }) => {
     if (!punchRecords) return "00:00";
     
     const punches = cleanPunchRecords(punchRecords);
-    const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
-    const outTimes = punches.filter(p => p.includes("(OUT")).map(p => formatTime(p));
     
-    if (inTimes.length === 0 || outTimes.length === 0) return "00:00";
+    // Extract all IN and OUT times with their order
+    const punchPairs = [];
+    punches.forEach(punch => {
+      const lower = punch.toLowerCase();
+      const isIn = (lower.includes(':in') || lower.includes(' in') || lower.includes('in(') || lower.includes('(in')) && !lower.includes('out');
+      const isOut = (lower.includes(':out') || lower.includes(' out') || lower.includes('out(') || lower.includes('(out')) && !lower.includes('in');
+      
+      if (isIn || isOut) {
+        // Extract time from punch record
+        let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*(in|out)|\(|$)/i);
+        if (!timeMatch) {
+          timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        }
+        
+        if (timeMatch) {
+          const hours = parseInt(timeMatch[1], 10);
+          const mins = parseInt(timeMatch[2], 10);
+          const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+          
+          if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
+            const totalMinutes = hours * 60 + mins;
+            punchPairs.push({
+              time: totalMinutes,
+              type: isIn ? 'IN' : 'OUT',
+              original: punch
+            });
+          }
+        }
+      }
+    });
     
-    // Calculate total hours from first in and last out
-    const firstIn = inTimes[0];
-    const lastOut = outTimes[outTimes.length - 1];
+    // Sort by time
+    punchPairs.sort((a, b) => a.time - b.time);
     
-    if (!firstIn || !lastOut) return "00:00";
+    // Calculate total hours by summing all IN-OUT pairs (actual time in office)
+    let totalMinutes = 0;
+    let currentIn = null;
     
-    const inMinutes = parseInt(firstIn.split(':')[0]) * 60 + parseInt(firstIn.split(':')[1]);
-    const outMinutes = parseInt(lastOut.split(':')[0]) * 60 + parseInt(lastOut.split(':')[1]);
+    punchPairs.forEach(punch => {
+      if (punch.type === 'IN') {
+        // If we already have an IN without an OUT, ignore the new IN (shouldn't happen, but handle it)
+        if (currentIn === null) {
+          currentIn = punch.time;
+        }
+      } else if (punch.type === 'OUT') {
+        // If we have an IN, calculate the duration
+        if (currentIn !== null) {
+          const duration = punch.time - currentIn;
+          if (duration > 0) {
+            totalMinutes += duration;
+          }
+          currentIn = null; // Reset for next pair
+        }
+      }
+    });
     
-    const totalMinutes = outMinutes - inMinutes;
+    // If there's an unmatched IN (employee still in office), don't count it
+    // (currentIn will remain set, but we don't add it to total)
+    
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     
@@ -616,7 +661,7 @@ const Dashboard = ({ reloadHandel }) => {
                   )}
                 </div>
               </>
-            ) : userDataList?.role === "Super-Admin" ? (
+            ) : userDataList?.role === "Super-Admin" || userDataList?.role === "CEO" ? (
               <>
                 <CeoDashboard />
               </>

@@ -243,18 +243,39 @@ const EmployeesAttendanceData = () => {
     dispatch(getUserDataAction());
   }, [dispatch])
 
+  // Track if this is the initial mount to ensure we always fetch on page load
+  const isInitialMount = React.useRef(true);
+
   useEffect(() => {
+    // Always fetch fresh data when component mounts or dependencies change
     const dateFrom = date.startDate?.format("YYYY-MM-DD");
     const dateTo = date.endDate?.format("YYYY-MM-DD");
+    
+    // Log when API calls are being made
+    if (isInitialMount.current) {
+      console.log('🔄 Attendance page mounted - fetching fresh data');
+      isInitialMount.current = false;
+    } else {
+      console.log('🔄 Attendance data dependencies changed - refetching');
+    }
+    
     if (userDataList?.role === "HR-Admin") {
-      dispatch(getAllEmployeeAtendenceAction(dateFrom, dateTo, count))
+      // For HR-Admin, fetch all employee attendance
+      console.log('📡 API Call: getAllEmployeeAtendenceAction', { dateFrom, dateTo, count });
+      dispatch(getAllEmployeeAtendenceAction(dateFrom, dateTo, count));
       return;
     }
     else {
-      // Fetch both attendance logs and punch records for employee
+      // For regular employees, fetch both attendance logs and punch records
+      // Always make API calls to ensure fresh data
+      if (employeeId) {
+        console.log('📡 API Call: getAttendenceLogsOfEmploye', { employeeId, dateFrom, dateTo, count });
+        console.log('📡 API Call: getPunchRecordsForAttendanceAction', { employeeId });
       dispatch(getAttendenceLogsOfEmploye(employeeId, dateFrom, dateTo, count));
-      // Also fetch punch records as fallback/primary source
       dispatch(getPunchRecordsForAttendanceAction(employeeId));
+      } else {
+        console.warn('⚠️ No employeeId found - cannot fetch attendance data');
+      }
       return;
     }
 
@@ -779,29 +800,90 @@ const EmployeesAttendanceData = () => {
                         console.log('⚠⚠ No valid IN/OUT times found for date:', employee.AttendanceDate, 'Employee:', employee?.EmployeeName);
                       }
                       
-                      // Calculate Effective Hours from resolved IN and OUT times
-                      // Effective Hours = OUT time - IN time (using the earliest IN and latest OUT)
+                      // Calculate Effective Hours by summing all IN-OUT pairs (actual time in office)
+                      // This accounts for breaks - e.g., IN 9am, OUT 1pm, IN 2pm, OUT 6pm = 4+4 = 8 hours
                       let hours = 0;
                       let minutes = 0;
                       let durationInMinutes = 0;
                       
-                      if (checkInTime && checkOutTime) {
+                      // If we have PunchRecords, calculate from all IN-OUT pairs
+                      if (employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
                         try {
-                          // Both times are in ISO format from our extraction
+                          const punchRecords = employee.PunchRecords;
+                          // Split by comma and clean
+                          const punches = punchRecords.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
+                          
+                          // Extract all IN and OUT times with their order
+                          const punchPairs = [];
+                          punches.forEach(punch => {
+                            const lower = punch.toLowerCase();
+                            const isIn = (lower.includes(':in') || lower.includes(' in') || lower.includes('in(') || lower.includes('(in')) && !lower.includes('out');
+                            const isOut = (lower.includes(':out') || lower.includes(' out') || lower.includes('out(') || lower.includes('(out')) && !lower.includes('in');
+                            
+                            if (isIn || isOut) {
+                              // Extract time from punch record
+                              let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*(in|out)|\(|$)/i);
+                              if (!timeMatch) {
+                                timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                              }
+                              
+                              if (timeMatch) {
+                                const h = parseInt(timeMatch[1], 10);
+                                const m = parseInt(timeMatch[2], 10);
+                                
+                                if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+                                  const totalMinutes = h * 60 + m;
+                                  punchPairs.push({
+                                    time: totalMinutes,
+                                    type: isIn ? 'IN' : 'OUT'
+                                  });
+                                }
+                              }
+                            }
+                          });
+                          
+                          // Sort by time
+                          punchPairs.sort((a, b) => a.time - b.time);
+                          
+                          // Calculate total by summing all IN-OUT pairs
+                          let currentIn = null;
+                          punchPairs.forEach(punch => {
+                            if (punch.type === 'IN') {
+                              if (currentIn === null) {
+                                currentIn = punch.time;
+                              }
+                            } else if (punch.type === 'OUT') {
+                              if (currentIn !== null) {
+                                const duration = punch.time - currentIn;
+                                if (duration > 0) {
+                                  durationInMinutes += duration;
+                                }
+                                currentIn = null;
+                              }
+                            }
+                          });
+                          
+                          hours = Math.floor(durationInMinutes / 60);
+                          minutes = durationInMinutes % 60;
+                          
+                          console.log('✓✓ Calculated Effective Hours from all IN-OUT pairs:', 
+                            `${hours}h ${minutes}m (${durationInMinutes} minutes)`, 
+                            `from ${punchPairs.length} punch records`);
+                        } catch (error) {
+                          console.warn('Error calculating duration from PunchRecords:', error);
+                        }
+                      }
+                      
+                      // Fallback: If no PunchRecords or calculation failed, use resolved times (earliest IN - latest OUT)
+                      if (durationInMinutes === 0 && checkInTime && checkOutTime) {
+                        try {
                           const inTime = new Date(checkInTime);
                           const outTime = new Date(checkOutTime);
                           
-                          // Validate dates
-                          if (isNaN(inTime.getTime()) || isNaN(outTime.getTime())) {
-                            console.warn('⚠ Invalid date objects for duration calculation');
-                          } else {
-                            // Validate years are reasonable
+                          if (!isNaN(inTime.getTime()) && !isNaN(outTime.getTime())) {
                             const inYear = inTime.getFullYear();
                             const outYear = outTime.getFullYear();
-                            if (inYear < 2000 || inYear > 2100 || outYear < 2000 || outYear > 2100) {
-                              console.warn('⚠ Invalid year in date objects:', { inYear, outYear });
-                            } else {
-                              // Check if times are midnight (likely placeholders)
+                            if (inYear >= 2000 && inYear <= 2100 && outYear >= 2000 && outYear <= 2100) {
                               const inHours = inTime.getHours();
                               const inMins = inTime.getMinutes();
                               const inSecs = inTime.getSeconds();
@@ -809,41 +891,24 @@ const EmployeesAttendanceData = () => {
                               const outMins = outTime.getMinutes();
                               const outSecs = outTime.getSeconds();
                               
-                              if (inHours === 0 && inMins === 0 && inSecs === 0) {
-                                console.warn('⚠ IN time is midnight (00:00:00), skipping duration calculation');
-                              } else if (outHours === 0 && outMins === 0 && outSecs === 0) {
-                                console.warn('⚠ OUT time is midnight (00:00:00), skipping duration calculation');
-                              } else {
-                            const diffMs = outTime - inTime;
-                            if (diffMs > 0) {
-                                  // Calculate duration in minutes (including seconds)
-                              durationInMinutes = Math.floor(diffMs / (1000 * 60));
-                                  
-                                  // Sanity check: duration should be reasonable (not more than 24 hours = 1440 minutes)
-                                  // But allow up to 48 hours for edge cases
-                                  if (durationInMinutes > 48 * 60) {
-                                    console.warn('⚠ Duration seems unreasonably large:', durationInMinutes, 'minutes. Skipping calculation.');
-                                    durationInMinutes = 0;
-                                  } else {
-                              hours = Math.floor(durationInMinutes / 60);
-                              minutes = durationInMinutes % 60;
-                                    console.log('✓✓ Calculated Effective Hours from resolved times:', 
-                                      `${hours}h ${minutes}m (${durationInMinutes} minutes)`);
-                                    console.log('  → IN:', inTime.toISOString(), 'OUT:', outTime.toISOString());
+                              if (!(inHours === 0 && inMins === 0 && inSecs === 0) && 
+                                  !(outHours === 0 && outMins === 0 && outSecs === 0)) {
+                                const diffMs = outTime - inTime;
+                                if (diffMs > 0) {
+                                  durationInMinutes = Math.floor(diffMs / (1000 * 60));
+                                  if (durationInMinutes <= 48 * 60) {
+                                    hours = Math.floor(durationInMinutes / 60);
+                                    minutes = durationInMinutes % 60;
+                                    console.log('✓✓ Calculated Effective Hours from resolved times (fallback):', 
+                                      `${hours}h ${minutes}m`);
                                   }
-                                } else {
-                                  console.warn('⚠ OUT time is earlier than IN time, cannot calculate duration');
                                 }
                               }
                             }
                           }
                         } catch (error) {
-                          console.warn('Error calculating duration from resolved checkInTime/checkOutTime:', error);
+                          console.warn('Error calculating duration from resolved times:', error);
                         }
-                      } else {
-                        console.log('⚠ Cannot calculate duration - missing IN or OUT time');
-                        if (!checkInTime) console.log('  → Missing checkInTime');
-                        if (!checkOutTime) console.log('  → Missing checkOutTime');
                       }
                       
                       // Final summary log (after duration calculation)

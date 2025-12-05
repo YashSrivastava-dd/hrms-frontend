@@ -23,6 +23,7 @@ const PunchRecords = () => {
   }, [employeeId, data]);
 
   const fetchPunchRecords = async () => {
+    let url = null; // Declare url outside try block so it's accessible in catch
     try {
       setLoading(true);
       setError(null);
@@ -38,7 +39,7 @@ const PunchRecords = () => {
       }
 
       const baseUrl = process.env.REACT_APP_BASE_URL || 'http://13.238.116.26:3001';
-      const url = `${baseUrl}/api/get-all-punch-records/${employeeId}`;
+      url = `${baseUrl}/api/get-all-punch-records/${employeeId}`;
       
       console.log('Fetching punch records from:', url);
       console.log('Using token:', token ? 'Token present' : 'No token');
@@ -89,7 +90,7 @@ const PunchRecords = () => {
         message: err.message,
         stack: err.stack,
         employeeId: employeeId,
-        url: url
+        url: url || 'URL not constructed (error occurred before URL creation)'
       });
       setError(err.message);
     } finally {

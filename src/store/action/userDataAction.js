@@ -1,6 +1,51 @@
 import axios from "axios";
 import { safeGetLocalStorage, isPrivateBrowsing } from "../../utils/safariHelpers";
 import safeToast from "../../utils/safeToast";
+
+// Add axios interceptor to log all network requests for debugging
+axios.interceptors.request.use(
+  (config) => {
+    // Log all outgoing requests
+    console.log('🌐 [AXIOS INTERCEPTOR] Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL || ''}${config.url || ''}`,
+      headers: config.headers,
+      timestamp: new Date().toISOString()
+    });
+    return config;
+  },
+  (error) => {
+    console.error('❌ [AXIOS INTERCEPTOR] Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+axios.interceptors.response.use(
+  (response) => {
+    // Log all successful responses
+    console.log('✅ [AXIOS INTERCEPTOR] Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.config.url,
+      dataLength: response.data ? JSON.stringify(response.data).length : 0,
+      timestamp: new Date().toISOString()
+    });
+    return response;
+  },
+  (error) => {
+    // Log all error responses
+    console.error('❌ [AXIOS INTERCEPTOR] Response Error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+    return Promise.reject(error);
+  }
+);
 import {
   ALL_EMPLOYEE_DATA_FAIL,
   ALL_EMPLOYEE_DATA_REQUEST,
@@ -430,13 +475,43 @@ export const getAttendenceLogsOfEmploye =
       
       let newdateFrom = dateFrom ? dateFrom : "";
       let newdateTo = dateToo ? dateToo : "";
-      let newPage = page ? page : "";
       
-      const url = `${process.env.REACT_APP_BASE_URL}/api/attendance-logs/${employeeId}?page=${newPage}&dateFrom=${newdateFrom}&dateTo=${newdateTo}`;
-      console.log('Fetching attendance logs from:', url);
-      console.log('Employee ID:', employeeId);
+      // Build query parameters conditionally
+      const queryParams = new URLSearchParams();
+      if (page) {
+        queryParams.append('page', page);
+      }
+      if (newdateFrom) {
+        queryParams.append('dateFrom', newdateFrom);
+      }
+      if (newdateTo) {
+        queryParams.append('dateTo', newdateTo);
+      }
       
+      const queryString = queryParams.toString();
+      // Add timestamp to prevent caching and ensure visibility in Network tab
+      const timestamp = Date.now();
+      const separator = queryString ? '&' : '?';
+      const url = `${process.env.REACT_APP_BASE_URL}/api/attendance-logs/${employeeId}${queryString ? `?${queryString}` : ''}${separator}_t=${timestamp}`;
+      
+      console.log('🌐 [NETWORK] Making API request:', {
+        method: 'GET',
+        url: url,
+        employeeId: employeeId,
+        timestamp: new Date(timestamp).toISOString(),
+        config: config
+      });
+      
+      const requestStartTime = performance.now();
       const { data } = await axios.get(url, config);
+      const requestDuration = performance.now() - requestStartTime;
+      
+      console.log('✅ [NETWORK] API request completed:', {
+        url: url,
+        duration: `${requestDuration.toFixed(2)}ms`,
+        status: '200 OK',
+        dataLength: data?.data?.length || 0
+      });
 
       console.log('Attendance logs API response:', data);
       
@@ -3220,13 +3295,30 @@ export const getPunchRecordsForAttendanceAction =
         },
       };
 
-      const url = `${process.env.REACT_APP_BASE_URL}/api/get-all-punch-records/${employeId}`;
-      console.log('Fetching punch records from:', url);
-      console.log('Employee ID:', employeId);
-      console.log('Employee ID type:', typeof employeId);
-      console.log('Token present:', !!token);
+      // Add timestamp to prevent caching and ensure visibility in Network tab
+      const timestamp = Date.now();
+      const url = `${process.env.REACT_APP_BASE_URL}/api/get-all-punch-records/${employeId}?_t=${timestamp}`;
+      
+      console.log('🌐 [NETWORK] Making API request:', {
+        method: 'GET',
+        url: url,
+        employeeId: employeId,
+        employeeIdType: typeof employeId,
+        tokenPresent: !!token,
+        timestamp: new Date(timestamp).toISOString(),
+        config: config
+      });
 
+      const requestStartTime = performance.now();
       const { data } = await axios.get(url, config);
+      const requestDuration = performance.now() - requestStartTime;
+      
+      console.log('✅ [NETWORK] API request completed:', {
+        url: url,
+        duration: `${requestDuration.toFixed(2)}ms`,
+        status: '200 OK',
+        dataLength: data?.data?.length || 0
+      });
 
       console.log('Punch records API response:', data);
 

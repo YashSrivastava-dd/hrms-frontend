@@ -99,6 +99,11 @@ function CeoDashboard() {
 
     useEffect(() => {
         // Don't call getUserDataAction here - it's already called in App.js
+        console.log('CEO Dashboard: Fetching data...', {
+            userRole: userDataList?.role,
+            employeeName: userDataList?.employeeName
+        });
+        
         dispatch(getEmployeeDataCountAction());
         dispatch(getAllUserDataAction({ page: 1, limit: 1000 })); // Get all employees for department filtering
         dispatch(getGraphDataForEmployeeAction());
@@ -107,7 +112,21 @@ function CeoDashboard() {
         dispatch(getEmployeeLeaveCountAction());
         dispatch(getOnLeaveStatusAction());
         dispatch(getHolidaysDataAction());
-    }, [dispatch]);
+    }, [dispatch, userDataList?.role]);
+    
+    // Debug: Log data when it arrives
+    useEffect(() => {
+        console.log('CEO Dashboard: Data received', {
+            countData: countData?.data,
+            allEmployeeData: allEmployeeData?.data?.length,
+            graphData: graphData?.data,
+            announcementData: announcementData?.data?.length,
+            leaveRequestsData: leaveRequestsData?.data?.length,
+            leaveCountData: leaveCountData?.data,
+            onLeaveData: onLeaveData?.data?.length,
+            holidaysData: holidaysData?.data?.length
+        });
+    }, [countData, allEmployeeData, graphData, announcementData, leaveRequestsData, leaveCountData, onLeaveData, holidaysData]);
 
     // Helper function to get greeting based on time - Safari-safe
     const getGreeting = () => {

@@ -425,11 +425,21 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     const allAttendanceDataFromState = allAttendanceData?.data || [];
     const punchData = punchRecordsData?.data || [];
     
+    console.log('Calendar processedAttendanceData - input data:', {
+      attendanceLogsCount: attendanceData.length,
+      allAttendanceCount: allAttendanceDataFromState.length,
+      punchRecordsCount: punchData.length,
+      sampleAttendance: attendanceData[0],
+      sampleAllAttendance: allAttendanceDataFromState[0],
+      samplePunch: punchData[0]
+    });
+    
     // Create a hash of data lengths to detect changes
     const dataHash = `${attendanceData.length}-${allAttendanceDataFromState.length}-${punchData.length}`;
     
     // If data hasn't changed, return cached result
     if (processedDataCacheRef.current && lastDataHashRef.current === dataHash) {
+      console.log('Calendar: Using cached processedAttendanceData');
       return processedDataCacheRef.current;
     }
     
@@ -551,25 +561,63 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       // Cache the result
       processedDataCacheRef.current = mergedData;
       lastDataHashRef.current = dataHash;
+      console.log('Calendar processedAttendanceData - merged result:', {
+        count: mergedData.length,
+        sampleRecords: mergedData.slice(0, 3).map(r => ({
+          AttendanceDate: r.AttendanceDate,
+          Status: r.Status,
+          AttendanceStatus: r.AttendanceStatus,
+          InTime: r.InTime,
+          OutTime: r.OutTime
+        }))
+      });
       return mergedData;
     }
     
-    const result = primaryAttendanceData.map(record => {
-      const formattedDate = formatDateForCalendar(record.AttendanceDate) || record.AttendanceDate;
-      const { resolvedInTime, resolvedOutTime } = resolveTimes(record);
-      return {
-        ...record,
-        AttendanceDate: formattedDate,
-        InTime: resolvedInTime || record.InTime,
-        OutTime: resolvedOutTime || record.OutTime,
-      };
-    });
+    // Fallback: if we have primaryAttendanceData but didn't match any condition above, format and return it
+    if (primaryAttendanceData.length > 0) {
+      const result = primaryAttendanceData.map(record => {
+        const formattedDate = formatDateForCalendar(record.AttendanceDate) || record.AttendanceDate;
+        const { resolvedInTime, resolvedOutTime } = resolveTimes(record);
+        return {
+          ...record,
+          AttendanceDate: formattedDate,
+          InTime: resolvedInTime || record.InTime,
+          OutTime: resolvedOutTime || record.OutTime,
+        };
+      });
+      // Cache the result
+      processedDataCacheRef.current = result;
+      lastDataHashRef.current = dataHash;
+      console.log('Calendar processedAttendanceData - fallback result:', {
+        count: result.length,
+        sampleRecords: result.slice(0, 3).map(r => ({
+          AttendanceDate: r.AttendanceDate,
+          Status: r.Status,
+          AttendanceStatus: r.AttendanceStatus
+        }))
+      });
+      return result;
+    }
+    
+    // Final fallback: return empty array
+    processedDataCacheRef.current = [];
+    lastDataHashRef.current = dataHash;
+    return [];
   }, [attendanceLogsData?.data?.length, allAttendanceData?.data?.length, punchRecordsData?.data?.length, resolveTimes, formatDateForCalendar, normalizeDate]);
 
   // Merge calendar API data with attendance data - attendance data takes priority
   const dayLogs = useMemo(() => {
     // PRIORITY 1: Use processed attendance data (same as attendance table) if available
+    console.log('Calendar dayLogs useMemo - processedAttendanceData:', {
+      exists: !!processedAttendanceData,
+      isArray: Array.isArray(processedAttendanceData),
+      length: processedAttendanceData?.length,
+      sample: processedAttendanceData?.[0]
+    });
+    
     if (processedAttendanceData && Array.isArray(processedAttendanceData) && processedAttendanceData.length > 0) {
+      console.log('Calendar: Using processedAttendanceData, count:', processedAttendanceData.length);
       return processedAttendanceData;
     }
     
@@ -669,11 +717,17 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     });
     
     return mergedData;
-  }, [processedAttendanceData?.length, calendarLogs?.length, dataaa?.data?.length, transformedPunchRecords?.length, resolveTimes]);
+  }, [processedAttendanceData, calendarLogs?.length, dataaa?.data?.length, transformedPunchRecords?.length, resolveTimes]);
   
   // Ensure dayLogs is always an array (never undefined or null)
   const safeDayLogs = useMemo(() => {
-    return Array.isArray(dayLogs) ? dayLogs : [];
+    const result = Array.isArray(dayLogs) ? dayLogs : [];
+    console.log('Calendar safeDayLogs - result:', {
+      count: result.length,
+      sample: result[0],
+      allDates: result.slice(0, 5).map(r => r?.AttendanceDate)
+    });
+    return result;
   }, [dayLogs]);
   
   const userDataList = dataa?.data || [];
@@ -884,10 +938,119 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
 
 
 
+  // Helper function to normalize and compare dates
+  const normalizeDateForComparison = useCallback((dateStr, targetYear, targetMonth, targetDay) => {
+    if (!dateStr) return false;
+    try {
+      // Try parsing as Date object first
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        const dateDay = date.getDate();
+        const dateMonth = date.getMonth();
+        const dateYear = date.getFullYear();
+        
+        // Check if dates match
+        if (dateDay === targetDay && dateMonth === targetMonth && dateYear === targetYear) {
+          return true;
+        }
+      }
+      
+      // Try string matching for calendar format "3 November 2025" or "03 November 2025"
+      const dateStrLower = dateStr.toString().toLowerCase().trim();
+      const monthNameLower = MONTHS[targetMonth].toLowerCase();
+      
+      // Check if it contains the day, month, and year
+      const hasDay = dateStrLower.includes(`${targetDay}`) || dateStrLower.match(new RegExp(`\\b${targetDay}\\b`));
+      const hasMonth = dateStrLower.includes(monthNameLower);
+      const hasYear = dateStrLower.includes(`${targetYear}`);
+      
+      if (hasDay && hasMonth && hasYear) {
+        return true;
+      }
+      
+      // Try ISO format "2025-11-03" or "2025-11-03T..." or "2025/11/03"
+      const isoMatch = dateStr.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        const parsedYear = parseInt(year, 10);
+        const parsedMonth = parseInt(month, 10);
+        const parsedDay = parseInt(day, 10);
+        
+        // ISO months are 1-based, JavaScript months are 0-based
+        if (parsedYear === targetYear && 
+            parsedMonth === targetMonth + 1 && 
+            parsedDay === targetDay) {
+          return true;
+        }
+      }
+      
+      // Try format like "11/03/2025" or "03/11/2025" (US format)
+      const usFormatMatch = dateStr.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (usFormatMatch) {
+        const [, monthOrDay, dayOrMonth, year] = usFormatMatch;
+        const parsedYear = parseInt(year, 10);
+        const parsedMonth = parseInt(monthOrDay, 10);
+        const parsedDay = parseInt(dayOrMonth, 10);
+        
+        // Try both interpretations (MM/DD/YYYY and DD/MM/YYYY)
+        if (parsedYear === targetYear) {
+          // Try MM/DD/YYYY first
+          if (parsedMonth === targetMonth + 1 && parsedDay === targetDay) {
+            return true;
+          }
+          // Try DD/MM/YYYY
+          if (parsedDay === targetMonth + 1 && parsedMonth === targetDay) {
+            return true;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error in normalizeDateForComparison:', e, dateStr);
+      return false;
+    }
+    return false;
+  }, []);
+
   // Memoized functions
   const getDayType = useCallback((day) => {
     const formattedDate = `${day} ${MONTHS[currentMonth]} ${currentYear}`;
-    const dayOff = safeDayLogs.find((off) => off.AttendanceDate === formattedDate);
+    // Try to find by exact match first
+    let dayOff = safeDayLogs.find((off) => off.AttendanceDate === formattedDate);
+    
+    // If not found, try to find by parsing and comparing dates
+    if (!dayOff) {
+      dayOff = safeDayLogs.find((off) => {
+        return normalizeDateForComparison(off.AttendanceDate, currentYear, currentMonth, day);
+      });
+    }
+    
+    // Debug logging for first few days to see what's happening
+    if (day <= 5 && safeDayLogs.length > 0) {
+      // Try to find matching dates using normalization
+      const matchingDates = safeDayLogs.filter(log => 
+        normalizeDateForComparison(log.AttendanceDate, currentYear, currentMonth, day)
+      );
+      
+      console.log(`Calendar getDayType for ${formattedDate}:`, {
+        found: !!dayOff,
+        safeDayLogsCount: safeDayLogs.length,
+        sampleDates: safeDayLogs.slice(0, 5).map(log => ({
+          AttendanceDate: log.AttendanceDate,
+          Status: log.Status,
+          AttendanceStatus: log.AttendanceStatus
+        })),
+        matchingDatesCount: matchingDates.length,
+        matchingDates: matchingDates.map(log => ({
+          AttendanceDate: log.AttendanceDate,
+          Status: log.Status
+        })),
+        dayOffData: dayOff ? {
+          AttendanceDate: dayOff.AttendanceDate,
+          Status: dayOff.Status,
+          AttendanceStatus: dayOff.AttendanceStatus
+        } : null
+      });
+    }
     
     if (!dayOff) {
       return {
@@ -925,7 +1088,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       holidayName: dayOff?.holidayName || dayOff?.HolidayName || null,
       isHoliday: dayOff?.isHoliday || dayOff?.IsHoliday || false
     };
-  }, [safeDayLogs, currentMonth, currentYear]);
+  }, [safeDayLogs, currentMonth, currentYear, normalizeDateForComparison]);
 
   // Format time helper function
   const formatTime = useCallback((timeString) => {
@@ -966,26 +1129,71 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     if (!punchRecords) return "00:00";
     
     const punches = cleanPunchRecords(punchRecords);
-    const inTimes = punches.filter(p => p.includes("(IN")).map(p => formatTime(p));
-    const outTimes = punches.filter(p => p.includes("(OUT")).map(p => formatTime(p));
     
-    if (inTimes.length === 0 || outTimes.length === 0) return "00:00";
+    // Extract all IN and OUT times with their order
+    const punchPairs = [];
+    punches.forEach(punch => {
+      const lower = punch.toLowerCase();
+      const isIn = (lower.includes(':in') || lower.includes(' in') || lower.includes('in(') || lower.includes('(in')) && !lower.includes('out');
+      const isOut = (lower.includes(':out') || lower.includes(' out') || lower.includes('out(') || lower.includes('(out')) && !lower.includes('in');
+      
+      if (isIn || isOut) {
+        // Extract time from punch record
+        let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*(in|out)|\(|$)/i);
+        if (!timeMatch) {
+          timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        }
+        
+        if (timeMatch) {
+          const hours = parseInt(timeMatch[1], 10);
+          const mins = parseInt(timeMatch[2], 10);
+          const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+          
+          if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
+            const totalMinutes = hours * 60 + mins;
+            punchPairs.push({
+              time: totalMinutes,
+              type: isIn ? 'IN' : 'OUT',
+              original: punch
+            });
+          }
+        }
+      }
+    });
     
-    // Calculate total hours from first in and last out
-    const firstIn = inTimes[0];
-    const lastOut = outTimes[outTimes.length - 1];
+    // Sort by time
+    punchPairs.sort((a, b) => a.time - b.time);
     
-    if (!firstIn || !lastOut) return "00:00";
+    // Calculate total hours by summing all IN-OUT pairs
+    let totalMinutes = 0;
+    let currentIn = null;
     
-    const inMinutes = parseInt(firstIn.split(':')[0]) * 60 + parseInt(firstIn.split(':')[1]);
-    const outMinutes = parseInt(lastOut.split(':')[0]) * 60 + parseInt(lastOut.split(':')[1]);
+    punchPairs.forEach(punch => {
+      if (punch.type === 'IN') {
+        // If we already have an IN without an OUT, ignore the new IN (shouldn't happen, but handle it)
+        if (currentIn === null) {
+          currentIn = punch.time;
+        }
+      } else if (punch.type === 'OUT') {
+        // If we have an IN, calculate the duration
+        if (currentIn !== null) {
+          const duration = punch.time - currentIn;
+          if (duration > 0) {
+            totalMinutes += duration;
+          }
+          currentIn = null; // Reset for next pair
+        }
+      }
+    });
     
-    const totalMinutes = outMinutes - inMinutes;
+    // If there's an unmatched IN (employee still in office), don't count it
+    // (currentIn will remain set, but we don't add it to total)
+    
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  }, [formatTime, cleanPunchRecords]);
+  }, [cleanPunchRecords]);
 
   // Check if regularization is allowed based on punch-in time
   const isRegularizationAllowed = useCallback((dayData) => {
@@ -1101,8 +1309,78 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
         : "bg-blue-500 text-white shadow-white shadow-lg ring-2 ring-blue-300";
     }
 
-    const { AttendanceStatus, inTimeData, isLeaveTaken, leaveType, holidayName, isHoliday } = getDayType(day);
-    const dayData = safeDayLogs.find((log) => log.AttendanceDate === `${day} ${MONTHS[currentMonth]} ${currentYear}`);
+    // Find dayData FIRST with improved date matching
+    const formattedDate = `${day} ${MONTHS[currentMonth]} ${currentYear}`;
+    let dayData = safeDayLogs.find((log) => log.AttendanceDate === formattedDate);
+    
+    // If not found, try to find by parsing and comparing dates
+    if (!dayData) {
+      dayData = safeDayLogs.find((log) => {
+        return normalizeDateForComparison(log.AttendanceDate, currentYear, currentMonth, day);
+      });
+    }
+    
+    // Get day type info - use dayData if getDayType doesn't find it
+    let dayTypeInfo = getDayType(day);
+    // If getDayType didn't find data but we have dayData, use dayData directly
+    if ((!dayTypeInfo.AttendanceStatus && !dayTypeInfo.Status) && dayData) {
+      // Extract inTimeData from dayData
+      let extractedInTimeData = null;
+      if (dayData.InTime) {
+        try {
+          if (typeof dayData.InTime === 'string') {
+            if (dayData.InTime.includes('T')) {
+              const date = new Date(dayData.InTime);
+              if (!isNaN(date.getTime())) {
+                extractedInTimeData = date.toTimeString().slice(0, 5);
+              }
+            } else if (dayData.InTime.includes(' ')) {
+              extractedInTimeData = dayData.InTime.split(' ')[1]?.slice(0, 5);
+            } else {
+              extractedInTimeData = dayData.InTime.slice(0, 5);
+            }
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
+      dayTypeInfo = {
+        AttendanceStatus: dayData.AttendanceStatus || dayData.Status || null,
+        inTimeData: extractedInTimeData || dayTypeInfo.inTimeData,
+        isLeaveTaken: dayData.isLeaveTaken || dayData.IsLeaveTaken || dayTypeInfo.isLeaveTaken,
+        Status: dayData.Status || dayData.AttendanceStatus || dayTypeInfo.Status,
+        leaveType: dayData.leaveType || dayData.LeaveType || dayTypeInfo.leaveType,
+        workingDays: dayData.workingDays || dayTypeInfo.workingDays,
+        holidayName: dayData.holidayName || dayData.HolidayName || dayTypeInfo.holidayName,
+        isHoliday: dayData.isHoliday || dayData.IsHoliday || dayTypeInfo.isHoliday
+      };
+    }
+    
+    // Use dayData values if dayTypeInfo is missing them
+    const AttendanceStatus = dayTypeInfo.AttendanceStatus || dayData?.AttendanceStatus || dayData?.Status || null;
+    const inTimeData = dayTypeInfo.inTimeData || null;
+    const isLeaveTaken = dayTypeInfo.isLeaveTaken || dayData?.isLeaveTaken || dayData?.IsLeaveTaken || null;
+    const leaveType = dayTypeInfo.leaveType || dayData?.leaveType || dayData?.LeaveType || null;
+    const holidayName = dayTypeInfo.holidayName || dayData?.holidayName || dayData?.HolidayName || null;
+    const isHoliday = dayTypeInfo.isHoliday || dayData?.isHoliday || dayData?.IsHoliday || false;
+    
+    // Debug logging for dates that should have data but aren't getting colors
+    if ((day <= 5 || day >= 25) && safeDayLogs.length > 0) {
+      const matchingDates = safeDayLogs.filter(log => 
+        normalizeDateForComparison(log.AttendanceDate, currentYear, currentMonth, day)
+      );
+      if (matchingDates.length > 0 && !dayData) {
+        console.warn(`[Calendar] Found matching dates but dayData is null for day ${day}:`, {
+          formattedDate,
+          matchingDates: matchingDates.map(d => ({
+            AttendanceDate: d.AttendanceDate,
+            Status: d.Status,
+            AttendanceStatus: d.AttendanceStatus
+          }))
+        });
+      }
+    }
     
     // Get working days configuration (same logic as isWeekend function)
     let workingDays = dayData?.workingDays;
@@ -1115,7 +1393,15 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     let baseClass = "";
     
     // Check if this day has punch records - if yes, user was present (override Absent status)
-    const hasPunchRecords = dayData && (dayData.PunchRecords || dayData.InTime);
+    // Check multiple sources: PunchRecords, InTime, OutTime, or resolved times
+    const hasPunchRecords = dayData && (
+      dayData.PunchRecords || 
+      dayData.InTime || 
+      dayData.OutTime ||
+      inTimeData ||
+      (dayData.InTime && dayData.InTime !== '--' && dayData.InTime !== null) ||
+      (dayData.OutTime && dayData.OutTime !== '--' && dayData.OutTime !== null)
+    );
     
     // Get leave type from dayData - check multiple fields
     const dayLeaveType = dayData?.leaveType || 
@@ -1181,8 +1467,8 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
         baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
       }
     }
-    // 3. Absent - Red (show red for all absent days, except holidays and weekends which are handled above)
-    else if (AttendanceStatus === "Absent" && !hasApprovedLeave) {
+    // 3. Absent - Red (show red ONLY if truly absent - no punch records, no approved leave)
+    else if (AttendanceStatus === "Absent" && !hasApprovedLeave && !hasPunchRecords) {
       // Check if this day is eligible for regularization
       const isRegularizationEligible = dayData && isRegularizationAllowed(dayData);
       
@@ -1216,31 +1502,110 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
         baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
       }
     }
-    // 5. Full Day - Green (only if not on leave)
-    else if ((AttendanceStatus === "Full Day" || (hasPunchRecords && AttendanceStatus !== "Half Day" && AttendanceStatus !== "Absent")) && !hasApprovedLeave) {
-      // Check if it's actually Full Day based on duration
-      if (hasPunchRecords && !meetsWeekdayMinimumHours(dayData)) {
-        // Has punch but less than minimum hours - show as Half Day
-        baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+    // 5. Half Day - Yellow (check FIRST before Full Day to avoid incorrect coloring)
+    // Use same logic as tooltip: >= 240 minutes (4 hours) but < 480 minutes (8 hours) = Half Day
+    else if (!hasApprovedLeave && hasPunchRecords) {
+      // Calculate actual hours to determine if Half Day or Full Day
+      const totalHours = calculateTotalHours(dayData.PunchRecords);
+      if (totalHours !== "00:00") {
+        const [hours, minutes] = totalHours.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes;
+        
+        // Half Day: >= 240 minutes (4 hours) but < 480 minutes (8 hours)
+        if (totalMinutes >= 240 && totalMinutes < 480) {
+          baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+        }
+        // Full Day: >= 480 minutes (8 hours)
+        else if (totalMinutes >= 480) {
+          baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
+        }
+        // Less than 4 hours but has punch records - still show as Half Day
+        else if (totalMinutes > 0) {
+          baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+        }
+      }
+    }
+    // 6. Half Day - Yellow (explicit status check)
+    else if ((AttendanceStatus === "Half Day") && !hasApprovedLeave) {
+      baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+    }
+    // 7. Full Day - Green (explicit status check, only if not already set above)
+    else if ((AttendanceStatus === "Full Day") && !hasApprovedLeave && !baseClass) {
+      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
+    }
+    // 8. WeeklyOff - show as off day (gray)
+    else if (AttendanceStatus === "WeeklyOff") {
+      baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
+    }
+    // 9. Present / Full Day - Green (check multiple ways, only if not already set)
+    else if (!baseClass && (AttendanceStatus === "Present" || 
+             AttendanceStatus === "Full Day" || 
+             (hasPunchRecords && !hasApprovedLeave && AttendanceStatus !== "Absent" && AttendanceStatus !== "Half Day" && AttendanceStatus !== "WeeklyOff"))) {
+      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
+    }
+    // 10. Present with inTime data (fallback) - Green (only if not already set)
+    else if (!baseClass && inTimeData && !hasPunchRecords && !hasApprovedLeave) {
+      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
+    }
+    // 11. If we have dayData but no clear status, check if it has punch records - treat as Present
+    // (This should already be handled by condition 5, but keeping as fallback)
+    else if (!baseClass && dayData && hasPunchRecords && !hasApprovedLeave && !AttendanceStatus) {
+      // Calculate hours to determine if Full Day or Half Day
+      const totalHours = calculateTotalHours(dayData.PunchRecords);
+      if (totalHours !== "00:00") {
+        const [hours, minutes] = totalHours.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes;
+        if (totalMinutes >= 480) {
+          baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
+        } else if (totalMinutes >= 240) {
+          baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+        } else if (totalMinutes > 0) {
+          baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+        } else {
+          baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
+        }
       } else {
         baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
       }
     }
-    // 6. Half Day - Yellow (only if not on leave)
-    else if ((AttendanceStatus === "Half Day" || (hasPunchRecords && !meetsWeekdayMinimumHours(dayData))) && !hasApprovedLeave) {
-      baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
+    // 12. If we have dayData with InTime/OutTime but no PunchRecords, treat as Present (only if not already set)
+    else if (!baseClass && dayData && (dayData.InTime || dayData.OutTime) && !hasPunchRecords && !hasApprovedLeave) {
+      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
     }
-    // 7. WeeklyOff - show as off day (gray)
-    else if (AttendanceStatus === "WeeklyOff") {
-      baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
+    // 13. If we have dayData but status is null/undefined and no punch records, check if weekend
+    else if (!baseClass && dayData && !hasPunchRecords && !AttendanceStatus) {
+      const isWeekendDay = isWeekend(day);
+      if (isWeekendDay) {
+        baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
+      } else if (hasApprovedLeave) {
+        baseClass = "bg-white text-gray-900 border-2 border-gray-900 shadow-sm hover:shadow-md";
+      } else {
+        // Has data but no status and no punch records - could be absent
+        baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
+      }
     }
-    // 9. Present with inTime data
-    else if (inTimeData && !hasPunchRecords) {
-      baseClass = "bg-blue-100 text-blue-800 border-2 border-blue-300 hover:bg-blue-200";
-    }
-    // 10. Default
+    // 13. Default - only if no data at all
     else {
-      baseClass = "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50";
+      const isWeekendDay = isWeekend(day);
+      if (isWeekendDay) {
+        baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
+      } else {
+        // No data at all - show as white/empty
+        baseClass = "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50";
+      }
+      
+      // Debug: Log when falling to default to help identify issues
+      if (dayData && (day <= 5 || day >= 25)) {
+        console.log(`[Calendar] Default color for day ${day} (${formattedDate}):`, {
+          AttendanceStatus,
+          hasPunchRecords,
+          hasApprovedLeave,
+          hasInTime: !!dayData?.InTime,
+          hasOutTime: !!dayData?.OutTime,
+          hasPunchRecordsField: !!dayData?.PunchRecords,
+          dayDataKeys: dayData ? Object.keys(dayData) : null
+        });
+      }
     }
 
     // Add selection indicator for clicked day
@@ -1256,7 +1621,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     }
 
     return baseClass;
-  }, [getDayType, isToday, clickedDay, currentYear, currentMonth, safeDayLogs, isRegularizationAllowed, isWeekend, isWeekday, getWeekendCompOffEligibility, meetsWeekdayMinimumHours]);
+  }, [getDayType, isToday, clickedDay, currentYear, currentMonth, safeDayLogs, isRegularizationAllowed, isWeekend, isWeekday, getWeekendCompOffEligibility, meetsWeekdayMinimumHours, normalizeDateForComparison, calculateTotalHours]);
 
   const getLeaveTypeDisplay = useCallback((leaveType) => {
     return LEAVE_TYPE_MAP[leaveType] || leaveType;
@@ -1836,23 +2201,112 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     
     if (!dayData) return null;
     
+    // Resolve times from all sources
+    const { resolvedInTime, resolvedOutTime } = resolveTimes(dayData);
+    
+    // Check if there are punch records
+    const hasPunchRecords = !!(resolvedInTime || resolvedOutTime || dayData?.PunchRecords || dayData?.InTime || dayData?.OutTime);
+    
     const effectiveHours = calculateEffectiveHours(dayData);
+    
+    // Determine status based on actual data, not just API status
+    let displayStatus = dayData?.AttendanceStatus || dayData?.Status || "Absent";
+    
+    // If there are punch records, calculate status based on hours
+    if (hasPunchRecords && effectiveHours !== "00:00" && effectiveHours !== "--") {
+      const [hours, minutes] = effectiveHours.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes;
+      
+      if (totalMinutes >= 480) {
+        displayStatus = "Full Day";
+      } else if (totalMinutes >= 240) {
+        displayStatus = "Half Day";
+      } else if (totalMinutes > 0) {
+        displayStatus = "Present";
+      } else {
+        displayStatus = "Present"; // Has punch records but couldn't calculate hours
+      }
+    } else if (hasPunchRecords) {
+      // Has punch records but couldn't calculate hours - show as Present
+      displayStatus = "Present";
+    }
+    
+    // Format times for display
+    let firstIn = "00:00";
+    let lastOut = "00:00";
+    
+    if (resolvedInTime) {
+      try {
+        const inDate = new Date(resolvedInTime);
+        if (!isNaN(inDate.getTime())) {
+          const h = inDate.getHours();
+          const m = inDate.getMinutes();
+          firstIn = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        }
+      } catch (e) {
+        firstIn = dayData?.InTime ? formatTime(dayData.InTime) : "00:00";
+      }
+    } else {
+      firstIn = dayData?.InTime ? formatTime(dayData.InTime) : "00:00";
+    }
+    
+    if (resolvedOutTime) {
+      try {
+        const outDate = new Date(resolvedOutTime);
+        if (!isNaN(outDate.getTime())) {
+          const h = outDate.getHours();
+          const m = outDate.getMinutes();
+          lastOut = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        }
+      } catch (e) {
+        lastOut = dayData?.OutTime ? formatTime(dayData.OutTime) : "00:00";
+      }
+    } else {
+      lastOut = dayData?.OutTime ? formatTime(dayData.OutTime) : "00:00";
+    }
     
     return {
       date: formattedDate,
       totalHours: effectiveHours,
-      firstIn: dayData?.InTime ? formatTime(dayData.InTime) : "00:00",
-      lastOut: dayData?.OutTime ? formatTime(dayData.OutTime) : "00:00",
-      status: dayData?.AttendanceStatus || "Absent"
+      firstIn: firstIn,
+      lastOut: lastOut,
+      status: displayStatus
     };
-  }, [selectedDay, currentMonth, currentYear, safeDayLogs, calculateEffectiveHours, formatTime]);
+  }, [selectedDay, currentMonth, currentYear, safeDayLogs, calculateEffectiveHours, formatTime, resolveTimes]);
 
   // Get attendance summary for hovered day
   const getHoveredDaySummary = useCallback(() => {
     if (!hoveredDay) return null;
     
     const formattedDate = `${hoveredDay} ${MONTHS[currentMonth]} ${currentYear}`;
-    const dayData = dayLogs?.find((log) => log.AttendanceDate === formattedDate);
+    // Try exact match first
+    let dayData = safeDayLogs.find((log) => log.AttendanceDate === formattedDate);
+    
+    // If not found, try to find by parsing and comparing dates
+    if (!dayData) {
+      dayData = safeDayLogs.find((log) => {
+        return normalizeDateForComparison(log.AttendanceDate, currentYear, currentMonth, hoveredDay);
+      });
+    }
+    
+    // Debug logging for dates 3 and 4
+    if (hoveredDay === 3 || hoveredDay === 4) {
+      console.log(`Calendar getHoveredDaySummary for ${formattedDate}:`, {
+        found: !!dayData,
+        safeDayLogsCount: safeDayLogs.length,
+        sampleDates: safeDayLogs.slice(0, 5).map(log => ({
+          AttendanceDate: log.AttendanceDate,
+          Status: log.Status,
+          AttendanceStatus: log.AttendanceStatus
+        })),
+        dayData: dayData ? {
+          AttendanceDate: dayData.AttendanceDate,
+          Status: dayData.Status,
+          AttendanceStatus: dayData.AttendanceStatus,
+          PunchRecords: dayData.PunchRecords ? 'exists' : 'none'
+        } : null
+      });
+    }
     
     if (!dayData) {
       // Check if it's a weekend even without data
@@ -1870,9 +2324,12 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     // Resolve times from all sources (InTime, OutTime, and PunchRecords)
     const { resolvedInTime, resolvedOutTime } = resolveTimes(dayData);
     
-    // Calculate effective hours from resolved times
-    let effectiveHours = "00:00";
-    if (resolvedInTime && resolvedOutTime) {
+    // Calculate effective hours using pair-wise sum (actual time in office)
+    // Use calculateEffectiveHours which now uses pair-wise sum from PunchRecords
+    let effectiveHours = calculateEffectiveHours(dayData);
+    
+    // If that returns 00:00 and we have resolved times, calculate from those as fallback
+    if (effectiveHours === "00:00" && resolvedInTime && resolvedOutTime) {
       try {
         const inTime = new Date(resolvedInTime);
         const outTime = new Date(resolvedOutTime);
@@ -1892,11 +2349,6 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       } catch (error) {
         console.warn('Error calculating effective hours from resolved times:', error);
       }
-    }
-    
-    // If we couldn't calculate from resolved times, use the existing calculateEffectiveHours function
-    if (effectiveHours === "00:00") {
-      effectiveHours = calculateEffectiveHours(dayData);
     }
     
     // Format resolved times for display
@@ -1961,22 +2413,88 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     // Check if this is a weekend
     const isWeekendDay = isWeekend(hoveredDay);
     
-    // Determine status - weekends should show as "Off Day" or "Weekly Off"
+    // Check if there are punch records (InTime/OutTime or PunchRecords)
+    const hasPunchRecords = !!(resolvedInTime || resolvedOutTime || dayData?.PunchRecords || dayData?.InTime || dayData?.OutTime);
+    
+    // Check for approved leave
+    const hasApprovedLeave = !!(dayData?.isLeaveTaken || 
+                                dayData?.IsLeaveTaken ||
+                                dayData?.leaveType || 
+                                dayData?.LeaveType);
+    
+    // Determine status - prioritize actual data over API status
     let displayStatus = dayData?.AttendanceStatus || dayData?.Status || "Absent";
+    
+    // Priority 1: Holiday
     if (isHolidayDay) {
       displayStatus = "Holiday";
-    } else if (isWeekendDay && !dayData?.PunchRecords) {
-      displayStatus = "Off Day";
-    } else if (isWeekendDay && dayData?.PunchRecords) {
-      // Weekend with punch records - check for comp-off
-      const compOffEligibility = getWeekendCompOffEligibility(dayData);
-      if (compOffEligibility) {
-        displayStatus = "Comp-Off";
+    }
+    // Priority 2: Weekend cases
+    else if (isWeekendDay) {
+      if (hasPunchRecords) {
+        // Weekend with punch records - check for comp-off
+        const compOffEligibility = getWeekendCompOffEligibility(dayData);
+        if (compOffEligibility) {
+          displayStatus = "Comp-Off";
+        } else {
+          displayStatus = "Off Day";
+        }
       } else {
         displayStatus = "Off Day";
       }
-    } else if (dayData?.Status === "WeeklyOff" || dayData?.AttendanceStatus === "WeeklyOff") {
+    }
+    // Priority 3: Weekly Off
+    else if (dayData?.Status === "WeeklyOff" || dayData?.AttendanceStatus === "WeeklyOff") {
       displayStatus = "Off Day";
+    }
+    // Priority 4: If there are punch records, calculate status based on actual hours worked
+    else if (hasPunchRecords) {
+      // Override "Absent" status if there are actual punch records
+      if (effectiveHours !== "00:00" && effectiveHours !== "--") {
+        // Parse hours to determine status
+        const [hours, minutes] = effectiveHours.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes;
+        
+        // Full Day: 8+ hours (480+ minutes)
+        if (totalMinutes >= 480) {
+          displayStatus = "Full Day";
+        }
+        // Half Day: 4-8 hours (240-479 minutes)
+        else if (totalMinutes >= 240) {
+          displayStatus = "Half Day";
+        }
+        // Present: Less than 4 hours but has punch records
+        else if (totalMinutes > 0) {
+          displayStatus = "Present";
+        }
+        // If hours are 0 but has punch records, show as Present
+        else {
+          displayStatus = "Present";
+        }
+      } else {
+        // Has punch records but couldn't calculate hours - show as Present
+        displayStatus = "Present";
+      }
+      
+      // Debug log for cases where API says Absent but we have punch records
+      if (dayData?.AttendanceStatus === "Absent" || dayData?.Status === "Absent") {
+        console.log(`Calendar: Overriding Absent status for ${formattedDate} - has punch records:`, {
+          hasPunchRecords,
+          resolvedInTime,
+          resolvedOutTime,
+          effectiveHours,
+          newStatus: displayStatus
+        });
+      }
+    }
+    // Priority 5: Approved Leave (only if no punch records)
+    else if (hasApprovedLeave) {
+      displayStatus = dayData?.leaveType || dayData?.LeaveType || "Leave";
+    }
+    // Priority 6: Only show Absent if there are truly no punch records and no leave
+    else {
+      // Keep the original status (Absent or whatever API says)
+      displayStatus = dayData?.AttendanceStatus || dayData?.Status || "Absent";
     }
     
     return {
@@ -1991,7 +2509,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       holidayName: holidayName,
       isHoliday: isHolidayDay
     };
-  }, [hoveredDay, currentMonth, currentYear, safeDayLogs, calculateEffectiveHours, formatTime, isWeekend, getWeekendCompOffEligibility, resolveTimes]);
+  }, [hoveredDay, currentMonth, currentYear, safeDayLogs, calculateEffectiveHours, formatTime, isWeekend, getWeekendCompOffEligibility, resolveTimes, normalizeDateForComparison]);
 
   // Calculate total effective hours for the current month
   const calculateTotalEffectiveHours = useCallback(() => {
