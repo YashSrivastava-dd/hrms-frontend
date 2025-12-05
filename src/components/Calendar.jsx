@@ -959,13 +959,26 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       const dateStrLower = dateStr.toString().toLowerCase().trim();
       const monthNameLower = MONTHS[targetMonth].toLowerCase();
       
-      // Check if it contains the day, month, and year
-      const hasDay = dateStrLower.includes(`${targetDay}`) || dateStrLower.match(new RegExp(`\\b${targetDay}\\b`));
+      // Check if it contains the month and year first
       const hasMonth = dateStrLower.includes(monthNameLower);
       const hasYear = dateStrLower.includes(`${targetYear}`);
       
-      if (hasDay && hasMonth && hasYear) {
-        return true;
+      if (hasMonth && hasYear) {
+        // For day matching, use word boundary regex to avoid matching "1" in "11", "21", "31", "10", etc.
+        // Match patterns like "1 November", "01 November", "1st November", etc.
+        const dayPattern = `\\b${targetDay}(?:st|nd|rd|th)?\\b`;
+        const dayRegex = new RegExp(dayPattern, 'i');
+        const hasDay = dayRegex.test(dateStrLower);
+        
+        // Also check for exact day match at the start (for formats like "1 November 2025")
+        // Split by spaces and check if first token is the day
+        const parts = dateStrLower.split(/\s+/);
+        const firstPart = parts[0];
+        const isExactDayMatch = firstPart === `${targetDay}` || firstPart === `${targetDay}st` || firstPart === `${targetDay}nd` || firstPart === `${targetDay}rd` || firstPart === `${targetDay}th`;
+        
+        if (hasDay || isExactDayMatch) {
+          return true;
+        }
       }
       
       // Try ISO format "2025-11-03" or "2025-11-03T..." or "2025/11/03"
@@ -1320,11 +1333,28 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       });
     }
     
+    // CRITICAL: Verify that dayData actually matches this day before using it
+    // Don't use dayData from frontend if it doesn't match - prevents showing wrong data on 1st
+    if (dayData) {
+      const dayDataMatches = normalizeDateForComparison(dayData.AttendanceDate, currentYear, currentMonth, day);
+      if (!dayDataMatches) {
+        // dayData doesn't match this day - don't use it, set to null
+        console.warn(`[Calendar] dayData found but doesn't match day ${day}:`, {
+          dayDataDate: dayData.AttendanceDate,
+          targetDate: formattedDate,
+          year: currentYear,
+          month: currentMonth,
+          day
+        });
+        dayData = null;
+      }
+    }
+    
     // Get day type info - use dayData if getDayType doesn't find it
     let dayTypeInfo = getDayType(day);
-    // If getDayType didn't find data but we have dayData, use dayData directly
+    // Only use dayData if getDayType didn't find data AND dayData actually matches this day
     if ((!dayTypeInfo.AttendanceStatus && !dayTypeInfo.Status) && dayData) {
-      // Extract inTimeData from dayData
+      // dayData already verified above - safe to use
       let extractedInTimeData = null;
       if (dayData.InTime) {
         try {
@@ -1357,13 +1387,14 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       };
     }
     
-    // Use dayData values if dayTypeInfo is missing them
-    const AttendanceStatus = dayTypeInfo.AttendanceStatus || dayData?.AttendanceStatus || dayData?.Status || null;
+    // Use dayData values ONLY if dayData matches this day (already verified above)
+    // Don't use dayData if it doesn't match - only use dayTypeInfo
+    const AttendanceStatus = dayTypeInfo.AttendanceStatus || (dayData ? (dayData?.AttendanceStatus || dayData?.Status) : null) || null;
     const inTimeData = dayTypeInfo.inTimeData || null;
-    const isLeaveTaken = dayTypeInfo.isLeaveTaken || dayData?.isLeaveTaken || dayData?.IsLeaveTaken || null;
-    const leaveType = dayTypeInfo.leaveType || dayData?.leaveType || dayData?.LeaveType || null;
-    const holidayName = dayTypeInfo.holidayName || dayData?.holidayName || dayData?.HolidayName || null;
-    const isHoliday = dayTypeInfo.isHoliday || dayData?.isHoliday || dayData?.IsHoliday || false;
+    const isLeaveTaken = dayTypeInfo.isLeaveTaken || (dayData ? (dayData?.isLeaveTaken || dayData?.IsLeaveTaken) : null) || null;
+    const leaveType = dayTypeInfo.leaveType || (dayData ? (dayData?.leaveType || dayData?.LeaveType) : null) || null;
+    const holidayName = dayTypeInfo.holidayName || (dayData ? (dayData?.holidayName || dayData?.HolidayName) : null) || null;
+    const isHoliday = dayTypeInfo.isHoliday || (dayData ? (dayData?.isHoliday || dayData?.IsHoliday) : false) || false;
     
     // Debug logging for dates that should have data but aren't getting colors
     if ((day <= 5 || day >= 25) && safeDayLogs.length > 0) {
@@ -1394,6 +1425,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     
     // Check if this day has punch records - if yes, user was present (override Absent status)
     // Check multiple sources: PunchRecords, InTime, OutTime, or resolved times
+    // Only check dayData if it actually matches this day (already verified above)
     const hasPunchRecords = dayData && (
       dayData.PunchRecords || 
       dayData.InTime || 
