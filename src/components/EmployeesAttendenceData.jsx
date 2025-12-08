@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getAllEmployeeAtendenceAction, getAttendenceLogsOfEmploye, getUserDataAction, getPunchRecordsForAttendanceAction } from "../store/action/userDataAction";
+import { getAllEmployeeAtendenceAction, getAttendenceLogsOfEmploye, getUserDataAction, getPunchRecordsForAttendanceAction, getAllUserDataAction } from "../store/action/userDataAction";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -31,6 +31,7 @@ const EmployeesAttendanceData = () => {
   const { loading, data } = useSelector((state) => state.attendanceLogs);
   const { data: allAttendancedata } = useSelector((state) => state.allEmployeeAttencance);
   const { loading: punchLoading, data: punchRecordsData } = useSelector((state) => state.punchRecordsForAttendance);
+  const { data: allUserData } = useSelector((state) => state.allUserData);
   
   // Merge attendance logs and punch records - attendance logs take priority, punch records fill gaps
   const allEmployees = React.useMemo(() => {
@@ -241,6 +242,7 @@ const EmployeesAttendanceData = () => {
 
   useEffect(() => {
     dispatch(getUserDataAction());
+    dispatch(getAllUserDataAction({ page: 1, limit: 1000 }));
   }, [dispatch])
 
   // Track if this is the initial mount to ensure we always fetch on page load
@@ -285,6 +287,15 @@ const EmployeesAttendanceData = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
+
+  // Get employee shift timing from allEmployees data
+  const getEmployeeShiftTiming = useMemo(() => {
+    if (!employeeId) return null;
+    const allUserEmployees = allUserData?.data || [];
+    if (allUserEmployees.length === 0) return null;
+    const employee = allUserEmployees.find(emp => emp.employeeId === employeeId);
+    return employee?.shiftTime || null;
+  }, [employeeId, allUserData]);
 
   const handleOpenModal = (employee) => {
     setSelectedEmployee(employee);
@@ -476,10 +487,10 @@ const EmployeesAttendanceData = () => {
                     "Employee Name",
                     "Status",
                     "Date",
+                    "Shift Time",
                     "Check In",
                     "Check Out",
-                    "Effective Hours",
-                    "Days",
+                    "Duration",
                     "Leave type",
                     "Records",
                   ].map((header, idx) => (
@@ -525,680 +536,284 @@ const EmployeesAttendanceData = () => {
                   )
                   : employees
                     ?.map((employee, index) => {
-                      // Helper function to convert a time string to a Date object for comparison
-                      const timeToDate = (timeStr, attendanceDate) => {
-                        if (!timeStr || !attendanceDate) return null;
+                      // Format time from backend - supports ISO format, space-separated, or HH:MM format
+                      const formatTime = (timeStr) => {
+                        if (!timeStr || timeStr === '--' || timeStr === null || timeStr === '') return "--";
                         try {
-                          let date;
-                          // Handle ISO format (2025-11-29T09:05:59.000Z)
-                          if (timeStr.includes('T')) {
-                            date = new Date(timeStr);
-                          } else if (timeStr.includes(' ')) {
-                            // Space-separated format (2025-11-29 09:05:59)
-                            date = new Date(timeStr);
-                          } else if (timeStr.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
-                            // Time-only format (09:11:59) - need to combine with attendance date
-                            const baseDate = new Date(attendanceDate);
-                            if (isNaN(baseDate.getTime())) {
-                              console.warn('Invalid attendance date for time conversion:', attendanceDate);
-                              return null;
-                            }
-                            const [h, m, s] = timeStr.split(':');
-                            const hours = parseInt(h, 10);
-                            const mins = parseInt(m, 10);
-                            const secs = s ? parseInt(s, 10) : 0;
-                            
-                            // Validate time values
-                            if (isNaN(hours) || isNaN(mins) || hours < 0 || hours > 23 || mins < 0 || mins > 59) {
-                              console.warn('Invalid time values:', { hours, mins, secs });
-                              return null;
-                            }
-                            
-                            date = new Date(baseDate);
-                            date.setHours(hours, mins, secs, 0);
-                          } else {
-                            // Try parsing as-is
-                            date = new Date(timeStr);
-                          }
-                          
-                          // Validate the resulting date
-                          if (date && !isNaN(date.getTime())) {
-                            // Check if the year is reasonable (not epoch 1970 or future dates beyond 2100)
-                            const year = date.getFullYear();
-                            if (year < 2000 || year > 2100) {
-                              console.warn('Date has invalid year:', year, 'from timeStr:', timeStr);
-                              return null;
-                            }
-                            // Check if time is midnight (00:00:00) - this might indicate missing data
+                          // Handle ISO format (e.g., "2025-11-29T09:05:59.000Z")
+                          if (timeStr.includes("T")) {
+                            const date = new Date(timeStr);
+                            if (isNaN(date.getTime())) return "--";
                             const hours = date.getHours();
                             const mins = date.getMinutes();
                             const secs = date.getSeconds();
+                            // Check for invalid times
                             if (hours === 0 && mins === 0 && secs === 0) {
-                              // Only reject midnight if it's clearly a placeholder
-                              // If the original timeStr was "00:00:00" or similar, reject it
-                              if (timeStr.includes('00:00:00') || timeStr.match(/^0{1,2}:0{1,2}(:0{1,2})?$/)) {
-                                console.warn('Rejecting midnight time as placeholder:', timeStr);
-                                return null;
+                              const year = date.getFullYear();
+                              if (year < 2000) return "--";
+                            }
+                            return date.toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit', 
+                              second: '2-digit', 
+                              hour12: true 
+                            });
+                          }
+                          // Handle space-separated format (e.g., "2025-11-29 09:05:59")
+                          if (timeStr.includes(" ")) {
+                            const time = timeStr.split(" ")[1];
+                            if (!time || time === "00:00:00") return "--";
+                            // Convert to Date object for formatting
+                            const [h, m, s] = time.split(':');
+                            const date = new Date();
+                            date.setHours(parseInt(h, 10), parseInt(m, 10), parseInt(s || 0, 10), 0);
+                            return date.toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit', 
+                              second: '2-digit', 
+                              hour12: true 
+                            });
+                          }
+                          // Handle HH:MM or HH:MM:SS format
+                          if (timeStr.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                            const [h, m, s] = timeStr.split(':');
+                            if (parseInt(h, 10) === 0 && parseInt(m, 10) === 0) return "--";
+                            const date = new Date();
+                            date.setHours(parseInt(h, 10), parseInt(m, 10), parseInt(s || 0, 10), 0);
+                            return date.toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit', 
+                              second: '2-digit', 
+                              hour12: true 
+                            });
+                          }
+                          return timeStr || "--";
+                        } catch (error) {
+                          return "--";
+                        }
+                      };
+
+                      // Calculate effective hours - for CEO and HR dashboards, use ONLY backend Duration
+                      // For other roles, allow fallback calculations
+                      const calculateEffectiveHours = () => {
+                        const isCEOOrHR = userDataList?.role === "HR-Admin" || userDataList?.role === "Super-Admin";
+                        
+                        // For CEO and HR dashboards: Use ONLY backend Duration - NO CALCULATIONS
+                        if (isCEOOrHR) {
+                          // Use ONLY backend Duration field - NO FRONTEND CALCULATIONS
+                          if (employee.Duration && employee.Duration !== 0 && employee.Duration !== '--' && employee.Duration !== '') {
+                            // If Duration is a number (minutes), convert to display format
+                            if (typeof employee.Duration === 'number') {
+                              const hours = Math.floor(employee.Duration / 60);
+                              const minutes = employee.Duration % 60;
+                              return `${hours}h ${minutes}m`;
+                            }
+                            // If Duration is a string with colon (HH:MM format), format for display
+                            else if (typeof employee.Duration === 'string' && employee.Duration.includes(':')) {
+                              const [hours, minutes] = employee.Duration.split(':').map(Number);
+                              if (!isNaN(hours) && !isNaN(minutes)) {
+                                return `${hours}h ${minutes}m`;
                               }
                             }
-                            return date;
                           }
-                        } catch (error) {
-                          console.warn('Error converting time to date:', timeStr, error);
+                          
+                          // If DurationString field exists from backend, use it directly
+                          if (employee.DurationString) {
+                            return employee.DurationString;
+                          }
+                          
+                          // If no backend Duration available, return "--" - NO CALCULATIONS
+                          return "--";
                         }
-                        return null;
-                      };
-                      
-                      // Helper function to extract ALL IN times from PunchRecords (both regular and OUT-DUTY)
-                      const extractAllInTimes = (punchRecords, attendanceDate) => {
-                        const allInTimes = [];
-                        if (!punchRecords) return allInTimes;
                         
-                        try {
-                          console.log('Extracting ALL IN times from PunchRecords:', punchRecords);
-                          
-                          // Split by "||" to separate regular punches from OUT-DUTY section
-                          const sections = punchRecords.split('||').map(s => s.trim()).filter(s => s);
-                          
-                          sections.forEach(section => {
-                            // Remove "OUT-DUTY:" prefix if present
-                            const cleanSection = section.replace(/^OUT-DUTY:\s*/i, '').trim();
-                            // Split by comma to get individual punches
-                            const punches = cleanSection.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
+                        // For other roles: Allow fallback calculations (existing logic)
+                        // Priority 1: Use backend Duration field if available and valid
+                        let durationInMinutes = 0;
+                        
+                        if (employee.Duration && employee.Duration !== 0 && employee.Duration !== '--' && employee.Duration !== '') {
+                          // If Duration is a number (minutes), use it directly
+                          if (typeof employee.Duration === 'number') {
+                            durationInMinutes = employee.Duration;
+                          }
+                          // If Duration is a string with colon (HH:MM format), convert to minutes
+                          else if (typeof employee.Duration === 'string' && employee.Duration.includes(':')) {
+                            const [hours, minutes] = employee.Duration.split(':').map(Number);
+                            if (!isNaN(hours) && !isNaN(minutes)) {
+                              durationInMinutes = hours * 60 + minutes;
+                            }
+                          }
+                        }
+                        
+                        // Priority 2: If Duration is missing or 0, calculate from PunchRecords (sum all IN-OUT pairs)
+                        if (durationInMinutes === 0 && employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
+                          try {
+                            const punchRecords = employee.PunchRecords;
+                            // Split by comma and clean
+                            const punches = punchRecords.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
                             
+                            // Extract all IN and OUT times with their order
+                            const punchPairs = [];
                             punches.forEach(punch => {
                               const lower = punch.toLowerCase();
-                              // Match patterns like "09:11:in(IN)", "09:39:in(IN)", "09:11:in (IN)", etc.
-                              // Check if it contains 'in' but not 'out' (to avoid matching "out" in "checkout")
-                              const hasIn = (lower.includes(':in') || 
-                                           lower.includes(' in') || 
-                                           lower.includes('in(') ||
-                                           lower.includes('(in') ||
-                                           (lower.includes('(') && lower.includes('in') && !lower.includes('out'))) && 
-                                           !lower.includes('out');
+                              const isIn = (lower.includes(':in') || lower.includes(' in') || lower.includes('in(') || lower.includes('(in')) && !lower.includes('out');
+                              const isOut = (lower.includes(':out') || lower.includes(' out') || lower.includes('out(') || lower.includes('(out')) && !lower.includes('in');
                               
-                              if (hasIn) {
-                                // Extract time using regex
-                                let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*in|\(|$)/i);
+                              if (isIn || isOut) {
+                                // Extract time from punch record
+                                let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*(in|out)|\(|$)/i);
                                 if (!timeMatch) {
                                   timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
                                 }
                                 
                                 if (timeMatch) {
-                                  const hours = parseInt(timeMatch[1], 10);
-                                  const mins = parseInt(timeMatch[2], 10);
-                                  const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+                                  const h = parseInt(timeMatch[1], 10);
+                                  const m = parseInt(timeMatch[2], 10);
                                   
-                                  if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
-                                    // Create date object
-                                    if (attendanceDate) {
-                                      const date = new Date(attendanceDate);
-                                      if (!isNaN(date.getTime())) {
-                                        date.setHours(hours, mins, secs || 0, 0);
-                                        allInTimes.push(date);
-                                        console.log('  → Found IN time:', `${hours}:${mins}:${secs}`, 'from punch:', punch);
-                                      }
-                                    }
+                                  if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+                                    const totalMinutes = h * 60 + m;
+                                    punchPairs.push({
+                                      time: totalMinutes,
+                                      type: isIn ? 'IN' : 'OUT'
+                                    });
                                   }
                                 }
                               }
                             });
-                          });
-                        } catch (error) {
-                          console.error('Error extracting IN times from PunchRecords:', error);
-                        }
-                        
-                        return allInTimes;
-                      };
-                      
-                      // Helper function to extract ALL OUT times from PunchRecords (both regular and OUT-DUTY)
-                      const extractAllOutTimes = (punchRecords, attendanceDate) => {
-                        const allOutTimes = [];
-                        if (!punchRecords) return allOutTimes;
-                        
-                        try {
-                          console.log('Extracting ALL OUT times from PunchRecords:', punchRecords);
-                          
-                          // Split by "||" to separate regular punches from OUT-DUTY section
-                          const sections = punchRecords.split('||').map(s => s.trim()).filter(s => s);
-                          
-                          sections.forEach(section => {
-                            // Remove "OUT-DUTY:" prefix if present
-                            const cleanSection = section.replace(/^OUT-DUTY:\s*/i, '').trim();
-                            // Split by comma to get individual punches
-                            const punches = cleanSection.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
                             
-                            punches.forEach(punch => {
-                              const lower = punch.toLowerCase();
-                              // Match patterns like "18:24:out(OUT)", "18:06:out(OUT)", "18:24:out (OUT)", etc.
-                              // Check if it contains 'out' but not 'in' (to avoid matching "in" in "checkin")
-                              const hasOut = (lower.includes(':out') || 
-                                            lower.includes(' out') || 
-                                            lower.includes('out(') ||
-                                            lower.includes('(out') ||
-                                            (lower.includes('(') && lower.includes('out') && !lower.includes('in'))) && 
-                                            !lower.includes('in');
-                              
-                              if (hasOut) {
-                                // Extract time using regex
-                                let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*out|\(|$)/i);
-                                if (!timeMatch) {
-                                  timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                            // Sort by time
+                            punchPairs.sort((a, b) => a.time - b.time);
+                            
+                            // Calculate total by summing all IN-OUT pairs
+                            let currentIn = null;
+                            punchPairs.forEach(punch => {
+                              if (punch.type === 'IN') {
+                                if (currentIn === null) {
+                                  currentIn = punch.time;
                                 }
-                                
-                                if (timeMatch) {
-                                  const hours = parseInt(timeMatch[1], 10);
-                                  const mins = parseInt(timeMatch[2], 10);
-                                  const secs = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
-                                  
-                                  if (!isNaN(hours) && !isNaN(mins) && hours >= 0 && hours <= 23 && mins >= 0 && mins <= 59) {
-                                    // Create date object
-                                    if (attendanceDate) {
-                                      const date = new Date(attendanceDate);
-                                      if (!isNaN(date.getTime())) {
-                                        date.setHours(hours, mins, secs || 0, 0);
-                                        allOutTimes.push(date);
-                                        console.log('  → Found OUT time:', `${hours}:${mins}:${secs}`, 'from punch:', punch);
-                                      }
-                                    }
+                              } else if (punch.type === 'OUT') {
+                                if (currentIn !== null) {
+                                  const duration = punch.time - currentIn;
+                                  if (duration > 0) {
+                                    durationInMinutes += duration;
                                   }
+                                  currentIn = null;
                                 }
                               }
                             });
-                          });
-                        } catch (error) {
-                          console.error('Error extracting OUT times from PunchRecords:', error);
+                          } catch (error) {
+                            console.warn('Error calculating duration from PunchRecords:', error);
+                          }
                         }
                         
-                        return allOutTimes;
-                      };
-                      
-                      // Helper to check if a time value is actually valid/meaningful
-                      const isTimeValid = (time) => {
-                        if (!time) return false;
-                        if (time === '--' || time === null || time === '') return false;
-                        if (typeof time === 'string' && time.trim() === '') return false;
-                        // Check if it's a valid time format (not just "00:00:00" or similar invalid times)
-                        if (typeof time === 'string') {
-                          const timeStr = time.trim();
-                          // If it's an ISO date, check if it's valid
-                          if (timeStr.includes('T')) {
-                            try {
-                              const date = new Date(timeStr);
-                              if (isNaN(date.getTime())) return false;
-                              // Check if time part is not midnight (which might indicate missing data)
-                              const hours = date.getHours();
-                              const mins = date.getMinutes();
-                              const secs = date.getSeconds();
-                              // If it's exactly midnight with no seconds, it might be a placeholder
-                              if (hours === 0 && mins === 0 && secs === 0) {
-                                // Check if the date part is valid (not 1970-01-01 which is epoch)
-                                const year = date.getFullYear();
-                                if (year < 2000) return false; // Likely a placeholder/invalid date
+                        // Priority 3: If still 0, calculate from InTime and OutTime
+                        if (durationInMinutes === 0 && employee?.InTime && employee?.OutTime) {
+                          try {
+                            const formatTimeToMinutes = (timeStr) => {
+                              if (!timeStr || timeStr === '--' || timeStr === null || timeStr === '') return null;
+                              
+                              let date;
+                              // Handle ISO format
+                              if (timeStr.includes("T")) {
+                                date = new Date(timeStr);
                               }
-                              return true;
-                            } catch {
-                              return false;
-                            }
-                          }
-                          // If it's just a time string like "00:00:00", it's likely invalid
-                          if (timeStr.match(/^0{1,2}:0{1,2}(:0{1,2})?$/)) return false;
-                          // Check for other placeholder patterns
-                          if (timeStr.toLowerCase().includes('null') || timeStr.toLowerCase().includes('undefined')) return false;
-                        }
-                        return true;
-                      };
-                      
-                      // Collect ALL IN times from both InTime field and PunchRecords
-                      const allInTimes = [];
-                      const allOutTimes = [];
-                      
-                      // Add InTime from attendance record if valid
-                      if (isTimeValid(employee?.InTime)) {
-                        const inDate = timeToDate(employee.InTime, employee.AttendanceDate);
-                        if (inDate) {
-                          allInTimes.push(inDate);
-                          console.log('✓ Added InTime from attendance record:', employee.InTime, '→', inDate.toISOString());
-                        }
-                      }
-                      
-                      // Add OutTime from attendance record if valid
-                      if (isTimeValid(employee?.OutTime)) {
-                        const outDate = timeToDate(employee.OutTime, employee.AttendanceDate);
-                        if (outDate) {
-                          allOutTimes.push(outDate);
-                          console.log('✓ Added OutTime from attendance record:', employee.OutTime, '→', outDate.toISOString());
-                        }
-                      }
-                      
-                      // Extract all IN/OUT times from PunchRecords
-                      if (employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
-                        console.log('✓ Processing PunchRecords for date:', employee.AttendanceDate);
-                        const punchInTimes = extractAllInTimes(employee.PunchRecords, employee.AttendanceDate);
-                        const punchOutTimes = extractAllOutTimes(employee.PunchRecords, employee.AttendanceDate);
-                        allInTimes.push(...punchInTimes);
-                        allOutTimes.push(...punchOutTimes);
-                      }
-                      
-                      // Find the EARLIEST IN time (regardless of source - Check In or Punch In)
-                      let checkInTime = null;
-                      if (allInTimes.length > 0) {
-                        allInTimes.sort((a, b) => a.getTime() - b.getTime()); // Sort ascending
-                        checkInTime = allInTimes[0].toISOString();
-                        console.log('✓✓ EARLIEST IN time selected:', checkInTime, 'from', allInTimes.length, 'total IN times');
-                      }
-                      
-                      // Find the LATEST OUT time (regardless of source - Check Out or Punch Out)
-                      let checkOutTime = null;
-                      if (allOutTimes.length > 0) {
-                        allOutTimes.sort((a, b) => b.getTime() - a.getTime()); // Sort descending
-                        checkOutTime = allOutTimes[0].toISOString();
-                        console.log('✓✓ LATEST OUT time selected:', checkOutTime, 'from', allOutTimes.length, 'total OUT times');
-                      }
-                      
-                      if (!checkInTime && !checkOutTime) {
-                        console.log('⚠⚠ No valid IN/OUT times found for date:', employee.AttendanceDate, 'Employee:', employee?.EmployeeName);
-                      }
-                      
-                      // Calculate Effective Hours by summing all IN-OUT pairs (actual time in office)
-                      // This accounts for breaks - e.g., IN 9am, OUT 1pm, IN 2pm, OUT 6pm = 4+4 = 8 hours
-                      let hours = 0;
-                      let minutes = 0;
-                      let durationInMinutes = 0;
-                      
-                      // If we have PunchRecords, calculate from all IN-OUT pairs
-                      if (employee?.PunchRecords && employee.PunchRecords.trim() !== '') {
-                        try {
-                          const punchRecords = employee.PunchRecords;
-                          // Split by comma and clean
-                          const punches = punchRecords.split(',').map(p => p.trim()).filter(p => p && p.length > 0);
-                          
-                          // Extract all IN and OUT times with their order
-                          const punchPairs = [];
-                          punches.forEach(punch => {
-                            const lower = punch.toLowerCase();
-                            const isIn = (lower.includes(':in') || lower.includes(' in') || lower.includes('in(') || lower.includes('(in')) && !lower.includes('out');
-                            const isOut = (lower.includes(':out') || lower.includes(' out') || lower.includes('out(') || lower.includes('(out')) && !lower.includes('in');
-                            
-                            if (isIn || isOut) {
-                              // Extract time from punch record
-                              let timeMatch = punch.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?=\s*[:]?\s*(in|out)|\(|$)/i);
-                              if (!timeMatch) {
-                                timeMatch = punch.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                              // Handle space-separated format
+                              else if (timeStr.includes(" ")) {
+                                date = new Date(timeStr);
+                              }
+                              // Handle HH:MM or HH:MM:SS format
+                              else if (timeStr.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+                                const [h, m, s] = timeStr.split(':');
+                                const baseDate = employee.AttendanceDate ? new Date(employee.AttendanceDate) : new Date();
+                                date = new Date(baseDate);
+                                date.setHours(parseInt(h, 10), parseInt(m, 10), parseInt(s || 0, 10), 0);
+                              } else {
+                                date = new Date(timeStr);
                               }
                               
-                              if (timeMatch) {
-                                const h = parseInt(timeMatch[1], 10);
-                                const m = parseInt(timeMatch[2], 10);
-                                
-                                if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-                                  const totalMinutes = h * 60 + m;
-                                  punchPairs.push({
-                                    time: totalMinutes,
-                                    type: isIn ? 'IN' : 'OUT'
-                                  });
-                                }
+                              if (date && !isNaN(date.getTime())) {
+                                return date.getHours() * 60 + date.getMinutes();
                               }
-                            }
-                          });
-                          
-                          // Sort by time
-                          punchPairs.sort((a, b) => a.time - b.time);
-                          
-                          // Calculate total by summing all IN-OUT pairs
-                          let currentIn = null;
-                          punchPairs.forEach(punch => {
-                            if (punch.type === 'IN') {
-                              if (currentIn === null) {
-                                currentIn = punch.time;
-                              }
-                            } else if (punch.type === 'OUT') {
-                              if (currentIn !== null) {
-                                const duration = punch.time - currentIn;
-                                if (duration > 0) {
-                                  durationInMinutes += duration;
-                                }
-                                currentIn = null;
-                              }
-                            }
-                          });
-                          
-                          hours = Math.floor(durationInMinutes / 60);
-                          minutes = durationInMinutes % 60;
-                          
-                          console.log('✓✓ Calculated Effective Hours from all IN-OUT pairs:', 
-                            `${hours}h ${minutes}m (${durationInMinutes} minutes)`, 
-                            `from ${punchPairs.length} punch records`);
-                        } catch (error) {
-                          console.warn('Error calculating duration from PunchRecords:', error);
-                        }
-                      }
-                      
-                      // Fallback: If no PunchRecords or calculation failed, use resolved times (earliest IN - latest OUT)
-                      if (durationInMinutes === 0 && checkInTime && checkOutTime) {
-                        try {
-                          const inTime = new Date(checkInTime);
-                          const outTime = new Date(checkOutTime);
-                          
-                          if (!isNaN(inTime.getTime()) && !isNaN(outTime.getTime())) {
-                            const inYear = inTime.getFullYear();
-                            const outYear = outTime.getFullYear();
-                            if (inYear >= 2000 && inYear <= 2100 && outYear >= 2000 && outYear <= 2100) {
-                              const inHours = inTime.getHours();
-                              const inMins = inTime.getMinutes();
-                              const inSecs = inTime.getSeconds();
-                              const outHours = outTime.getHours();
-                              const outMins = outTime.getMinutes();
-                              const outSecs = outTime.getSeconds();
-                              
-                              if (!(inHours === 0 && inMins === 0 && inSecs === 0) && 
-                                  !(outHours === 0 && outMins === 0 && outSecs === 0)) {
-                                const diffMs = outTime - inTime;
-                                if (diffMs > 0) {
-                                  durationInMinutes = Math.floor(diffMs / (1000 * 60));
-                                  if (durationInMinutes <= 48 * 60) {
-                                    hours = Math.floor(durationInMinutes / 60);
-                                    minutes = durationInMinutes % 60;
-                                    console.log('✓✓ Calculated Effective Hours from resolved times (fallback):', 
-                                      `${hours}h ${minutes}m`);
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        } catch (error) {
-                          console.warn('Error calculating duration from resolved times:', error);
-                        }
-                      }
-                      
-                      // Final summary log (after duration calculation)
-                      console.log('=== FINAL TIMES SUMMARY for', employee.AttendanceDate, '===');
-                      console.log('Employee:', employee?.EmployeeName);
-                      console.log('Resolved Check In Time (earliest):', checkInTime);
-                      console.log('Resolved Check Out Time (latest):', checkOutTime);
-                      console.log('Has PunchRecords:', !!employee?.PunchRecords);
-                      console.log('PunchRecords value:', employee?.PunchRecords);
-                      console.log('Effective Hours (calculated):', hours, 'h', minutes, 'm', '(', durationInMinutes, 'minutes)');
-                      console.log('==========================================');
-                      
-                      const hasPunchRecords = !!(checkInTime || employee.PunchRecords);
-                      const hasApprovedLeave = !!(employee.LeaveType || employee.leaveType);
-                      
-                      // Check if this is a weekend based on working days configuration
-                      let isWeekendDay = false;
-                      if (employee.AttendanceDate) {
-                        try {
-                          const attendanceDate = new Date(employee.AttendanceDate);
-                          if (!isNaN(attendanceDate.getTime())) {
-                            const dayOfWeek = attendanceDate.getDay(); // 0 = Sunday, 6 = Saturday
-                            
-                            // Get working days configuration - check from employee or find from other employees
-                            let workingDays = employee.workingDays;
-                            if (!workingDays && employees && employees.length > 0) {
-                              const employeeWithWorkingDays = employees.find(e => e.workingDays);
-                              workingDays = employeeWithWorkingDays?.workingDays;
-                            }
-                            // Default to 5 if not found
-                            workingDays = workingDays || "5";
-                            
-                            // If workingDays is 6, then Saturday (6) is a working day, only Sunday (0) is weekend
-                            if (workingDays === "6" || workingDays === 6) {
-                              isWeekendDay = dayOfWeek === 0; // Only Sunday is weekend
-                            }
-                            // If workingDays is 5, then both Saturday (6) and Sunday (0) are weekends
-                            else if (workingDays === "5" || workingDays === 5) {
-                              isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6; // Sunday and Saturday are weekends
-                            }
-                            // Default: both Saturday and Sunday are weekends
-                            else {
-                              isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
-                            }
-                          }
-                        } catch (error) {
-                          console.warn('Error checking weekend:', error);
-                        }
-                      }
-                      
-                      // Helper function to get day type and colors with inline styles
-                      const getDayTypeStyle = (durationMinutes, status, hasPunchRecords, hasApprovedLeave, isWeekend) => {
-                        // Check for Holiday first - Blue
-                        if (status === "Holiday") {
-                          return {
-                            type: "Holiday",
-                            style: {
-                              backgroundColor: "#dbeafe",
-                              color: "#1e40af"
-                            }
-                          };
-                        }
-                        
-                        // Check for weekend - Off Day (gray) - unless there's comp-off work
-                        if (isWeekend && !hasPunchRecords) {
-                          return {
-                            type: "Off Day",
-                            style: {
-                              backgroundColor: "#e5e7eb",
-                              color: "#374151"
-                            }
-                          };
-                        }
-                        
-                        // Weekend with punch records might be comp-off, but still show as off day if no comp-off
-                        if (isWeekend && hasPunchRecords) {
-                          // Check if it's a valid comp-off (4+ hours)
-                          if (durationMinutes >= 4 * 60) {
-                            return {
-                              type: "Comp-Off",
-                              style: {
-                                backgroundColor: "#e9d5ff",
-                                color: "#7c3aed"
-                              }
+                              return null;
                             };
-                          } else {
-                            return {
-                              type: "Off Day",
-                              style: {
-                                backgroundColor: "#e5e7eb",
-                                color: "#374151"
+                            
+                            const inMinutes = formatTimeToMinutes(employee.InTime);
+                            const outMinutes = formatTimeToMinutes(employee.OutTime);
+                            
+                            if (inMinutes !== null && outMinutes !== null) {
+                              let diff = outMinutes - inMinutes;
+                              // Handle case where out time is next day (night shift)
+                              if (diff < 0) {
+                                diff += 24 * 60; // Add 24 hours
                               }
-                            };
+                              if (diff > 0 && diff <= 24 * 60) {
+                                durationInMinutes = diff;
+                              }
+                            }
+                          } catch (error) {
+                            console.warn('Error calculating duration from InTime/OutTime:', error);
                           }
                         }
                         
-                        // Check for approved leave - White
-                        if (hasApprovedLeave && !hasPunchRecords) {
-                          const leaveTypeDisplay = employee.LeaveType || employee.leaveType || 'Leave';
-                          return {
-                            type: leaveTypeDisplay,
-                            style: {
-                              backgroundColor: "#ffffff",
-                              color: "#111827",
-                              border: "2px solid #111827"
-                            }
-                          };
+                        // Format the result
+                        if (durationInMinutes > 0) {
+                          const hours = Math.floor(durationInMinutes / 60);
+                          const minutes = durationInMinutes % 60;
+                          return `${hours}h ${minutes}m`;
                         }
                         
-                        // If has punch records but duration is 0, it might be an active punch (no check-out yet)
-                        if (hasPunchRecords && durationMinutes === 0 && checkInTime && !checkOutTime) {
-                          return {
-                            type: "Present",
-                            style: {
-                              backgroundColor: "#bbf7d0",
-                              color: "#15803d"
-                            }
-                          };
+                        // If DurationString field exists, use it as fallback
+                        if (employee.DurationString) {
+                          return employee.DurationString;
                         }
-
-                        // Full Day - Green
-                        if (durationMinutes >= 8 * 60 + 20) {
-                          return {
-                            type: "Full Day",
-                            style: {
-                              backgroundColor: "#bbf7d0",
-                              color: "#15803d"
-                            }
-                          };
-                        } 
-                        // Half Day - Yellow
-                        else if (durationMinutes >= 4 * 60 && durationMinutes < 8 * 60 + 20) {
-                          return {
-                            type: "Half Day",
-                            style: {
-                              backgroundColor: "#fef3c7",
-                              color: "#92400e"
-                            }
-                          };
-                        } 
-                        // Present with some hours
-                        else if (durationMinutes > 0) {
-                          return {
-                            type: "Present",
-                            style: {
-                              backgroundColor: "#bbf7d0",
-                              color: "#15803d"
-                            }
-                          };
-                        } 
-                        // Absent - Red (only if not a weekend)
-                        else if (status === "Absent" && !hasPunchRecords && !hasApprovedLeave && !isWeekend) {
-                          return {
-                            type: "Absent",
-                            style: {
-                              backgroundColor: "#fecaca",
-                              color: "#b91c1c"
-                            }
-                          };
-                        } 
-                        // Has punch records but duration is 0 - show as present
-                        else if (hasPunchRecords) {
-                          return {
-                            type: "Present",
-                            style: {
-                              backgroundColor: "#bbf7d0",
-                              color: "#15803d"
-                            }
-                          };
-                        } 
-                        // Default - Off Day
-                        else {
-                          return {
-                            type: "Off Day",
-                            style: {
-                              backgroundColor: "#e5e7eb",
-                              color: "#374151"
-                            }
-                          };
-                        }
+                        
+                        return "--";
                       };
 
-                      const dayTypeInfo = getDayTypeStyle(durationInMinutes, employee.Status, hasPunchRecords, hasApprovedLeave, isWeekendDay);
-                      const dayType = dayTypeInfo.type;
-                      const dayTypeStyle = dayTypeInfo.style;
-
-                      // Helper function to get status colors with inline styles (like days column)
-                      const getStatusStyle = (status, hasApprovedLeave, isWeekend) => {
-                        console.log('getStatusStyle called with:', status, 'hasApprovedLeave:', hasApprovedLeave, 'isWeekend:', isWeekend);
-                        
-                        // Normalize the status string to handle case and whitespace
-                        const normalizedStatus = status?.trim() || '';
-                        console.log('Normalized status:', normalizedStatus);
-                        
-                        // Weekend - Off Day (gray)
-                        if (isWeekend) {
-                          return {
-                            backgroundColor: "#e5e7eb",
-                            color: "#374151"
-                          };
+                      // Get shift time from backend
+                      const getShiftTime = () => {
+                        // Priority 1: Use getEmployeeShiftTiming from allUserData
+                        const shiftTiming = getEmployeeShiftTiming;
+                        if (shiftTiming?.startAt && shiftTiming?.endAt) {
+                          return `${shiftTiming.startAt} - ${shiftTiming.endAt}`;
                         }
-                        
-                        // Approved Leave - White with black border
-                        if (hasApprovedLeave && !hasPunchRecords) {
-                          return {
-                            backgroundColor: "#ffffff",
-                            color: "#111827",
-                            border: "2px solid #111827"
-                          };
+                        // Priority 2: Check if shift timing is available in current employee record
+                        if (employee?.shiftTime?.startAt && employee?.shiftTime?.endAt) {
+                          return `${employee.shiftTime.startAt} - ${employee.shiftTime.endAt}`;
                         }
-                        
-                        switch (normalizedStatus) {
-                          case "Present":
-                          case "Full Day":
-                            return {
-                              backgroundColor: "#bbf7d0",
-                              color: "#15803d"
-                            };
-                          case "1/2 Present":
-                          case "½Present":
-                          case "Half Day":
-                            return {
-                              backgroundColor: "#fef3c7",
-                              color: "#92400e"
-                            };
-                          case "Absent":
-                            return {
-                              backgroundColor: "#fecaca",
-                              color: "#b91c1c"
-                            };
-                          case "Holiday":
-                            return {
-                              backgroundColor: "#dbeafe",
-                              color: "#1e40af"
-                            };
-                          case "Weekly Off":
-                          case "WeeklyOff":
-                          case "Off Day":
-                          case "Comp-Off":
-                          default:
-                            return {
-                              backgroundColor: "#e5e7eb",
-                              color: "#374151"
-                            };
+                        // Priority 3: Try to get from allUserData by employeeId
+                        if (employee?.employeeId) {
+                          const allUserEmployees = allUserData?.data || [];
+                          const emp = allUserEmployees.find(e => e.employeeId === employee.employeeId);
+                          if (emp?.shiftTime?.startAt && emp?.shiftTime?.endAt) {
+                            return `${emp.shiftTime.startAt} - ${emp.shiftTime.endAt}`;
+                          }
                         }
+                        return "--";
                       };
 
-                      // Calculate actual status based on duration and punch records
-                      let actualStatus = employee.Status || 'Absent';
-                      
-                      // Check for Holiday first
-                      if (actualStatus === 'Holiday') {
-                        actualStatus = 'Holiday';
-                      }
-                      // Check for weekend - show as Off Day
-                      else if (isWeekendDay) {
-                        if (hasPunchRecords && durationInMinutes >= 4 * 60) {
-                          actualStatus = 'Comp-Off';
-                        } else {
-                          actualStatus = 'Off Day';
-                        }
-                      }
-                      // Check for approved leave
-                      else if (hasApprovedLeave && !hasPunchRecords) {
-                        actualStatus = 'Leave';
-                      }
-                      // Check for punch records
-                      else if (hasPunchRecords) {
-                        if (durationInMinutes >= 8 * 60) {
-                          actualStatus = 'Full Day';
-                        } else if (durationInMinutes >= 4 * 60) {
-                          actualStatus = 'Half Day';
-                        } else if (durationInMinutes > 0 || checkInTime) {
-                          actualStatus = 'Present';
-                        }
-                      }
-                      
-                      const statusStyle = getStatusStyle(actualStatus, hasApprovedLeave, isWeekendDay);
-                      console.log('Status Debug:', {
-                        originalStatus: employee.Status,
-                        actualStatus: actualStatus,
-                        durationInMinutes: durationInMinutes,
-                        hasPunchRecords: hasPunchRecords,
-                        statusStyle: statusStyle,
-                        hasStyle: !!statusStyle
-                      });
+                      // Get status from backend - use AttendanceStatus or Status field
+                      const getStatus = () => {
+                        return employee.AttendanceStatus || employee.Status || 'Not Available';
+                      };
+
+                      const status = getStatus();
+                      const statusColor = status === 'Present' || status === 'Full Day'
+                        ? 'bg-green-100 text-green-800'
+                        : status === 'Absent'
+                        ? 'bg-red-100 text-red-800'
+                        : status === 'Half Day'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : status === 'Holiday'
+                        ? 'bg-blue-100 text-blue-800'
+                        : status === 'Comp-Off' || status === 'Comp Off'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-gray-100 text-gray-800';
+
+                      // All old calculation code removed - using only backend data now
 
                       return (
                         <tr
-                          key={employee.id}
+                          key={employee.id || index}
                           className={`hover:bg-gray-50 transition-colors duration-200 ${
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                           }`}
@@ -1217,12 +832,9 @@ const EmployeesAttendanceData = () => {
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <span 
-                              className="inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
-                              style={statusStyle}
+                              className={`inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full ${statusColor}`}
                             >
-                              {hasApprovedLeave && !hasPunchRecords 
-                                ? (employee.LeaveType || employee.leaveType || 'Leave')
-                                : (actualStatus || "Unknown")}
+                              {employee.LeaveType || employee.leaveType || status}
                             </span>
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
@@ -1231,49 +843,20 @@ const EmployeesAttendanceData = () => {
                             </div>
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="text-xs sm:text-sm font-medium text-gray-900">
+                                {getShiftTime()}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                               <span className="text-xs sm:text-sm font-medium text-gray-900">
-                                {(() => {
-                                  if (!checkInTime) return "--";
-                                  // Handle ISO format (2025-11-29T09:05:59.000Z)
-                                  if (checkInTime.includes("T")) {
-                                    try {
-                                      const date = new Date(checkInTime);
-                                      if (isNaN(date.getTime())) return "--";
-                                      // Check if it's midnight (00:00:00) - likely a placeholder
-                                      const hours = date.getHours();
-                                      const mins = date.getMinutes();
-                                      const secs = date.getSeconds();
-                                      if (hours === 0 && mins === 0 && secs === 0) {
-                                        return "--";
-                                      }
-                                      // Check if year is invalid (epoch 1970 or beyond 2100)
-                                      const year = date.getFullYear();
-                                      if (year < 2000 || year > 2100) {
-                                        return "--";
-                                      }
-                                      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                                    } catch { return "--"; }
-                                  }
-                                  // Handle space-separated format (2025-11-29 09:05:59)
-                                  if (checkInTime.includes(" ")) {
-                                    const time = checkInTime.split(" ")[1];
-                                  return time === "00:00:00" ? "--" : time || "--";
-                                  }
-                                  // Handle time-only format (09:11:59)
-                                  if (checkInTime.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
-                                    const [h, m, s] = checkInTime.split(':');
-                                    const hours = parseInt(h, 10);
-                                    const mins = parseInt(m, 10);
-                                    // Reject midnight times
-                                    if (hours === 0 && mins === 0) return "--";
-                                    const date = new Date();
-                                    date.setHours(hours, mins, s ? parseInt(s, 10) : 0, 0);
-                                    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                                  }
-                                  return checkInTime || "--";
-                                })()}
+                                {formatTime(employee.InTime)}
                               </span>
                             </div>
                           </td>
@@ -1281,46 +864,7 @@ const EmployeesAttendanceData = () => {
                             <div className="flex items-center">
                               <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                               <span className="text-xs sm:text-sm font-medium text-gray-900">
-                                {(() => {
-                                  if (!checkOutTime) return "--";
-                                  // Handle ISO format (2025-11-29T18:05:59.000Z)
-                                  if (checkOutTime.includes("T")) {
-                                    try {
-                                      const date = new Date(checkOutTime);
-                                      if (isNaN(date.getTime())) return "--";
-                                      // Check if it's midnight (00:00:00) - likely a placeholder
-                                      const hours = date.getHours();
-                                      const mins = date.getMinutes();
-                                      const secs = date.getSeconds();
-                                      if (hours === 0 && mins === 0 && secs === 0) {
-                                        return "--";
-                                      }
-                                      // Check if year is invalid (epoch 1970 or beyond 2100)
-                                      const year = date.getFullYear();
-                                      if (year < 2000 || year > 2100) {
-                                        return "--";
-                                      }
-                                      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                                    } catch { return "--"; }
-                                  }
-                                  // Handle space-separated format (2025-11-29 18:05:59)
-                                  if (checkOutTime.includes(" ")) {
-                                    const time = checkOutTime.split(" ")[1];
-                                  return time === "00:00:00" ? "--" : time || "--";
-                                  }
-                                  // Handle time-only format (18:24:59)
-                                  if (checkOutTime.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
-                                    const [h, m, s] = checkOutTime.split(':');
-                                    const hours = parseInt(h, 10);
-                                    const mins = parseInt(m, 10);
-                                    // Reject midnight times
-                                    if (hours === 0 && mins === 0) return "--";
-                                    const date = new Date();
-                                    date.setHours(hours, mins, s ? parseInt(s, 10) : 0, 0);
-                                    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                                  }
-                                  return checkOutTime || "--";
-                                })()}
+                                {formatTime(employee.OutTime)}
                               </span>
                             </div>
                           </td>
@@ -1330,17 +874,9 @@ const EmployeesAttendanceData = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               <span className="text-xs sm:text-sm font-medium text-gray-900">
-                                {hours > 0 || minutes > 0 ? `${hours}h ${minutes}m` : '--'}
+                                {calculateEffectiveHours()}
                               </span>
                             </div>
-                          </td>
-                          <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                            <span 
-                              className="inline-flex px-2 sm:px-3 py-1 text-xs font-semibold rounded-full border shadow-sm"
-                              style={dayTypeStyle}
-                            >
-                              {dayType}
-                            </span>
                           </td>
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <span className="text-xs sm:text-sm text-gray-500">
@@ -1350,12 +886,12 @@ const EmployeesAttendanceData = () => {
                           <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <button
                               className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 ${
-                                (employee?.Duration === 0 || !employee?.Duration)
+                                (!employee?.PunchRecords || employee?.PunchRecords.trim() === '')
                                   ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
                                   : "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
                               }`}
                               onClick={() => handleOpenModal(employee)}
-                              disabled={employee?.Duration === 0 || !employee?.Duration}
+                              disabled={!employee?.PunchRecords || employee?.PunchRecords.trim() === ''}
                             >
                               <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
