@@ -6,10 +6,11 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import Modal from "@mui/material/Modal";
 import Box from "@mui/material/Box";
-import { getAttendenceLogsOfEmploye, getAllUserDataAction } from '../../store/action/userDataAction';
+import { getAttendenceLogsOfEmploye, getAllUserDataAction, deleteEmployeeAction } from '../../store/action/userDataAction';
 import Calendar from '../Calendar';
-import { FaCalendarAlt, FaClock, FaUserTie, FaIdCard, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaCalendarAlt, FaClock, FaUserTie, FaIdCard, FaPhone, FaEnvelope, FaMapMarkerAlt, FaTrash } from 'react-icons/fa';
 import dayjs from 'dayjs';
+import safeToast from '../../utils/safeToast';
 
 function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeLeaveBalance }) {
     const [search, setSearch] = useState("");
@@ -20,8 +21,12 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [activeTab, setActiveTab] = useState("teamLogs"); // Track which tab is active
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [deletionReason, setDeletionReason] = useState('');
+    const [deleting, setDeleting] = useState(false);
     const { data: userData } = useSelector((state) => state.userData);
     const userDataList = userData?.data?.role || [];
+    const isAdminUser = userDataList === 'HR-Admin' || userDataList === 'Super-Admin';
     const { loading, data, error } = useSelector((state) => state.attendanceLogs);
     const employees = data?.data || [];
     // Get employee data to access shift timing
@@ -63,6 +68,29 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
         setSelectedEmployee(null);
     };
 
+    // Handle delete employee
+    const handleDeleteClick = () => {
+        setDeletionReason('');
+        setDeleteModalOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!employeeTicket) return;
+        
+        setDeleting(true);
+        try {
+            await dispatch(deleteEmployeeAction(employeeTicket, deletionReason));
+            // Go back to list view after successful deletion
+            onBack();
+        } catch (error) {
+            console.error('Error deleting employee:', error);
+        } finally {
+            setDeleting(false);
+            setDeleteModalOpen(false);
+            setDeletionReason('');
+        }
+    };
+
     const SkeletonLoader = () => (
         <tr className="animate-pulse">
             {Array(6)
@@ -99,6 +127,16 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
                                     {employeeName?.charAt(0).toUpperCase()}
                                 </span>
                             </div>
+                            {isAdminUser && (
+                                <button
+                                    onClick={handleDeleteClick}
+                                    className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200"
+                                    title="Delete Employee"
+                                >
+                                    <FaTrash className="w-4 h-4 mr-2" />
+                                    Delete Employee
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -455,6 +493,74 @@ function SingleTeamatesProfile({ onBack, employeeTicket, employeeName, employeeL
                     )}
                 </Box>
             </Modal>
+
+            {/* Delete Confirmation Modal */}
+            {deleteModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-red-200 animate-in fade-in-0 zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center gap-4 p-6 border-b border-gray-200">
+                            <div className="p-3 rounded-full bg-red-100">
+                                <div className="text-red-600">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-gray-900">Delete Employee</h3>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6">
+                            <p className="text-gray-600 leading-relaxed mb-4">
+                                Are you sure you want to delete <strong>{employeeName}</strong>? This action can be reverted.
+                            </p>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Deletion Reason (Optional)
+                                </label>
+                                <textarea
+                                    value={deletionReason}
+                                    onChange={(e) => setDeletionReason(e.target.value)}
+                                    placeholder="Enter reason for deletion..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                    rows="3"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+                            <button
+                                onClick={() => {
+                                    setDeleteModalOpen(false);
+                                    setDeletionReason('');
+                                }}
+                                disabled={deleting}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteConfirm}
+                                disabled={deleting}
+                                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deleting ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Deleting...
+                                    </div>
+                                ) : (
+                                    'Delete'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

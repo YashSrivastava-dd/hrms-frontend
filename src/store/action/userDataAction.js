@@ -227,6 +227,15 @@ import {
   GET_PUNCH_RECORDS_FOR_ATTENDANCE_REQUEST,
   GET_PUNCH_RECORDS_FOR_ATTENDANCE_SUCCESS,
   GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
+  DELETE_EMPLOYEE_REQUEST,
+  DELETE_EMPLOYEE_SUCCESS,
+  DELETE_EMPLOYEE_FAIL,
+  RESTORE_EMPLOYEE_REQUEST,
+  RESTORE_EMPLOYEE_SUCCESS,
+  RESTORE_EMPLOYEE_FAIL,
+  GET_DELETED_EMPLOYEES_REQUEST,
+  GET_DELETED_EMPLOYEES_SUCCESS,
+  GET_DELETED_EMPLOYEES_FAIL,
 } from "../types/UserDataType";
 export const getUserDataAction = () => async (dispatch, getState) => {
   console.log('getUserDataAction: Action dispatched');
@@ -905,19 +914,22 @@ export const putApprovedRegularizationAction =
 
 export const postApplyRegularizationAction =
   (leaveType, leaveStartDate, reason) => async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = localStorage.getItem("employeId");
     // If token does not exist, do nothing or handle the case
     if (!token) {
       return dispatch({
-        type: POST_APPLY_REGULARIZE_REQUEST,
+        type: POST_APPLY_REGULARIZE_FAIL,
         payload: "Authentication token not found",
       });
     }
 
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
+    if (!employeId) {
+      return dispatch({
+        type: POST_APPLY_REGULARIZE_FAIL,
+        payload: "Employee ID not found",
+      });
+    }
 
     try {
       dispatch({ type: POST_APPLY_REGULARIZE_REQUEST });
@@ -3481,3 +3493,100 @@ export const getPunchRecordsForAttendanceAction =
       });
     }
   };
+
+// Delete Employee (HR Admin only)
+export const deleteEmployeeAction = (employeeId, deletionReason = '') => async (dispatch) => {
+  try {
+    dispatch({ type: DELETE_EMPLOYEE_REQUEST });
+    
+    const token = safeGetLocalStorage("authToken");
+    if (!token) {
+      throw new Error("Authentication token not found");
+    }
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    };
+
+    const requestBody = deletionReason ? { deletionReason } : {};
+    const url = `${process.env.REACT_APP_BASE_URL}/api/employee/delete-employee/${employeeId}`;
+    
+    const response = await axios.delete(url, {
+      ...config,
+      data: requestBody,
+    });
+
+    dispatch({ type: DELETE_EMPLOYEE_SUCCESS, payload: response.data });
+    safeToast.success(response.data?.message || "Employee deleted successfully");
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || error.message || "Failed to delete employee";
+    dispatch({ type: DELETE_EMPLOYEE_FAIL, payload: errorMessage });
+    safeToast.error(errorMessage);
+    throw error;
+  }
+};
+
+// Restore Employee (HR Admin only)
+export const restoreEmployeeAction = (employeeId) => async (dispatch) => {
+  try {
+    dispatch({ type: RESTORE_EMPLOYEE_REQUEST });
+    
+    const token = safeGetLocalStorage("authToken");
+    if (!token) {
+      throw new Error("Authentication token not found");
+    }
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    };
+
+    const url = `${process.env.REACT_APP_BASE_URL}/api/employee/restore-employee/${employeeId}`;
+    const response = await axios.post(url, {}, config);
+
+    dispatch({ type: RESTORE_EMPLOYEE_SUCCESS, payload: response.data });
+    safeToast.success(response.data?.message || "Employee restored successfully");
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || error.message || "Failed to restore employee";
+    dispatch({ type: RESTORE_EMPLOYEE_FAIL, payload: errorMessage });
+    safeToast.error(errorMessage);
+    throw error;
+  }
+};
+
+// Get Deleted Employees (HR Admin only)
+export const getDeletedEmployeesAction = () => async (dispatch) => {
+  try {
+    dispatch({ type: GET_DELETED_EMPLOYEES_REQUEST });
+    
+    const token = safeGetLocalStorage("authToken");
+    if (!token) {
+      throw new Error("Authentication token not found");
+    }
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    };
+
+    const url = `${process.env.REACT_APP_BASE_URL}/api/employee/get-deleted-employees`;
+    const response = await axios.get(url, config);
+
+    dispatch({ type: GET_DELETED_EMPLOYEES_SUCCESS, payload: response.data });
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data?.message || error.message || "Failed to fetch deleted employees";
+    dispatch({ type: GET_DELETED_EMPLOYEES_FAIL, payload: errorMessage });
+    safeToast.error(errorMessage);
+    throw error;
+  }
+};

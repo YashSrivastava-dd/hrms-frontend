@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { loginUserReducer, singleUserDataReducer, allEmployeeDataReducer, attendanceEmployeeReducer, getEmployeeLeaveStatusReducer, getHolidaysListReducer, getLeaveApproveReducer, getCompoffLeaveApprovalReducer, getPublicDocumentReduce, postLeaveApplyByEmployeReducer, deleteLeaveRequestReducer, leaveApproveByManagerReducer, postApplyCompoffLeaveReducer, putCompoffLeaveReducer, getCompoffLeaveDataReducer, getTeammateDataReducer, getEmployeePrivateReducer, postSendOtpWithEmailReducer, otpVerificationReducer, postConfirmPasswordReducer, getCalenderLogsApiReducer, postRegularizeReducer, getAllEmployeeAttendanceeReducer, getOnLeaveStatusReducer, getTotalProjectListReducer, getTaskProjectByIdReducer, getSingleTaskDetailsReducer, getAttendanceLogsDayWiseReducer, postMedicalFileReducer, getAnnouncementDataReducer, getPunchDataReducer, getPaySlipAndPayrollReducer, getPunchInPunchOutReducer, getVendorLogsReducer, getVendorSingleLogsReducer, getEmployeeDataCountReducer, getGraphCountDataReducer, getEmployeeLeaveCoutReducer, postVendorMeetingReducer, postRevertLeaveReducer, putRevertApprovedLeaveReducer, postTaxDeclarationReducer, getTaxDeclarationsReducer, deleteVendorMeetingReducer, deleteCompoffLeaveReducer, regularizationCountReducer, postS3UploadDocReducer, postUploadEmployeeDocumentsReducer, getHrAllPrivateDocsReducer, getPunchRecordsForAttendanceReducer } from "./reducer/UserDataReducer";
+import { loginUserReducer, singleUserDataReducer, allEmployeeDataReducer, attendanceEmployeeReducer, getEmployeeLeaveStatusReducer, getHolidaysListReducer, getLeaveApproveReducer, getCompoffLeaveApprovalReducer, getPublicDocumentReduce, postLeaveApplyByEmployeReducer, deleteLeaveRequestReducer, leaveApproveByManagerReducer, postApplyCompoffLeaveReducer, putCompoffLeaveReducer, getCompoffLeaveDataReducer, getTeammateDataReducer, getEmployeePrivateReducer, postSendOtpWithEmailReducer, otpVerificationReducer, postConfirmPasswordReducer, getCalenderLogsApiReducer, postRegularizeReducer, getAllEmployeeAttendanceeReducer, getOnLeaveStatusReducer, getTotalProjectListReducer, getTaskProjectByIdReducer, getSingleTaskDetailsReducer, getAttendanceLogsDayWiseReducer, postMedicalFileReducer, getAnnouncementDataReducer, getPunchDataReducer, getPaySlipAndPayrollReducer, getPunchInPunchOutReducer, getVendorLogsReducer, getVendorSingleLogsReducer, getEmployeeDataCountReducer, getGraphCountDataReducer, getEmployeeLeaveCoutReducer, postVendorMeetingReducer, postRevertLeaveReducer, putRevertApprovedLeaveReducer, postTaxDeclarationReducer, getTaxDeclarationsReducer, deleteVendorMeetingReducer, deleteCompoffLeaveReducer, regularizationCountReducer, postS3UploadDocReducer, postUploadEmployeeDocumentsReducer, getHrAllPrivateDocsReducer, getPunchRecordsForAttendanceReducer, deletedEmployeesReducer, deleteEmployeeReducer, restoreEmployeeReducer } from "./reducer/UserDataReducer";
 
 const store = configureStore({
   reducer: {
@@ -53,6 +53,9 @@ const store = configureStore({
     uploadEmployeeDocuments:postUploadEmployeeDocumentsReducer,
     hrAllPrivateDocs:getHrAllPrivateDocsReducer,
     punchRecordsForAttendance:getPunchRecordsForAttendanceReducer,
+    deletedEmployees:deletedEmployeesReducer,
+    deleteEmployee:deleteEmployeeReducer,
+    restoreEmployee:restoreEmployeeReducer,
   }
 });
 

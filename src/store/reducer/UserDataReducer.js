@@ -156,6 +156,15 @@ import {
   GET_PUNCH_RECORDS_FOR_ATTENDANCE_REQUEST,
   GET_PUNCH_RECORDS_FOR_ATTENDANCE_SUCCESS,
   GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL,
+  DELETE_EMPLOYEE_REQUEST,
+  DELETE_EMPLOYEE_SUCCESS,
+  DELETE_EMPLOYEE_FAIL,
+  RESTORE_EMPLOYEE_REQUEST,
+  RESTORE_EMPLOYEE_SUCCESS,
+  RESTORE_EMPLOYEE_FAIL,
+  GET_DELETED_EMPLOYEES_REQUEST,
+  GET_DELETED_EMPLOYEES_SUCCESS,
+  GET_DELETED_EMPLOYEES_FAIL,
 } from "../types/UserDataType";
 
 const initialState = {
@@ -1457,6 +1466,84 @@ export const getPunchRecordsForAttendanceReducer = (state = initialState, action
       };
 
     case GET_PUNCH_RECORDS_FOR_ATTENDANCE_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Deleted Employees Reducer
+export const deletedEmployeesReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case GET_DELETED_EMPLOYEES_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case GET_DELETED_EMPLOYEES_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case GET_DELETED_EMPLOYEES_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Delete Employee Reducer
+export const deleteEmployeeReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case DELETE_EMPLOYEE_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case DELETE_EMPLOYEE_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case DELETE_EMPLOYEE_FAIL:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// Restore Employee Reducer
+export const restoreEmployeeReducer = (state = initialState, action) => {
+  switch (action.type) {
+    case RESTORE_EMPLOYEE_REQUEST:
+      return { ...state, loading: true, error: null };
+
+    case RESTORE_EMPLOYEE_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        data: action.payload,
+        error: null,
+      };
+
+    case RESTORE_EMPLOYEE_FAIL:
       return {
         ...state,
         loading: false,
