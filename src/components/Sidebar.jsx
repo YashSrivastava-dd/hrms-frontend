@@ -24,6 +24,7 @@ import LogsPage from "./Logs/LogsPage";
 import GenerateSalarySlip from "./GenerateSalarySlip";
 import PunchRecords from "./PunchRecords";
 import AdminPunchRecords from "./AdminPunchRecords";
+import SalarySheetList from "./SalarySheet/SalarySheetList";
 
 const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -374,6 +375,13 @@ const Sidebar = ({ isSidebarOpen, onToggleSidebar }) => {
               icon="💰"
               isSelected={selectedTag === "payslipAndPayRole"}
               onClick={() => handleNavigation("payslipAndPayRole")}
+            />
+            
+            <SidebarLink
+              label="Salary Sheets"
+              icon="💵"
+              isSelected={selectedTag === "salarySheets"}
+              onClick={() => handleNavigation("salarySheets")}
             />
             
             <SidebarLink

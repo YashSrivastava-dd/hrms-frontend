@@ -19,6 +19,7 @@ import Finance from "./Finance/Finance";
 import GenerateSalarySlip from "./GenerateSalarySlip";
 import PunchRecords from "./PunchRecords";
 import AdminPunchRecords from "./AdminPunchRecords";
+import SalarySheetList from "./SalarySheet/SalarySheetList";
 
 const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
   const [reloadHandel, setReloadHandel] = useState(false);
@@ -58,6 +59,15 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
       window.removeEventListener('navigationChange', handleNavigationChange);
     };
   }, []);
+
+  // Debug: Log when selectedTag changes to salarySheets
+  useEffect(() => {
+    if (selectedTag === 'salarySheets') {
+      console.log('SidebarContent: selectedTag changed to salarySheets');
+      console.log('SidebarContent: userType:', userType);
+      console.log('SidebarContent: Will render SalarySheetList:', !!userType);
+    }
+  }, [selectedTag, userType]);
 
   console.log('SidebarContent Render Debug:', {
     userType,
@@ -126,6 +136,23 @@ const SidebarContent = ({ isSidebarOpen, onToggleSidebar }) => {
           {selectedTag === "employeeHolidays" && <EmployeeHolidays />}
           {selectedTag === "viewByEmployee" && <TeammatesProfile selectedTag={selectedTag} />}
           {selectedTag === "payslipAndPayRole" && <EmployeePayroleTable />}
+          {selectedTag === "salarySheets" && (() => {
+            console.log('SidebarContent: selectedTag is salarySheets, userType:', userType);
+            console.log('SidebarContent: About to render SalarySheetList component');
+            console.log('SidebarContent: SalarySheetList import:', typeof SalarySheetList);
+            
+            if (typeof SalarySheetList === 'undefined') {
+              console.error('SalarySheetList is undefined!');
+              return (
+                <div className="p-6 bg-red-100">
+                  <h2 className="text-xl font-bold text-red-800">Error: SalarySheetList component not found</h2>
+                  <p>Please check the import path.</p>
+                </div>
+              );
+            }
+            
+            return <SalarySheetList />;
+          })()}
           {selectedTag === "declarationForm" && <DeclarationForm />}
           {selectedTag === "leaves" && <EmployessLeave />}
           {selectedTag === "managerApproval" && <ManagerApproval />}

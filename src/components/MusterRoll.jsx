@@ -249,6 +249,10 @@ const MusterRoll = () => {
               halfDay: parseFloat(leaveSummary.halfDay || leaveSummary.half_day || 0),
               holiday: parseFloat(leaveSummary.holiday || 0),
               compoff: parseFloat(leaveSummary.compoff || leaveSummary.comboOff || 0),
+              // Count ML, EL, CL from attendanceDays
+              medicalLeave: Object.values(processedAttendanceDays).filter(status => status === 'ML').length,
+              earnedLeave: Object.values(processedAttendanceDays).filter(status => status === 'EL').length,
+              casualLeave: Object.values(processedAttendanceDays).filter(status => status === 'CL').length,
               adjustedLeave: parseFloat(leaveSummary.adjustedLeave || leaveSummary.adjusted_leave || 0),
               totalAbsent: parseFloat(leaveSummary.totalAbsent || leaveSummary.total_absent || 0),
               weekOff: parseFloat(leaveSummary.weekOff || leaveSummary.week_off || 0),
@@ -350,6 +354,10 @@ const MusterRoll = () => {
           halfDay,
           holiday,
           compoff,
+          // Count ML, EL, CL from attendanceDays
+          medicalLeave: Object.values(attendanceDays).filter(status => status === 'ML').length,
+          earnedLeave: Object.values(attendanceDays).filter(status => status === 'EL').length,
+          casualLeave: Object.values(attendanceDays).filter(status => status === 'CL').length,
           adjustedLeave,
           totalAbsent,
           weekOff,
@@ -427,32 +435,6 @@ const MusterRoll = () => {
     });
   }, [processedData, debouncedSearch, employeeTypeFilter, employeeCodeFilter, designationFilter, payableDaysRange, salaryRange]);
 
-  // Calculate summary totals
-  const summaryTotals = useMemo(() => {
-    return filteredData.reduce((acc, emp) => {
-      acc.totalEmployees += 1;
-      acc.totalPresent += emp.attendanceSummary.totalPresent;
-      acc.halfDays += emp.attendanceSummary.halfDay;
-      acc.absent += emp.attendanceSummary.totalAbsent;
-      acc.holidays += emp.attendanceSummary.holiday;
-      acc.weekOffs += emp.attendanceSummary.weekOff;
-      acc.payableDays += emp.attendanceSummary.payableDays;
-      acc.totalGrossSalary += emp.salary.gross;
-      acc.totalNetSalary += emp.salary.net;
-      return acc;
-    }, {
-      totalEmployees: 0,
-      totalPresent: 0,
-      halfDays: 0,
-      absent: 0,
-      holidays: 0,
-      weekOffs: 0,
-      payableDays: 0,
-      totalGrossSalary: 0,
-      totalNetSalary: 0
-    });
-  }, [filteredData]);
-
   // Attendance status chip component (memoized)
   const AttendanceChip = React.memo(({ status, day }) => {
     const statusConfig = {
@@ -509,37 +491,11 @@ const MusterRoll = () => {
     setSalaryRange({ min: '', max: '' });
   };
 
-  // Summary cards component
-  const SummaryCard = ({ icon, label, value, color = 'blue' }) => {
-    const colorClasses = {
-      blue: 'bg-blue-50 border-blue-200 text-blue-700',
-      green: 'bg-green-50 border-green-200 text-green-700',
-      orange: 'bg-orange-50 border-orange-200 text-orange-700',
-      red: 'bg-red-50 border-red-200 text-red-700',
-      purple: 'bg-purple-50 border-purple-200 text-purple-700',
-      gray: 'bg-gray-50 border-gray-200 text-gray-700'
-    };
-
-    return (
-      <div className={`rounded-lg border p-4 ${colorClasses[color]} shadow-sm`}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-xs font-medium opacity-75">{label}</div>
-          {icon}
-        </div>
-        <div className="text-2xl font-bold">{value}</div>
-      </div>
-    );
-  };
-
   return (
     <div className="bg-gray-50">
-      {/* Sticky Summary Bar */}
-      <div 
-        ref={summaryRef}
-        className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm"
-      >
-        <div className="px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-4">
+      {/* Header with Month Selector */}
+      <div className="px-4 sm:px-6 lg:px-8 py-4 bg-white border-b border-gray-200">
+        <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Muster Roll</h1>
               <p className="text-sm text-gray-600 mt-1">{monthInfo.monthName}</p>
@@ -563,64 +519,6 @@ const MusterRoll = () => {
                   );
                 })}
               </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3">
-            <SummaryCard
-              icon={<FaUsers className="w-4 h-4" />}
-              label="Total Employees"
-              value={summaryTotals.totalEmployees}
-              color="blue"
-            />
-            <SummaryCard
-              icon={<FaCheckCircle className="w-4 h-4" />}
-              label="Present Days"
-              value={summaryTotals.totalPresent.toFixed(1)}
-              color="green"
-            />
-            <SummaryCard
-              icon={<FaClock className="w-4 h-4" />}
-              label="Half Days"
-              value={summaryTotals.halfDays.toFixed(1)}
-              color="orange"
-            />
-            <SummaryCard
-              icon={<FaBan className="w-4 h-4" />}
-              label="Absent"
-              value={summaryTotals.absent.toFixed(1)}
-              color="red"
-            />
-            <SummaryCard
-              icon={<FaUmbrellaBeach className="w-4 h-4" />}
-              label="Holidays"
-              value={summaryTotals.holidays.toFixed(1)}
-              color="blue"
-            />
-            <SummaryCard
-              icon={<FaCalendarWeek className="w-4 h-4" />}
-              label="Week Offs"
-              value={summaryTotals.weekOffs.toFixed(1)}
-              color="gray"
-            />
-            <SummaryCard
-              icon={<FaCalendarAlt className="w-4 h-4" />}
-              label="Payable Days"
-              value={summaryTotals.payableDays.toFixed(1)}
-              color="purple"
-            />
-            <SummaryCard
-              icon={<FaMoneyBillWave className="w-4 h-4" />}
-              label="Gross Salary"
-              value={formatBasicSalary(summaryTotals.totalGrossSalary, true)}
-              color="green"
-            />
-            <SummaryCard
-              icon={<FaRupeeSign className="w-4 h-4" />}
-              label="Net Salary"
-              value={formatBasicSalary(summaryTotals.totalNetSalary, true)}
-              color="green"
-            />
           </div>
         </div>
       </div>
@@ -634,8 +532,7 @@ const MusterRoll = () => {
           <div className="flex items-center space-x-2">
             <FaFilter className="w-4 h-4 text-gray-600" />
             <span className="font-medium text-gray-700">Filters</span>
-            {(debouncedSearch || employeeTypeFilter !== 'All' || employeeCodeFilter || designationFilter || 
-              payableDaysRange.min || payableDaysRange.max || salaryRange.min || salaryRange.max) && (
+            {(debouncedSearch || employeeTypeFilter !== 'All' || employeeCodeFilter || designationFilter) && (
               <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
                 Active
               </span>
@@ -645,40 +542,7 @@ const MusterRoll = () => {
         </button>
 
         {filtersOpen && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {/* Employee Name Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Employee Name
-              </label>
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Employee Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Employee Type
-              </label>
-              <select
-                value={employeeTypeFilter}
-                onChange={(e) => setEmployeeTypeFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="All">All</option>
-                <option value="Permanent">Permanent</option>
-                <option value="Contractual">Contractual</option>
-              </select>
-            </div>
-
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Employee Code */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -691,6 +555,23 @@ const MusterRoll = () => {
                 placeholder="Filter by code..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            {/* Employee Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Employee Name
+              </label>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
             </div>
 
             {/* Designation */}
@@ -707,58 +588,20 @@ const MusterRoll = () => {
               />
             </div>
 
-            {/* Payable Days Range */}
+            {/* Employee Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payable Days (Min)
+                Employee Type
               </label>
-              <input
-                type="number"
-                value={payableDaysRange.min}
-                onChange={(e) => setPayableDaysRange({ ...payableDaysRange, min: e.target.value })}
-                placeholder="Min days..."
+              <select
+                value={employeeTypeFilter}
+                onChange={(e) => setEmployeeTypeFilter(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payable Days (Max)
-              </label>
-              <input
-                type="number"
-                value={payableDaysRange.max}
-                onChange={(e) => setPayableDaysRange({ ...payableDaysRange, max: e.target.value })}
-                placeholder="Max days..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* Salary Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Salary (Min)
-              </label>
-              <input
-                type="number"
-                value={salaryRange.min}
-                onChange={(e) => setSalaryRange({ ...salaryRange, min: e.target.value })}
-                placeholder="Min salary..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Salary (Max)
-              </label>
-              <input
-                type="number"
-                value={salaryRange.max}
-                onChange={(e) => setSalaryRange({ ...salaryRange, max: e.target.value })}
-                placeholder="Max salary..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              >
+                <option value="All">All</option>
+                <option value="Permanent">Permanent</option>
+                <option value="Contractual">Contractual</option>
+              </select>
             </div>
 
             {/* Clear Filters Button */}
@@ -780,73 +623,60 @@ const MusterRoll = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
+                <tr className="sticky top-0 z-30">
                   {/* Employee Info Group */}
-                  <th colSpan="5" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-blue-50">
+                  {/* 5 fixed columns: S.No, Code, Name, Designation, Type */}
+                  <th colSpan={5 + monthInfo.daysInMonth} className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-blue-50">
                     Employee Information
                   </th>
-                  {/* Day-wise Attendance Group */}
-                  <th colSpan={monthInfo.daysInMonth} className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase bg-green-50">
-                    Day-wise Attendance ({monthInfo.daysInMonth} days)
-                  </th>
                   {/* Attendance Summary Group */}
-                  <th colSpan="9" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-yellow-50">
+                  <th colSpan="11" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-yellow-50">
                     Attendance Summary
                   </th>
-                  {/* Salary Breakdown Group */}
-                  <th colSpan="7" className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase bg-purple-50">
-                    Salary Breakdown
-                  </th>
                 </tr>
-                <tr className="bg-gray-50">
+                <tr className="bg-gray-50 sticky top-[40px] z-20">
                   {/* Employee Info Headers */}
-                  <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase border-r border-gray-200">
+                  <th className="sticky left-0 top-[40px] z-30 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase border-r border-gray-200">
                     S.No
                   </th>
-                  <th className="sticky left-12 z-10 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase border-r border-gray-200 min-w-[180px]">
-                    Employee Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase min-w-[120px]">
+                  <th className="sticky left-[60px] top-[40px] z-30 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase border-r border-gray-200 min-w-[120px]">
                     Code
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase min-w-[150px]">
+                  <th className="sticky left-[180px] top-[40px] z-30 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase border-r border-gray-200 min-w-[180px]">
+                    Employee Name
+                  </th>
+                  <th className="sticky left-[360px] top-[40px] z-30 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase border-r border-gray-200 min-w-[150px]">
                     Designation
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase min-w-[120px]">
+                  <th className="sticky left-[510px] top-[40px] z-30 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase border-r border-gray-200 min-w-[120px]">
                     Type
                   </th>
                   
                   {/* Day Headers */}
                   {Array.from({ length: monthInfo.daysInMonth }, (_, i) => (
-                    <th key={i + 1} className="px-1 py-3 text-center text-xs font-semibold text-gray-600 w-10">
+                    <th key={i + 1} className="sticky top-[40px] z-20 bg-gray-50 px-1 py-3 text-center text-xs font-semibold text-gray-600 w-10">
                       {i + 1}
                     </th>
                   ))}
                   
                   {/* Attendance Summary Headers */}
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Present</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">HD</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Holiday</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Compoff</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Adj Leave</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Absent</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">WO</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Payable</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Month</th>
-                  
-                  {/* Salary Headers */}
-                  <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Gross</th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Actual Gross</th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Arrears</th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Deductions</th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Bonus/EL</th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Net Salary</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Month</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Present</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">HD</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Holiday</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Compoff</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">ML</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">EL</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">CL</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Absent</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">WO</th>
+                  <th className="sticky top-[40px] z-20 bg-gray-50 px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Payable</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={5 + monthInfo.daysInMonth + 9 + 7} className="px-4 py-12 text-center">
+                    <td colSpan={5 + monthInfo.daysInMonth + 11} className="px-4 py-12 text-center">
                       <div className="text-gray-500">
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
                         <p className="text-lg font-medium">Loading muster roll data...</p>
@@ -855,7 +685,7 @@ const MusterRoll = () => {
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={5 + monthInfo.daysInMonth + 9 + 7} className="px-4 py-12 text-center">
+                    <td colSpan={5 + monthInfo.daysInMonth + 11} className="px-4 py-12 text-center">
                       <div className="text-red-500">
                         <FaInfoCircle className="w-12 h-12 mx-auto mb-4 text-red-400" />
                         <p className="text-lg font-medium">Error loading data</p>
@@ -880,12 +710,16 @@ const MusterRoll = () => {
                       <td className="sticky left-0 z-10 bg-white px-4 py-3 text-sm text-gray-900 border-r border-gray-200">
                         {index + 1}
                       </td>
-                      <td className="sticky left-12 z-10 bg-white px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
+                      <td className="sticky left-[60px] z-10 bg-white px-4 py-3 text-sm text-gray-600 border-r border-gray-200">
+                        {employee.employeeInfo.code}
+                      </td>
+                      <td className="sticky left-[180px] z-10 bg-white px-4 py-3 text-sm font-medium text-gray-900 border-r border-gray-200">
                         {employee.employeeInfo.name}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{employee.employeeInfo.code}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{employee.employeeInfo.designation}</td>
-                      <td className="px-4 py-3">
+                      <td className="sticky left-[360px] z-10 bg-white px-4 py-3 text-sm text-gray-600 border-r border-gray-200">
+                        {employee.employeeInfo.designation}
+                      </td>
+                      <td className="sticky left-[510px] z-10 bg-white px-4 py-3 border-r border-gray-200">
                         <EmployeeTypeBadge type={employee.employeeInfo.type} />
                       </td>
                       
@@ -902,6 +736,9 @@ const MusterRoll = () => {
                       
                       {/* Attendance Summary */}
                       <td className="px-3 py-3 text-center text-sm text-gray-900">
+                        {employee.attendanceSummary.monthDays}
+                      </td>
+                      <td className="px-3 py-3 text-center text-sm text-gray-900">
                         {employee.attendanceSummary.totalPresent.toFixed(1)}
                       </td>
                       <td className="px-3 py-3 text-center text-sm text-gray-900">
@@ -914,7 +751,13 @@ const MusterRoll = () => {
                         {employee.attendanceSummary.compoff.toFixed(1)}
                       </td>
                       <td className="px-3 py-3 text-center text-sm text-gray-900">
-                        {employee.attendanceSummary.adjustedLeave.toFixed(1)}
+                        {employee.attendanceSummary.medicalLeave || 0}
+                      </td>
+                      <td className="px-3 py-3 text-center text-sm text-gray-900">
+                        {employee.attendanceSummary.earnedLeave || 0}
+                      </td>
+                      <td className="px-3 py-3 text-center text-sm text-gray-900">
+                        {employee.attendanceSummary.casualLeave || 0}
                       </td>
                       <td className="px-3 py-3 text-center text-sm text-gray-900">
                         {employee.attendanceSummary.totalAbsent.toFixed(1)}
@@ -925,34 +768,11 @@ const MusterRoll = () => {
                       <td className="px-3 py-3 text-center text-sm font-semibold text-gray-900">
                         {employee.attendanceSummary.payableDays.toFixed(1)}
                       </td>
-                      <td className="px-3 py-3 text-center text-sm text-gray-900">
-                        {employee.attendanceSummary.monthDays}
-                      </td>
-                      
-                      {/* Salary Breakdown */}
-                      <td className="px-3 py-3 text-right text-sm text-gray-900">
-                        {formatBasicSalary(employee.salary.gross, true)}
-                      </td>
-                      <td className="px-3 py-3 text-right text-sm text-gray-900">
-                        {formatBasicSalary(employee.salary.actualGross, true)}
-                      </td>
-                      <td className="px-3 py-3 text-right text-sm text-gray-900">
-                        {formatBasicSalary(employee.salary.arrears, true)}
-                      </td>
-                      <td className="px-3 py-3 text-right text-sm text-red-600">
-                        {formatBasicSalary(employee.salary.deductions, true)}
-                      </td>
-                      <td className="px-3 py-3 text-right text-sm text-gray-900">
-                        {formatBasicSalary(employee.salary.bonus + employee.salary.elStatutory, true)}
-                      </td>
-                      <td className="px-3 py-3 text-right text-sm font-semibold text-green-600">
-                        {formatBasicSalary(employee.salary.net, true)}
-                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5 + monthInfo.daysInMonth + 9 + 7} className="px-4 py-12 text-center">
+                    <td colSpan={5 + monthInfo.daysInMonth + 11} className="px-4 py-12 text-center">
                       <div className="text-gray-500">
                         <FaInfoCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                         <p className="text-lg font-medium">No data found</p>
@@ -1030,37 +850,6 @@ const EmployeeDetailDrawer = React.memo(({ employee, monthInfo, isOpen, onClose 
                     </div>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Salary Breakdown */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Salary Breakdown</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Gross Salary</span>
-                  <span className="font-semibold">{formatBasicSalary(employee.salary.gross, true)}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Actual Gross Salary</span>
-                  <span className="font-semibold">{formatBasicSalary(employee.salary.actualGross, true)}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Arrears</span>
-                  <span className="font-semibold">{formatBasicSalary(employee.salary.arrears, true)}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Deductions</span>
-                  <span className="font-semibold text-red-600">{formatBasicSalary(employee.salary.deductions, true)}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Bonus / EL (Statutory)</span>
-                  <span className="font-semibold">{formatBasicSalary(employee.salary.bonus + employee.salary.elStatutory, true)}</span>
-                </div>
-                <div className="flex justify-between py-3 bg-green-50 rounded-lg px-4">
-                  <span className="font-semibold text-gray-900">Net Salary</span>
-                  <span className="font-bold text-green-600 text-lg">{formatBasicSalary(employee.salary.net, true)}</span>
-                </div>
               </div>
             </div>
 

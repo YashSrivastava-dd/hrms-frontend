@@ -21,6 +21,7 @@ import EmployeePayroleTable from "./components/EmployeePayroleTabel";
 import ManagerApproval from "./components/ManagerComponent/ManagerApproval";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TaxDeclarationManager from "./components/TaxDeclarationManager";
+import SalarySheetList from "./components/SalarySheet/SalarySheetList";
 
 const DESKTOP_BREAKPOINT = 768;
 
@@ -369,6 +370,33 @@ function App() {
                 width: '100%'
               }}>
                 <TaxDeclarationManager />
+              </div>
+            </div>
+          </div>
+        </ProtectedRoute>
+      )
+    },
+    {
+      path: "/salary-sheets",
+      element: (
+        <ProtectedRoute>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
+            <Navbar onToggleSidebar={toggleSidebar} />
+            <div style={{ 
+              display: 'flex', 
+              flex: '1 1 auto',
+              width: '100%',
+              maxWidth: 'none',
+              position: 'relative'
+            }}>
+              <Sidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+              <div style={{ 
+                flex: '1 1 auto',
+                padding: '0',
+                overflow: 'auto',
+                width: '100%'
+              }}>
+                <SalarySheetList />
               </div>
             </div>
           </div>

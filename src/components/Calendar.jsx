@@ -650,15 +650,66 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
   }, [processedAttendanceData, calendarLogs, dataaa?.data, formatDateForCalendar]);
   
   // Ensure dayLogs is always an array (never undefined or null)
+  // Filter to only include data for the current month and year (but be lenient to avoid filtering out valid data)
   const safeDayLogs = useMemo(() => {
     const result = Array.isArray(dayLogs) ? dayLogs : [];
-    console.log('Calendar safeDayLogs - result:', {
-      count: result.length,
-      sample: result[0],
-      allDates: result.slice(0, 5).map(r => r?.AttendanceDate)
+    
+    // Filter to current month/year to ensure proper date matching
+    // Be lenient - only exclude data that clearly belongs to a different month
+    const filtered = result.filter(log => {
+      if (!log || !log.AttendanceDate) return true; // Keep if no date (let date matching handle it)
+      
+      try {
+        // Try to parse the date
+        const date = new Date(log.AttendanceDate);
+        if (!isNaN(date.getTime())) {
+          const logMonth = date.getMonth();
+          const logYear = date.getFullYear();
+          // Only filter out if it's clearly a different month/year
+          if (logYear !== currentYear) return false;
+          if (logMonth !== currentMonth) return false;
+          return true;
+        }
+        
+        // Try string matching for calendar format "3 November 2025"
+        const dateStr = log.AttendanceDate.toString().toLowerCase();
+        const monthName = MONTHS[currentMonth].toLowerCase();
+        const yearStr = currentYear.toString();
+        
+        // If it contains the current month name and year, keep it
+        if (dateStr.includes(monthName) && dateStr.includes(yearStr)) {
+          return true;
+        }
+        
+        // Try ISO format "2025-11-03"
+        const isoMatch = dateStr.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+        if (isoMatch) {
+          const [, year, month] = isoMatch;
+          const parsedYear = parseInt(year, 10);
+          const parsedMonth = parseInt(month, 10);
+          // Only filter out if it's clearly a different month/year
+          if (parsedYear !== currentYear) return false;
+          if (parsedMonth !== currentMonth + 1) return false;
+          return true;
+        }
+        
+        // If we can't determine the month, keep it (let date matching handle it)
+        // This is more lenient - we'll rely on normalizeDateForComparison to match correctly
+        return true;
+      } catch (e) {
+        // If parsing fails, keep it (let date matching handle it)
+        return true;
+      }
     });
-    return result;
-  }, [dayLogs]);
+    
+    console.log('Calendar safeDayLogs - filtered for', MONTHS[currentMonth], currentYear, ':', {
+      total: result.length,
+      filtered: filtered.length,
+      sample: filtered[0],
+      allDates: filtered.slice(0, 10).map(r => r?.AttendanceDate)
+    });
+    return filtered;
+  }, [dayLogs, currentMonth, currentYear]);
   
   const userDataList = dataa?.data || [];
   
@@ -1202,6 +1253,11 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       workingDays = getEmployeeWorkingDays();
     }
     
+    // Normalize workingDays to string for consistent comparison (handle both "6" and 6)
+    if (workingDays !== null && workingDays !== undefined) {
+      workingDays = String(workingDays);
+    }
+    
     // If workingDays is 6, then Saturday (6) is a working day, only Sunday (0) is weekend
     if (workingDays === "6") {
       return dayOfWeek === 0; // Only Sunday is weekend
@@ -1221,58 +1277,11 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     return !isWeekend(day);
   }, [isWeekend]);
 
-  // Calculate comp-off eligibility for weekend work (excluding Saturday for 6-day employees)
+  // Calculate comp-off eligibility for any day with work done (removed weekend restriction)
   const getWeekendCompOffEligibility = useCallback((dayData) => {
     if (!dayData) return null;
     
-    // Get working days configuration
-    let workingDays = dayData?.workingDays;
-    if (!workingDays && safeDayLogs && safeDayLogs.length > 0) {
-      const anyDayWithWorkingDays = safeDayLogs.find(log => log.workingDays);
-      workingDays = anyDayWithWorkingDays?.workingDays;
-    }
-    if (!workingDays) {
-      workingDays = getEmployeeWorkingDays();
-    }
-    const is6DayEmployee = workingDays === "6";
-    
-    // Parse the date from dayData to check if it's a weekend or Saturday
-    let dayDate = null;
-    try {
-      if (dayData.AttendanceDate) {
-        // Try to parse the date string (format: "3 November 2025")
-        const dateStr = dayData.AttendanceDate;
-        if (dateStr.match(/^\d{1,2}\s+\w+\s+\d{4}$/)) {
-          const parts = dateStr.split(' ');
-          const day = parseInt(parts[0], 10);
-          const monthName = parts[1];
-          const year = parseInt(parts[2], 10);
-          const monthIndex = MONTHS.indexOf(monthName);
-          if (monthIndex !== -1) {
-            dayDate = new Date(year, monthIndex, day);
-          }
-        } else {
-          dayDate = new Date(dateStr);
-        }
-      }
-    } catch (error) {
-      console.warn('Error parsing date in getWeekendCompOffEligibility:', error);
-      return null;
-    }
-    
-    if (!dayDate || isNaN(dayDate.getTime())) return null;
-    
-    const dayOfWeek = dayDate.getDay();
-    
-    // For 6-day employees: Saturday is NOT eligible for comp-off (it's a working day)
-    // Only Sunday is eligible for comp-off
-    // For 5-day employees: Both Saturday and Sunday are eligible for comp-off
-    if (is6DayEmployee && dayOfWeek === 6) {
-      // Saturday for 6-day employees is a working day, not eligible for comp-off
-      return null;
-    }
-    
-    // Check if there are punch records (work done)
+    // Check if there are punch records (work done on any day)
     const hasPunchRecords = dayData.PunchRecords || 
                            dayData.InTime || 
                            dayData.OutTime ||
@@ -1281,25 +1290,22 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     
     if (!hasPunchRecords) return null;
     
-    // Saturday (6) or Sunday (0) - eligible for comp-off if work was done
-    // For 6-day employees: Only Sunday (0) reaches here (Saturday is excluded above)
-    // For 5-day employees: Both Saturday (6) and Sunday (0) are eligible
-    if (dayOfWeek === 6 || dayOfWeek === 0) {
-      const totalHours = calculateTotalHours(dayData.PunchRecords);
-      if (totalHours === "00:00") return null;
+    // Calculate hours worked - eligible for comp-off on any day if work was done
+    const totalHours = calculateTotalHours(dayData.PunchRecords);
+    if (totalHours === "00:00") return null;
 
-      const [hours, minutes] = totalHours.split(':').map(Number);
-      const totalMinutes = hours * 60 + minutes;
+    const [hours, minutes] = totalHours.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
 
-      if (totalMinutes >= 240) { // 4 hours or more
-        return 'fullDay';
-      } else if (totalMinutes >= 60) { // 1 hour or more
-        return 'halfDay';
-      }
+    // Eligible for comp-off if worked at least 1 hour (half day) or 4 hours (full day)
+    if (totalMinutes >= 240) { // 4 hours or more
+      return 'fullDay';
+    } else if (totalMinutes >= 60) { // 1 hour or more
+      return 'halfDay';
     }
 
     return null;
-  }, [calculateTotalHours, safeDayLogs, getEmployeeWorkingDays]);
+  }, [calculateTotalHours]);
 
   // Check if weekday work meets minimum hours requirement
   const meetsWeekdayMinimumHours = useCallback((dayData) => {
@@ -1437,213 +1443,105 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     if (!workingDays) {
       workingDays = getEmployeeWorkingDays();
     }
+    // Normalize workingDays to string for consistent comparison (handle both "6" and 6)
+    if (workingDays !== null && workingDays !== undefined) {
+      workingDays = String(workingDays);
+    }
 
-    // Base classes for different attendance statuses
-    let baseClass = "";
-    
-    // Check if this day has punch records - if yes, user was present (override Absent status)
-    // Check multiple sources: PunchRecords, InTime, OutTime, or resolved times
-    // Only check dayData if it actually matches this day (already verified above)
-    const hasPunchRecords = dayData && (
-      dayData.PunchRecords || 
-      dayData.InTime || 
-      dayData.OutTime ||
-      inTimeData ||
-      (dayData.InTime && dayData.InTime !== '--' && dayData.InTime !== null) ||
-      (dayData.OutTime && dayData.OutTime !== '--' && dayData.OutTime !== null)
+    // ---------- NEW COLOR LOGIC (production‑ready, simplified) ----------
+    // 1) Normalize core flags
+    const isWeekendDay = isWeekend(day);            // Uses 5‑day vs 6‑day config internally
+    const isWorkingDay = !isWeekendDay;             // Expected working day for this employee
+
+    // Treat any punch record OR explicit in/out time as work done
+    const hasWork = !!(
+      dayData &&
+      (
+        (Array.isArray(dayData.PunchRecords) && dayData.PunchRecords.length > 0) ||
+        dayData.InTime ||
+        dayData.OutTime
+      )
     );
-    
-    // Get leave type from dayData - check multiple fields
-    const dayLeaveType = dayData?.leaveType || 
-                        dayData?.LeaveType || 
-                        leaveType ||
-                        dayData?.leaveTypeName ||
-                        dayData?.LeaveTypeName;
-    
-    // Check for approved leave - check multiple indicators
-    const hasApprovedLeave = isLeaveTaken === true || 
-                            dayLeaveType ||
-                            dayData?.isLeaveTaken === true ||
-                            dayData?.IsLeaveTaken === true ||
-                            (dayData?.Status && (dayData.Status.includes("Leave") || dayData.Status.includes("leave"))) ||
-                            (AttendanceStatus && (AttendanceStatus.includes("Leave") || AttendanceStatus.includes("leave")));
-    
-    // Debug logging for leave detection
-    if (dayData && (dayLeaveType || isLeaveTaken)) {
-      console.log('Leave detected for date:', `${day} ${MONTHS[currentMonth]} ${currentYear}`, {
-        dayLeaveType,
-        isLeaveTaken,
-        dayDataLeaveType: dayData?.leaveType,
-        dayDataLeaveType2: dayData?.LeaveType,
-        hasApprovedLeave,
-        hasPunchRecords,
-        AttendanceStatus
-      });
-    }
-    
-    // Check if this is a holiday - check multiple ways
-    const isHolidayDay = isHoliday || 
-                        holidayName || 
-                        dayData?.holidayName || 
-                        dayData?.HolidayName ||
-                        AttendanceStatus === "Holiday" ||
-                        AttendanceStatus === "holiday" ||
-                        (dayData?.Status && dayData.Status.toLowerCase() === "holiday");
-    
-    // Check day of week
-    const date = new Date(currentYear, currentMonth, day);
-    const dayOfWeek = date.getDay();
-    const isSaturday = dayOfWeek === 6;
-    const isSunday = dayOfWeek === 0;
-    const is5DayEmployee = workingDays === "5";
-    const is6DayEmployee = workingDays === "6";
-    
-    // Priority order: Holiday > Absent (always red) > Weekend/Off Days > Approved Leave > Present > Half Day
-    
-    // 1. Holiday - Blue (highest priority)
-    if (isHolidayDay) {
-      baseClass = "bg-blue-100 text-blue-800 border-2 border-blue-300 hover:bg-blue-200";
-    }
-    // 2. Absent - Red (ALWAYS show red if absent, regardless of day type, leave status, or punch records - highest priority after holiday)
-    else if (AttendanceStatus === "Absent" || (dayData?.Status && dayData.Status === "Absent")) {
-      // Only show orange if eligible for regularization AND no punch records
-      const isRegularizationEligible = dayData && isRegularizationAllowed(dayData) && !hasPunchRecords;
-      
-      if (isRegularizationEligible) {
-        baseClass = "bg-orange-100 text-orange-800 border-2 border-orange-400 hover:bg-orange-200";
+
+    const normalizedStatus = (AttendanceStatus || dayData?.Status || "").toString();
+
+    // Get leave info
+    const dayLeaveType =
+      dayData?.leaveType ||
+      dayData?.LeaveType ||
+      leaveType ||
+      dayData?.leaveTypeName ||
+      dayData?.LeaveTypeName;
+
+    const hasApprovedLeave =
+      isLeaveTaken === true ||
+      dayLeaveType ||
+      dayData?.isLeaveTaken === true ||
+      dayData?.IsLeaveTaken === true ||
+      normalizedStatus.toLowerCase().includes("leave");
+
+    const isHolidayDay =
+      isHoliday ||
+      holidayName ||
+      dayData?.holidayName ||
+      dayData?.HolidayName ||
+      normalizedStatus.toLowerCase() === "holiday";
+
+    // 2) Decide an effective high‑level status
+    //    IMPORTANT: Future dates should never be marked present/absent/leave – keep them neutral/weekoff.
+    const isFuture = selectedDate > today;
+    let effectiveStatus;
+
+    if (isFuture) {
+      // For any future date, ignore backend status completely.
+      effectiveStatus = isWeekendDay ? "weekoff" : "neutral";
+    } else if (isHolidayDay) {
+      effectiveStatus = "holiday";
+    } else if (isWorkingDay) {
+      // Weekday / expected working day
+      if (hasApprovedLeave) {
+        effectiveStatus = "leave";
+      } else if (normalizedStatus === "Half Day") {
+        effectiveStatus = "half";
+      } else if (normalizedStatus === "Absent" || (!hasWork && !normalizedStatus)) {
+        effectiveStatus = "absent";
+      } else if (normalizedStatus === "Full Day" || normalizedStatus === "Present" || hasWork) {
+        effectiveStatus = "present";
       } else {
-        // Always show red for absent, regardless of leave status or other conditions
-        baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
+        effectiveStatus = "neutral";
       }
+    } else {
+      // Weekend / off day according to 5‑day / 6‑day rule
+      // BUSINESS RULE: Sundays (and other configured weekly offs) are OFF days,
+      // they should always appear as week‑off (grey), even if there is work/punch.
+      effectiveStatus = "weekoff";
     }
-    // 3. Weekend/Off Days based on working days configuration
-    // For 6-day employees: Saturday is NOT a weekend, so it should NOT enter this block
-    // Only check weekends (Sunday for 6-day, or Saturday+Sunday for 5-day)
-    else if (isWeekend(day)) {
-      // For 5-day employees: Saturday and Sunday are off days (grey) unless absent (red)
-      // For 6-day employees: Only Sunday is off day (grey), Saturday should NOT be here
-      
-      // Check if it's marked as absent on weekend - show red (highest priority for weekends)
-      if (AttendanceStatus === "Absent" && !hasPunchRecords && !hasApprovedLeave) {
-        baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
-      }
-      // For 5-day employees: Saturday and Sunday are always off days (grey) unless absent (red) or present (green)
-      // For 6-day employees: Only Sunday reaches here (Saturday is NOT a weekend for 6-day)
-      else if (hasPunchRecords || AttendanceStatus === "Present" || AttendanceStatus === "Full Day") {
-        // Weekend with punch records or present status - show green (user is present)
+
+    // 3) Map effective status to Tailwind classes
+    let baseClass = "";
+    switch (effectiveStatus) {
+      case "holiday":
+        baseClass = "bg-blue-100 text-blue-800 border-2 border-blue-300 hover:bg-blue-200";
+        break;
+      case "present":          // Full‑day / present
         baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-      } else if (AttendanceStatus === "Half Day") {
-        // Weekend with half day - show yellow
+        break;
+      case "half":             // Half‑day
         baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
-      } else {
-        // Weekend with no punch records - show as off day (grey)
-        baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
-      }
-    }
-    // 3a. For 6-day employees: Saturday is a working day (NOT a weekend) - handle separately
-    else if (is6DayEmployee && isSaturday) {
-      // Saturday for 6-day employees is a working day - show green if present
-      if (hasPunchRecords || AttendanceStatus === "Present" || AttendanceStatus === "Full Day") {
-        baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-      } else if (AttendanceStatus === "Absent" && !hasApprovedLeave) {
+        break;
+      case "absent":
         baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
-      } else if (AttendanceStatus === "Half Day") {
-        baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
-      } else if (hasApprovedLeave) {
+        break;
+      case "leave":
         baseClass = "bg-white text-gray-900 border-2 border-gray-900 shadow-sm hover:shadow-md";
-      } else {
-        // No data for Saturday (6-day employee) - show as gray (off day)
+        break;
+      case "weekoff":
         baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
-      }
-    }
-    // 4. Approved Leave - White with black border (only if not absent)
-    else if (hasApprovedLeave && !hasPunchRecords && AttendanceStatus !== "Absent") {
-      baseClass = "bg-white text-gray-900 border-2 border-gray-900 shadow-sm hover:shadow-md";
-    }
-    // 5. WeeklyOff - show as off day (gray)
-    else if (AttendanceStatus === "WeeklyOff") {
-      baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
-    }
-    // 5. Half Day - Yellow (use ONLY backend status - NO CALCULATIONS)
-    else if ((AttendanceStatus === "Half Day") && !hasApprovedLeave) {
-      baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
-    }
-    // 6. Full Day - Green (use ONLY backend status - NO CALCULATIONS)
-    else if ((AttendanceStatus === "Full Day") && !hasApprovedLeave && !baseClass) {
-      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-    }
-    // 7. Present / Full Day - Green (check multiple ways, only if not already set)
-    else if (!baseClass && (AttendanceStatus === "Present" || 
-             AttendanceStatus === "Full Day" || 
-             (hasPunchRecords && !hasApprovedLeave && AttendanceStatus !== "Absent" && AttendanceStatus !== "Half Day" && AttendanceStatus !== "WeeklyOff"))) {
-      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-    }
-    // 8. Present with inTime data (fallback) - Green (only if not already set)
-    else if (!baseClass && inTimeData && !hasPunchRecords && !hasApprovedLeave) {
-      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-    }
-    // 9. If we have dayData but no clear status, use backend Status/AttendanceStatus
-    else if (!baseClass && dayData && hasPunchRecords && !hasApprovedLeave && !AttendanceStatus) {
-      // Use backend Status if available, otherwise default to Present
-      const backendStatus = dayData?.Status || dayData?.AttendanceStatus;
-      if (backendStatus === "Half Day") {
-        baseClass = "bg-yellow-100 text-yellow-800 border-2 border-yellow-300 hover:bg-yellow-200";
-      } else if (backendStatus === "Full Day" || backendStatus === "Present") {
-        baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-      } else {
-        // Default to Present if has punch records
-        baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-      }
-    }
-    // 12. If we have dayData with InTime/OutTime but no PunchRecords, treat as Present (only if not already set)
-    else if (!baseClass && dayData && (dayData.InTime || dayData.OutTime) && !hasPunchRecords && !hasApprovedLeave) {
-      baseClass = "bg-green-100 text-green-800 border-2 border-green-300 hover:bg-green-200";
-    }
-    // 13. If we have dayData but status is null/undefined and no punch records, check if weekend
-    else if (!baseClass && dayData && !hasPunchRecords && !AttendanceStatus) {
-      const isWeekendDay = isWeekend(day);
-      // Check if status is actually Absent but wasn't captured in AttendanceStatus
-      const actualStatus = dayData?.Status || dayData?.AttendanceStatus;
-      if (actualStatus === "Absent") {
-        baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
-      } else if (isWeekendDay) {
-        baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
-      } else if (hasApprovedLeave) {
-        baseClass = "bg-white text-gray-900 border-2 border-gray-900 shadow-sm hover:shadow-md";
-      } else {
-        // Has data but no status and no punch records - could be absent
-        baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
-      }
-    }
-    // 13. Default - only if no data at all
-    else {
-      const isWeekendDay = isWeekend(day);
-      // Double-check for absent status in dayData even if AttendanceStatus wasn't set
-      const actualStatus = dayData?.Status || dayData?.AttendanceStatus;
-      
-      if (actualStatus === "Absent") {
-        // Show red if status is Absent, even in default case
-        baseClass = "bg-red-100 text-red-800 border-2 border-red-300 hover:bg-red-200";
-      } else if (isWeekendDay) {
-        baseClass = "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200";
-      } else {
-        // No data at all - show as white/empty
+        break;
+      case "neutral":
+      default:
         baseClass = "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50";
-      }
-      
-      // Debug: Log when falling to default to help identify issues
-      if (dayData && (day <= 5 || day >= 25)) {
-        console.log(`[Calendar] Default color for day ${day} (${formattedDate}):`, {
-          AttendanceStatus,
-          actualStatus: dayData?.Status || dayData?.AttendanceStatus,
-          hasPunchRecords,
-          hasApprovedLeave,
-          hasInTime: !!dayData?.InTime,
-          hasOutTime: !!dayData?.OutTime,
-          hasPunchRecordsField: !!dayData?.PunchRecords,
-          dayDataKeys: dayData ? Object.keys(dayData) : null
-        });
-      }
+        break;
     }
 
     // Add selection indicator for clicked day
@@ -1665,23 +1563,15 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     return LEAVE_TYPE_MAP[leaveType] || leaveType;
   }, []);
 
-  // Check if comp-off is eligible for the selected day (Saturday or Sunday with work done)
+  // Check if comp-off is eligible for the selected day (any day with work done)
   const isCompOffEligibleForSelectedDay = useCallback(() => {
     if (!selectedDay) return false;
-    
-    const selectedDate = new Date(currentYear, currentMonth, selectedDay);
-    const dayOfWeek = selectedDate.getDay();
-    
-    // Comp-off is eligible for Saturday (6) or Sunday (0) if work was done
-    if (dayOfWeek !== 6 && dayOfWeek !== 0) {
-      return false; // Not Saturday or Sunday, not eligible for comp-off
-    }
     
     // Get day data to check for punch records
     const formattedDate = `${selectedDay} ${MONTHS[currentMonth]} ${currentYear}`;
     const dayData = safeDayLogs.find((log) => log.AttendanceDate === formattedDate);
     
-    // Check if there are punch records (work done on Saturday/Sunday)
+    // Check if there are punch records (work done on any day)
     if (!dayData) return false;
     
     const hasPunchRecords = dayData.PunchRecords || 
@@ -1692,10 +1582,16 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     
     if (!hasPunchRecords) return false;
     
-    // Check comp-off eligibility based on hours worked
-    const compOffEligibility = getWeekendCompOffEligibility(dayData);
-    return compOffEligibility === 'fullDay' || compOffEligibility === 'halfDay';
-  }, [selectedDay, currentYear, currentMonth, safeDayLogs, getWeekendCompOffEligibility]);
+    // Check comp-off eligibility based on hours worked (any day with sufficient work hours)
+    const totalHours = calculateTotalHours(dayData.PunchRecords);
+    if (totalHours === "00:00") return false;
+
+    const [hours, minutes] = totalHours.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+
+    // Eligible if worked at least 1 hour (for half day) or 4 hours (for full day)
+    return totalMinutes >= 60; // At least 1 hour of work required
+  }, [selectedDay, currentYear, currentMonth, safeDayLogs, calculateTotalHours]);
 
   // Event handlers
   const handleNextMonth = useCallback(() => {
@@ -1806,15 +1702,9 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     const selectedDate = `${selectedDay} ${MONTHS[currentMonth]} ${currentYear}`;
 
     if (actionType === 'compOff') {
-      // Check if comp-off is eligible for the selected day (Saturday or Sunday with work done)
+      // Check if comp-off is eligible for the selected day (any day with work done)
       if (!isCompOffEligibleForSelectedDay()) {
-        const selectedDate = new Date(currentYear, currentMonth, selectedDay);
-        const dayOfWeek = selectedDate.getDay();
-        if (dayOfWeek !== 6 && dayOfWeek !== 0) {
-          safeToast.error("Comp-off is only eligible for Saturday or Sunday. Please select a weekend day.");
-        } else {
-          safeToast.error("Comp-off requires at least 1 hour of work. Please select a weekend day with attendance records showing work done.");
-        }
+        safeToast.error("Comp-off requires at least 1 hour of work. Please select a day with attendance records showing work done.");
         return;
       }
       // Handle Comp-Off submissions (Half Day or Full Day)
@@ -1824,6 +1714,16 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
       } else if (compOffDayType === 'fullDay') {
         totalDays = 1;
       }
+      
+      console.log('Calendar: Submitting compoff with:', {
+        selectedDate,
+        reason,
+        totalDays,
+        compOffDayType,
+        selectedDay,
+        currentMonth,
+        currentYear
+      });
       
       dispatch(postApplyCompOffLeaveAction(selectedDate, reason, totalDays));
       closeModal(); // Close modal after CompOff submission
@@ -2065,14 +1965,13 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     currentMonthLogs.forEach(log => {
       const { AttendanceStatus, isLeaveTaken, leaveType } = log;
       
-      // Check for weekend comp-off first
-      const dayDate = parseAttendanceDate(log.AttendanceDate);
-      if (dayDate && !isNaN(dayDate.getTime()) && isWeekend(dayDate.getDate()) && log.PunchRecords) {
+      // Check for comp-off eligibility on any day (removed weekend restriction)
+      if (log.PunchRecords) {
         const compOffEligibility = getWeekendCompOffEligibility(log);
         if (compOffEligibility === 'fullDay' || compOffEligibility === 'halfDay') {
           breakdown.weekendCompOff++;
           breakdown.total++;
-          return; // Skip other checks for weekend comp-off
+          return; // Skip other checks for comp-off
         }
       }
       
@@ -2101,7 +2000,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     });
     
     return breakdown;
-  }, [safeDayLogs, currentMonth, currentYear, isWeekend, getWeekendCompOffEligibility, parseAttendanceDate]);
+  }, [safeDayLogs, currentMonth, currentYear, getWeekendCompOffEligibility]);
 
   // Get attendance summary for selected day - use ONLY backend data
   const getAttendanceSummary = useCallback(() => {
@@ -2290,7 +2189,7 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
                             <p>• Regularization: {breakdown.regularization}</p>
                             <p>• Short Leave: {breakdown.shortLeave}</p>
                             <p>• Comp-Off: {breakdown.compOff}</p>
-                            <p>• Weekend Comp-Off: {breakdown.weekendCompOff}</p>
+                            <p>• Comp-Off: {breakdown.weekendCompOff}</p>
                             <p>• Other: {breakdown.otherLeaves}</p>
                           </div>
                         </div>

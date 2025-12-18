@@ -997,9 +997,9 @@ export const getRegularizationCountAction = () => async (dispatch, getState) => 
 
 export const postApplyCompOffLeaveAction =
   (compOffDate, reason, totalDays) => async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage (or cookies)
     const employeId = localStorage.getItem("employeId");
+    
     // If token does not exist, do nothing or handle the case
     if (!token) {
       return dispatch({
@@ -1008,11 +1008,21 @@ export const postApplyCompOffLeaveAction =
       });
     }
 
-    // Prevent duplicate fetch if data already exists
-    if (allUserData.data) return;
+    // Validate required fields
+    if (!compOffDate) {
+      safeToast.error("Please select a date for compoff");
+      return;
+    }
+
+    if (!reason || !reason.trim()) {
+      safeToast.error("Please provide a reason for compoff");
+      return;
+    }
 
     try {
       dispatch({ type: POST_APPLY_COMPOFF_LEAVE_REQUEST });
+      
+      console.log('Submitting compoff:', { compOffDate, reason, totalDays, employeId });
 
       // Add token to request headers
       const config = {
@@ -1021,23 +1031,43 @@ export const postApplyCompOffLeaveAction =
           "Content-Type": "application/json",
         },
       };
-      const { data } = await axios.post(
-        `${process.env.REACT_APP_BASE_URL}/api/leave/generate-compoff/${employeId}`,
-        { compOffDate, reason, totalDayss: totalDays || 1 },
-        config
-      );
+      const apiUrl = `${process.env.REACT_APP_BASE_URL}/api/leave/generate-compoff/${employeId}`;
+      const requestPayload = { compOffDate, reason, totalDayss: totalDays || 1 };
+      
+      console.log('Making API call to:', apiUrl);
+      console.log('Request payload:', requestPayload);
+      
+      const { data } = await axios.post(apiUrl, requestPayload, config);
+      
+      console.log('Compoff API response:', data);
+      
       dispatch({ type: POST_APPLY_COMPOFF_LEAVE_SUCCESS, payload: data });
       
       // Show success message
-      safeToast.success(data?.message || "CompOff request submitted successfully!");
+      if (data?.statusCode === 200 || data?.statusCode === 201) {
+        safeToast.success(data?.message || "CompOff request submitted successfully!");
+      } else {
+        safeToast.warning(data?.message || "CompOff request submitted with warnings");
+      }
     } catch (error) {
+      console.error('Error submitting compoff:', error);
+      console.error('Error response:', error.response);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      
       dispatch({
         type: POST_APPLY_COMPOFF_LEAVE_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
       });
       
       // Show error message
-      safeToast.error(error.response?.data?.message || "Failed to submit CompOff request. Please try again.");
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          "Failed to submit CompOff request. Please try again.";
+      safeToast.error(errorMessage);
     }
   };
 
