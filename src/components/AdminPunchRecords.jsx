@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, MapPin, Calendar, User, RefreshCw, AlertCircle, Eye, X, Search } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 const AdminPunchRecords = () => {
   const [punchRecords, setPunchRecords] = useState([]);
@@ -101,8 +102,7 @@ const AdminPunchRecords = () => {
       }
 
       // Search across all records by fetching all pages
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://13.238.116.26:3001';
-      const searchUrl = `${baseUrl}/api/get-all-out-duty-records?limit=1000`; // Get all records for search
+      const searchUrl = `${API_BASE_URL}/api/get-all-out-duty-records?limit=1000`; // Get all records for search
       
       const response = await fetch(searchUrl, {
         method: 'GET',
@@ -153,8 +153,7 @@ const AdminPunchRecords = () => {
         throw new Error('No authentication token found');
       }
 
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://13.238.116.26:3001';
-      const url = `${baseUrl}/api/get-all-out-duty-records?page=${currentPage}&limit=${limit}`;
+      const url = `${API_BASE_URL}/api/get-all-out-duty-records?page=${currentPage}&limit=${limit}`;
       
       console.log('Fetching admin punch records from:', url);
       console.log('Using token:', token ? 'Token present' : 'No token');

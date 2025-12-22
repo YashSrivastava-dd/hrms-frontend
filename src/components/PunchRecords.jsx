@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Clock, MapPin, Calendar, User, RefreshCw, AlertCircle, Eye, X } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 const PunchRecords = () => {
   const [punchRecords, setPunchRecords] = useState([]);
@@ -38,8 +39,7 @@ const PunchRecords = () => {
         throw new Error('Employee ID not found');
       }
 
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://13.238.116.26:3001';
-      url = `${baseUrl}/api/get-all-punch-records/${employeeId}`;
+      url = `${API_BASE_URL}/api/get-all-punch-records/${employeeId}`;
       
       console.log('Fetching punch records from:', url);
       console.log('Using token:', token ? 'Token present' : 'No token');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import { 
   FaFilter, 
   FaTimes, 
@@ -77,8 +78,7 @@ const MusterRoll = () => {
         throw new Error('Authentication token not found');
       }
 
-      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:3001';
-      const url = `${baseUrl}/api/muster-roll?year=${year}&month=${month}&type=all`;
+      const url = `${API_BASE_URL}/api/muster-roll?year=${year}&month=${month}&type=all`;
       
       console.log('Fetching muster roll data from:', url);
       
