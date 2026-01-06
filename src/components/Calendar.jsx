@@ -1291,17 +1291,17 @@ function Calendar({ employeeId, userRole, onDaySelect, calendarLogs }) {
     if (!hasPunchRecords) return null;
     
     // Calculate hours worked - eligible for comp-off on any day if work was done
-    const totalHours = calculateTotalHours(dayData.PunchRecords);
-    if (totalHours === "00:00") return null;
+      const totalHours = calculateTotalHours(dayData.PunchRecords);
+      if (totalHours === "00:00") return null;
 
-    const [hours, minutes] = totalHours.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
+      const [hours, minutes] = totalHours.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes;
 
     // Eligible for comp-off if worked at least 1 hour (half day) or 4 hours (full day)
-    if (totalMinutes >= 240) { // 4 hours or more
-      return 'fullDay';
-    } else if (totalMinutes >= 60) { // 1 hour or more
-      return 'halfDay';
+      if (totalMinutes >= 240) { // 4 hours or more
+        return 'fullDay';
+      } else if (totalMinutes >= 60) { // 1 hour or more
+        return 'halfDay';
     }
 
     return null;
