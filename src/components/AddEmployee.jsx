@@ -1094,8 +1094,19 @@ const CreateProjectModal = ({ tittleBtn, onClick }) => {
 
     };
     const handelUploadPrescription = () => {
+        if (!file) {
+            setFileError("Please select a file first");
+            return;
+        }
+        
+        console.log('Uploading prescription file:', file.name, file.type, file.size);
+        
         const formData = new FormData();
         formData.append("file", file);
+        
+        // Clear any previous errors
+        setFileError(null);
+        
         dispatch(postMedicalFileAction(formData));
     }
     const convertToDateFormat = () => {

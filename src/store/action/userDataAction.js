@@ -1189,45 +1189,69 @@ export const putCompOffLeaveRequestAction =
 
 export const postMedicalFileAction =
   (formData) => async (dispatch, getState) => {
-    const { allUserData } = getState();
     const token = localStorage.getItem("authToken"); // Get the token from localStorage
     const employeId = localStorage.getItem("employeId");
 
     // If token does not exist, handle it gracefully
     if (!token) {
+      safeToast.error("Authentication token not found. Please login again.");
       return dispatch({
         type: POST_MEDICAL_FILE_REQUEST,
         payload: "Authentication token not found",
       });
     }
 
-    // Prevent duplicate fetch if data already exists
-    if (allUserData?.data) return;
+    // Validate that formData contains a file
+    if (!formData || !formData.get || !formData.get("file")) {
+      safeToast.error("Please select a file to upload");
+      return;
+    }
 
     try {
       dispatch({ type: POST_MEDICAL_FILE_REQUEST });
+      
+      console.log('Uploading medical file:', { employeId, fileName: formData.get("file")?.name });
 
-      // Add token and content type headers
+      // Add token - DO NOT set Content-Type for FormData, let axios set it automatically
+      // Setting Content-Type manually prevents axios from setting the boundary
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data", // Correct content type for file upload
+          // Let axios automatically set Content-Type with boundary for multipart/form-data
         },
       };
-      const file = formData;
+      
       // Perform API call with FormData
       const { data } = await axios.post(
         `${process.env.REACT_APP_BASE_URL}/api/s3/upload-medical-report/${employeId}`,
-        file, // Pass the FormData object directly
+        formData, // Pass the FormData object directly
         config
       );
 
+      console.log('Medical file upload response:', data);
+
       dispatch({ type: POST_MEDICAL_FILE_SUCCESS, payload: data });
+      
+      // Show success message
+      if (data?.statusCode === 200 || data?.statusCode === 201) {
+        safeToast.success(data?.message || "Prescription uploaded successfully!");
+      } else {
+        safeToast.warning(data?.message || "Prescription uploaded with warnings");
+      }
     } catch (error) {
+      console.error('Error uploading medical file:', error);
+      console.error('Error response:', error.response);
+      
       dispatch({
         type: POST_MEDICAL_FILE_FAIL,
         payload: error.response?.data?.message || "Something went wrong",
       });
+      
+      // Show error message
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          "Failed to upload prescription. Please try again.";
+      safeToast.error(errorMessage);
     }
   };
 
